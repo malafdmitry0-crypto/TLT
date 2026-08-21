@@ -23,7 +23,7 @@ from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.project_object import ProjectObject
 from app.reference_data import loader as reference_loader
 from app.schemas.heat_loss import InsulationLayer, PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.heat_loss_application import pipe_params_with_effective_safety_factor
 
 MINERAL_WOOL = "mineral_wool_boards_120"
@@ -308,7 +308,7 @@ def test_tank_ignores_admin_coefficients() -> None:
     facade_result = tank_facade.calc_tank_heat_loss(params)
     assert facade_result.safety_factor_applied == pytest.approx(1.1)
 
-    service_result = CalculationService(AsyncMock())._calc_heat_loss_with_coefficients(
+    service_result = CalculationContainer(AsyncMock()).heat.calculate_with_coefficients(
         "tank",
         payload,
         {"safety_factor": 1.4, "ground_conductivity": 2.9},
@@ -390,7 +390,7 @@ async def test_recalculate_keeps_climate_k_and_ignores_admin_when_k_already_set(
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(
         obj, coefficients={"safety_factor": 1.4}
     )
 
@@ -415,7 +415,7 @@ async def test_invalid_recalculate_clears_results_and_keeps_object() -> None:
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_err is True
     assert obj.is_valid is False

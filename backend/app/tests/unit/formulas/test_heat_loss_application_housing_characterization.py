@@ -24,7 +24,7 @@ from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
 from app.services import heat_loss_application as heat_loss_application_module
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -127,9 +127,9 @@ async def test_calc_heat_loss_and_admin_formula_check_call_evaluate_validated_he
     monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
 
     coefficients = {"safety_factor": 1.2}
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(return_value=coefficients)  # type: ignore[method-assign]
-    service_result = await service.calc_heat_loss("pipe", _pipe())
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(return_value=coefficients)
+    service_result = await service.calculate("pipe", _pipe())
 
     audit_service = MagicMock()
     audit_service.try_record = AsyncMock()
@@ -162,9 +162,7 @@ def test_tank_facade_ignores_admin_coefficients() -> None:
 
 def test_calculation_error_is_shared_without_importing_the_service() -> None:
     from app.services.calculation_errors import CalculationError as NeutralError
-    from app.services.calculation_service import CalculationError as ServiceError
 
-    assert NeutralError is ServiceError
     assert isinstance(
         heat_loss_application_module._calculation_error("boom"),
         NeutralError,

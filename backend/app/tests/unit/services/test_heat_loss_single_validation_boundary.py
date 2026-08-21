@@ -16,7 +16,7 @@ from app.schemas.heat_loss import (
 )
 from app.services import heat_loss_application as heat_loss_application_module
 from app.services import project_object_params as project_params_module
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.project_object_params import (
     ProjectObjectParamsError,
     normalize_project_object_params,
@@ -116,7 +116,7 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_ok is True
     assert constructor.call_count == 1
@@ -229,7 +229,7 @@ async def test_core_domain_report_preserves_all_fields_and_stops_formula(
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_err is True
     assert obj.results is None
@@ -251,7 +251,7 @@ async def test_unsupported_object_keeps_existing_external_error_category() -> No
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_err is True
     assert obj.is_valid is False
@@ -297,7 +297,7 @@ async def test_climate_policy_finishes_before_the_only_stored_validation(
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_ok is True
     assert constructor.call_count == 1

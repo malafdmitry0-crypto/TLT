@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.schemas.heat_loss import PipeHeatLossParams, StoredPipeHeatParams
 from app.schemas.project import ProjectObjectCreate, ProjectObjectUpdate
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.heat_contract import replace_heat_owned_params
 from app.services.heat_loss_application import apply_climate_policy
 from app.services.project_object_params import prepare_project_object_params
@@ -80,19 +80,19 @@ def test_pipe_ground_conductivity_matches_frontend_product_range():
 
 def test_calculation_preview_rejects_legacy_even_with_complete_canonical_payload():
     with pytest.raises(ValueError, match="Forbidden pipe heat params"):
-        CalculationService(None)._calc_heat_loss_with_coefficients(  # type: ignore[arg-type]
+        CalculationContainer(None).heat.calculate_with_coefficients(  # type: ignore[arg-type]
             "pipe", {**_air(), "location": "outdoor"}, {}, apply_climate_policy=False
         )
 
 
 def test_calculation_preview_rejects_cross_type_heat_but_keeps_non_heat_metadata():
-    service = CalculationService(None)  # type: ignore[arg-type]
+    service = CalculationContainer(None).heat  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="shape"):
-        service._calc_heat_loss_with_coefficients(
+        service.calculate_with_coefficients(
             "pipe", {**_air(), "shape": "cylindrical"}, {}, apply_climate_policy=False
         )
 
-    result = service._calc_heat_loss_with_coefficients(
+    result = service.calculate_with_coefficients(
         "pipe", {**_air(), "volume": 12.5}, {}, apply_climate_policy=False
     )
     assert result["formula_model"] == "pipe_heat_loss"
@@ -271,7 +271,7 @@ def test_calculation_service_projects_shared_object_params_to_formula_only():
         "environment": "normal",
     }
 
-    result = CalculationService(None)._calc_heat_loss_with_coefficients(  # type: ignore[arg-type]
+    result = CalculationContainer(None).heat.calculate_with_coefficients(  # type: ignore[arg-type]
         "pipe", shared, {}, apply_climate_policy=False
     )
 

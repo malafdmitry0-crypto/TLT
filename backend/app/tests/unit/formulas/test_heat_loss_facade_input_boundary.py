@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 import app.services.heat_loss_application as heat_loss_application_module
 from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 
 
 def _pipe(**updates: object) -> dict[str, object]:
@@ -264,7 +264,7 @@ async def test_invalid_raw_input_is_rejected_before_formula_facade(
         validation_errors=None,
     )
 
-    result = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    result = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert result.is_err is True
     assert obj.results is None
@@ -286,15 +286,15 @@ def test_zero_values_allowed_by_the_contract_still_reach_facades(
     tank_result.model_dump.return_value = {"kind": "tank"}
     evaluator = MagicMock(side_effect=[pipe_result, tank_result])
     monkeypatch.setattr(heat_loss_application_module, "evaluate_validated_heat_loss", evaluator)
-    service = CalculationService(AsyncMock())
+    service = CalculationContainer(AsyncMock()).heat
 
     pipe_payload = _pipe(num_local_elements=0, wind_speed=0.0)
     tank_payload = _tank(wind_speed=0.0, q_additional=0.0)
 
-    assert service._calc_heat_loss_with_coefficients(
+    assert service.calculate_with_coefficients(
         "pipe", pipe_payload, {}, apply_climate_policy=False
     ) == {"kind": "pipe"}
-    assert service._calc_heat_loss_with_coefficients(
+    assert service.calculate_with_coefficients(
         "tank", tank_payload, {}, apply_climate_policy=False
     ) == {"kind": "tank"}
     passed_pipe = evaluator.call_args_list[0].args[0]

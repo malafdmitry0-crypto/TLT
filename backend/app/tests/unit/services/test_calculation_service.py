@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.calculation_service import CalculationError, CalculationService
+from app.services.calculation.container import CalculationContainer
+from app.services.calculation_errors import CalculationError
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -13,8 +14,8 @@ MINERAL_WOOL = "mineral_wool_boards_120"
 async def test_calc_heat_loss_pipe_returns_dict():
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=MagicMock(scalars=lambda: MagicMock(all=lambda: [])))
-    service = CalculationService(mock_db)
-    result = await service.calc_heat_loss(
+    service = CalculationContainer(mock_db).heat
+    result = await service.calculate(
         "pipe",
         {
             "outer_diameter": 0.1,
@@ -37,6 +38,6 @@ async def test_calc_heat_loss_pipe_returns_dict():
 async def test_calc_heat_loss_unknown_type_raises():
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=MagicMock(scalars=lambda: MagicMock(all=lambda: [])))
-    service = CalculationService(mock_db)
+    service = CalculationContainer(mock_db).heat
     with pytest.raises(CalculationError):
-        await service.calc_heat_loss("spaceship", {})
+        await service.calculate("spaceship", {})

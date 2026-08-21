@@ -32,9 +32,8 @@ from app.schemas.heat_loss import (
     StoredTankHeatParams,
     TankHeatLossParams,
 )
-from app.services import calculation_service as calculation_service_module
 from app.services import heat_loss_application as heat_loss_application_module
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.project_object_params import (
     PreparedProjectObjectParams,
     ProjectObjectParamsError,
@@ -260,9 +259,8 @@ def _message_only_validation_error(*, field: str, message: str) -> ValidationErr
         "effective_pipe_safety_factor",
     ],
 )
-def test_calculation_service_does_not_reexport_application_helpers(name: str) -> None:
+def test_heat_loss_application_exports_owned_helpers(name: str) -> None:
     assert hasattr(heat_loss_application_module, name)
-    assert not hasattr(calculation_service_module, name)
 
 
 def test_production_does_not_import_heat_helpers_from_calculation_service() -> None:
@@ -349,8 +347,8 @@ async def test_try_recalculate_orders_climate_canonicalization_and_formula(
         canonicalize,
     )
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", calculate)
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(side_effect=AssertionError("provider must stay lazy"))  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(side_effect=AssertionError("provider must stay lazy"))
     obj = _object(original)
 
     outcome = await service.try_recalculate(obj, coefficients=coefficients)
@@ -369,7 +367,7 @@ async def test_try_recalculate_orders_climate_canonicalization_and_formula(
     assert obj.results == {"formula_model": "pipe_heat_loss"}
     assert obj.is_valid is True
     assert obj.validation_errors is None
-    service.get_coefficients.assert_not_awaited()
+    service._load_coefficients.assert_not_awaited()
 
 
 async def test_application_loads_coefficients_after_canonical_validation(
@@ -538,8 +536,8 @@ async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
         climate_region="Могилёвская область",
     )
     params.pop("safety_factor")
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))
     obj = _object(params)
 
     outcome = await service.try_recalculate(obj, coefficients={})
@@ -565,7 +563,7 @@ async def test_try_recalculate_persists_current_climate_k_snapshot() -> None:
     }
     assert obj.results is not None
     assert obj.results["safety_factor_applied"] == pytest.approx(1.12)
-    service.get_coefficients.assert_not_awaited()
+    service._load_coefficients.assert_not_awaited()
 
 
 async def test_invalid_report_stops_before_coefficients_and_formula(
@@ -602,8 +600,8 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
     )
     formula = MagicMock(side_effect=AssertionError("invalid input reaches formula"))
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(side_effect=AssertionError("invalid input reads DB"))  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(side_effect=AssertionError("invalid input reads DB"))
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj)
@@ -621,7 +619,7 @@ async def test_invalid_report_stops_before_coefficients_and_formula(
         "hint": "Заполните обязательные поля объекта.",
         "missing_fields": ["outer_diameter"],
     }
-    service.get_coefficients.assert_not_awaited()
+    service._load_coefficients.assert_not_awaited()
     formula.assert_not_called()
 
 
@@ -646,8 +644,8 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
     )
     formula = MagicMock()
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(side_effect=RuntimeError("coefficient cache unavailable"))  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(side_effect=RuntimeError("coefficient cache unavailable"))
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj)
@@ -664,7 +662,7 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
         "field": None,
         "hint": FORMULA_ERROR_HINT,
     }
-    service.get_coefficients.assert_awaited_once_with()
+    service._load_coefficients.assert_awaited_once_with()
     formula.assert_not_called()
 
 
@@ -692,8 +690,8 @@ async def test_early_preparation_exception_keeps_original_params(
     )
     formula = MagicMock()
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock()  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock()
     obj = _object(original)
 
     outcome = await service.try_recalculate(obj)
@@ -714,7 +712,7 @@ async def test_early_preparation_exception_keeps_original_params(
     if failing_stage == "normalize":
         climate.assert_not_called()
     canonicalize.assert_not_called()
-    service.get_coefficients.assert_not_awaited()
+    service._load_coefficients.assert_not_awaited()
     formula.assert_not_called()
 
 
@@ -775,8 +773,8 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
     )
     formula = MagicMock(side_effect=error)
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
-    service = CalculationService(AsyncMock())
-    service.get_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))  # type: ignore[method-assign]
+    service = CalculationContainer(AsyncMock()).heat
+    service._load_coefficients = AsyncMock(side_effect=AssertionError("explicit coefficients lost"))
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj, coefficients={})
@@ -787,7 +785,7 @@ async def test_formula_and_catalog_exceptions_keep_canonical_params(
     assert obj.results is None
     assert obj.is_valid is False
     assert obj.validation_errors == expected_payload
-    service.get_coefficients.assert_not_awaited()
+    service._load_coefficients.assert_not_awaited()
 
 
 @pytest.mark.parametrize(

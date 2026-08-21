@@ -26,7 +26,7 @@ from app.formulas.heat_loss.pipe import calc_pipe_heat_loss
 from app.formulas.heat_loss.tank import calc_tank_heat_loss
 from app.models.project_object import ProjectObject
 from app.schemas.heat_loss import PipeHeatLossParams, TankHeatLossParams
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.heat_loss_application import (
     build_heat_loss_error_payload,
     pipe_params_with_effective_safety_factor,
@@ -452,7 +452,7 @@ async def test_recalculate_writes_structured_hot_side_validation_errors() -> Non
         ),
     )
 
-    outcome = await CalculationService(AsyncMock()).try_recalculate(obj, coefficients={})
+    outcome = await CalculationContainer(AsyncMock()).heat.try_recalculate(obj, coefficients={})
 
     assert outcome.is_err is True
     assert obj.is_valid is False
