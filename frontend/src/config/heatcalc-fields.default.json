@@ -1,0 +1,4909 @@
+{
+  "version": 2,
+  "fields": {
+    "index": {
+      "service_name": "index",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Основные",
+      "labels": {
+        "full": "Номер строки",
+        "short": "№",
+        "compact": "№"
+      },
+      "contexts": {
+        "table_by_key": {
+          "index": {
+            "label": "№",
+            "full_label": "Номер строки",
+            "tooltip": "Номер строки"
+          }
+        },
+        "settings_by_key": {
+          "index": {
+            "label": "Номер строки"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "index",
+        "tank": "index"
+      },
+      "input": {
+        "type": "computed",
+        "display_digits": 0
+      }
+    },
+    "type": {
+      "service_name": "type",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Основные",
+      "labels": {
+        "full": "Тип объекта",
+        "short": "Тип",
+        "compact": "Тип"
+      },
+      "contexts": {
+        "table_by_key": {
+          "type": {
+            "label": "Тип",
+            "full_label": "Тип объекта",
+            "tooltip": "Тип объекта"
+          }
+        },
+        "settings_by_key": {
+          "type": {
+            "label": "Тип объекта"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "type",
+        "tank": "type"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "heat_loss_status": {
+      "service_name": "heat_loss_status",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Основные",
+      "labels": {
+        "full": "Статус расчёта",
+        "short": "Статус",
+        "compact": "Статус"
+      },
+      "contexts": {
+        "table_by_key": {
+          "heat_loss_status": {
+            "label": "Статус",
+            "full_label": "Статус расчёта",
+            "tooltip": "Статус расчёта теплопотерь"
+          }
+        },
+        "settings_by_key": {
+          "heat_loss_status": {
+            "label": "Статус расчёта"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "heat_loss_status",
+        "tank": "heat_loss_status"
+      },
+      "input": {
+        "type": "computed"
+      },
+      "description": "Статус расчёта теплопотерь объекта: рассчитан, ошибка, не применимо или не рассчитан."
+    },
+    "name": {
+      "service_name": "name",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Основные",
+      "labels": {
+        "full": "Наименование",
+        "short": "Наименование",
+        "compact": "Имя"
+      },
+      "contexts": {
+        "table_by_key": {
+          "name": {
+            "label": "Наименование",
+            "full_label": "Наименование",
+            "tooltip": "Наименование"
+          }
+        },
+        "settings_by_key": {
+          "name": {
+            "label": "Наименование"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "name",
+        "tank": "name"
+      },
+      "input": {
+        "type": "text",
+        "max_length": 200
+      },
+      "description": "Автоматически формируется из параметров объекта. Можно изменить вручную; до 200 символов.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "outer_diameter_mm": {
+      "service_name": "outer_diameter_mm",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Наружный диаметр трубопровода",
+        "short": "Наружный Ø",
+        "compact": "Ø"
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_outer_diameter": {
+            "label": "Ø, мм",
+            "full_label": "Наружный диаметр",
+            "tooltip": "Наружный диаметр"
+          }
+        },
+        "settings_by_key": {
+          "pipe_outer_diameter": {
+            "label": "Наружный диаметр"
+          }
+        },
+        "form": {
+          "label": "Наружный диаметр"
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_outer_diameter"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 10.8,
+        "max": 3000,
+        "default_step": 1,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Наружный диаметр трубопровода Ø, мм. Диапазон ТНП: 10,8–3000 мм. Стандартные размеры DN10–DN1000.",
+      "definition_object_types": [
+        "pipe"
+      ]
+    },
+    "nominal_diameter": {
+      "service_name": "nominal_diameter",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "DN",
+        "short": "DN",
+        "compact": "DN"
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_dn": {
+            "label": "DN",
+            "full_label": "DN",
+            "tooltip": "DN"
+          }
+        },
+        "settings_by_key": {
+          "pipe_dn": {
+            "label": "DN"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_dn"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "pipe_length": {
+      "service_name": "pipe_length",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Длина трубопровода",
+        "short": "L трубы",
+        "compact": "L"
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_length": {
+            "label": "L, м",
+            "full_label": "Длина трубопровода",
+            "tooltip": "Длина трубопровода"
+          }
+        },
+        "settings_by_key": {
+          "pipe_length": {
+            "label": "Длина трубопровода"
+          }
+        },
+        "form": {
+          "label": "Длина трубопровода"
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_length"
+      },
+      "input": {
+        "type": "number",
+        "unit": "м",
+        "min": 0.5,
+        "max": 200000,
+        "default_step": 1,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "m",
+        "display_digits": 1
+      },
+      "description": "Длина обогреваемого участка. Диапазон ТНП: 0,5–200 000 м.",
+      "definition_object_types": [
+        "pipe"
+      ]
+    },
+    "wall_thickness_mm": {
+      "service_name": "wall_thickness_mm",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Толщина стенки",
+        "short": "δ стенки",
+        "compact": "δ ст."
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_wall_thickness": {
+            "label": "δ ст., мм",
+            "full_label": "Толщина стенки",
+            "tooltip": "Толщина стенки"
+          },
+          "tank_wall_thickness": {
+            "label": "δ ст., мм",
+            "full_label": "Толщина стенки",
+            "tooltip": "Толщина стенки"
+          }
+        },
+        "settings_by_key": {
+          "pipe_wall_thickness": {
+            "label": "Толщина стенки"
+          },
+          "tank_wall_thickness": {
+            "label": "Толщина стенки"
+          }
+        },
+        "form_by_type": {
+          "tank": {
+            "label": "Толщина стенки"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_wall_thickness",
+        "tank": "tank_wall_thickness"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "default_step": 1,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description_by_type": {
+        "pipe": "Толщина стенки трубы. Диапазон ТНП: 0,1…40 мм. Используется в расчёте сопротивления стенки.",
+        "tank": "Толщина стенки резервуара. Если задана вместе с λ стенки, учитывается как δ/λ в теплопотерях."
+      },
+      "input_by_type": {
+        "pipe": {
+          "min": 0.1,
+          "max": 40,
+          "default_step": 0.1,
+          "configurable_step": true,
+          "required": true
+        },
+        "tank": {
+          "min": 1,
+          "max": 500,
+          "default_step": 1,
+          "configurable_step": true
+        }
+      },
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "pipe_material": {
+      "service_name": "pipe_material",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Материал трубы",
+        "short": "Материал трубы",
+        "compact": "Мат. трубы"
+      },
+      "contexts": {
+        "form_by_type": {
+          "pipe": {
+            "label": "Материал трубы"
+          }
+        },
+        "table_by_key": {
+          "pipe_material": {
+            "label": "Материал трубы",
+            "full_label": "Материал трубы",
+            "tooltip": "Материал трубы"
+          }
+        },
+        "settings_by_key": {
+          "pipe_material": {
+            "label": "Материал трубы"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_material"
+      },
+      "input": {
+        "type": "reference",
+        "required": true
+      },
+      "description": "Материал стенки трубопровода. Backend берёт λ из справочника материала трубы."
+    },
+    "pipe_lambda": {
+      "service_name": "pipe_lambda",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "λ трубы",
+        "short": "λ тр.",
+        "compact": "λ"
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_lambda": {
+            "label": "λ тр.",
+            "full_label": "λ трубы",
+            "tooltip": "λ трубы"
+          }
+        },
+        "settings_by_key": {
+          "pipe_lambda": {
+            "label": "λ трубы"
+          }
+        },
+        "form": {
+          "label": "Теплопроводность трубы λ"
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_lambda"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.001,
+        "max": 400,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 3
+      },
+      "description": "Ручная теплопроводность трубы, Вт/(м·К). Используется вместо справочника материала."
+    },
+    "pipe_lambda_mode": {
+      "service_name": "pipe_lambda_mode",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Режим λ трубы",
+        "short": "Режим λ",
+        "compact": "Режим λ"
+      },
+      "contexts": {
+        "table_by_key": {
+          "pipe_lambda_mode": {
+            "label": "Режим λ",
+            "full_label": "Режим λ трубы",
+            "tooltip": "Режим λ трубы"
+          }
+        },
+        "settings_by_key": {
+          "pipe_lambda_mode": {
+            "label": "Режим λ трубы"
+          }
+        },
+        "form": {
+          "label": "Источник теплопроводности трубы"
+        }
+      },
+      "table_keys": {
+        "pipe": "pipe_lambda_mode"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "reference",
+            "label": "Справочник"
+          },
+          {
+            "value": "manual",
+            "label": "Вручную"
+          }
+        ]
+      },
+      "description": "Источник теплопроводности стенки трубы: из справочника материала или ручной ввод λ."
+    },
+    "placement": {
+      "service_name": "placement",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Геометрия",
+      "labels": {
+        "full": "Размещение",
+        "short": "Размещение",
+        "compact": "Место"
+      },
+      "contexts": {
+        "table_by_key": {
+          "placement": {
+            "label": "Размещение",
+            "full_label": "Размещение",
+            "tooltip": "Размещение"
+          }
+        },
+        "settings_by_key": {
+          "placement": {
+            "label": "Размещение"
+          }
+        },
+        "form_by_type": {
+          "pipe": {
+            "label": "Размещение"
+          },
+          "tank": {
+            "label": "Размещение"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "placement",
+        "tank": "placement"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "outdoor",
+            "label": "На открытом воздухе"
+          },
+          {
+            "value": "indoor",
+            "label": "В помещении"
+          },
+          {
+            "value": "underground",
+            "label": "Подземно"
+          }
+        ]
+      },
+      "description": "Размещение объекта. В помещении меняет коэффициент внешней теплоотдачи; для подземной прокладки используется глубина."
+    },
+    "insulation_layer_count": {
+      "service_name": "insulation_layer_count",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Количество слоёв ИЗ",
+        "short": "Слоёв ИЗ",
+        "compact": "Слои"
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_layer_count": {
+            "label": "Слоёв ИЗ",
+            "full_label": "Количество слоёв ИЗ",
+            "tooltip": "Количество слоёв ИЗ"
+          }
+        },
+        "settings_by_key": {
+          "insulation_layer_count": {
+            "label": "Количество слоёв ИЗ"
+          }
+        },
+        "form": {
+          "label": "Количество слоёв изоляции"
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_layer_count",
+        "tank": "insulation_layer_count"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "1",
+            "label": "1 слой"
+          },
+          {
+            "value": "2",
+            "label": "2 слоя"
+          },
+          {
+            "value": "3",
+            "label": "3 слоя"
+          }
+        ]
+      },
+      "description": "Количество слоёв изоляции. При 2 или 3 слоях форма добавляет отдельные материал и толщину для каждого дополнительного слоя."
+    },
+    "insulation_thickness_mm": {
+      "service_name": "insulation_thickness_mm",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Толщина ИЗ",
+        "short": "δ ИЗ",
+        "compact": "δ ИЗ"
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_thickness": {
+            "label": "δ ИЗ, мм",
+            "full_label": "Толщина ИЗ",
+            "tooltip": "Толщина ИЗ"
+          }
+        },
+        "settings_by_key": {
+          "insulation_thickness": {
+            "label": "Толщина ИЗ"
+          }
+        },
+        "form": {
+          "label": "Толщина изоляции"
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_thickness",
+        "tank": "insulation_thickness"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 0.01,
+        "max": 500,
+        "default_step": 5,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Толщина слоя тепловой изоляции. Диапазон: 0,01–500 мм.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "insulation_material": {
+      "service_name": "insulation_material",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Материал ИЗ",
+        "short": "Материал ИЗ",
+        "compact": "Мат. ИЗ"
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_material": {
+            "label": "Материал ИЗ",
+            "full_label": "Материал ИЗ",
+            "tooltip": "Материал ИЗ"
+          }
+        },
+        "settings_by_key": {
+          "insulation_material": {
+            "label": "Материал ИЗ"
+          }
+        },
+        "form": {
+          "label": "Материал изоляции"
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_material",
+        "tank": "insulation_material"
+      },
+      "input": {
+        "type": "reference",
+        "required": true
+      },
+      "description": "Материал основного слоя изоляции. Значение используется для выбора теплопроводности и расчёта теплопотерь."
+    },
+    "first_insulation_lambda": {
+      "service_name": "first_insulation_lambda",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "λ 1-го слоя",
+        "short": "λ 1 слоя",
+        "compact": "λ1"
+      },
+      "contexts": {
+        "table_by_key": {
+          "first_insulation_lambda": {
+            "label": "λ 1 слоя",
+            "full_label": "λ 1-го слоя",
+            "tooltip": "λ 1-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "first_insulation_lambda": {
+            "label": "λ 1-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "first_insulation_lambda",
+        "tank": "first_insulation_lambda"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.001,
+        "max": 400,
+        "default_step": 0.001,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 3
+      },
+      "description_by_mode": {
+        "manual": "Коэффициент теплопроводности первого слоя изоляции λ, Вт/(м·К). Ручное значение для материала «Другое»: 0,001…400.",
+        "reference": "Справочное значение λ первого слоя из выбранного материала изоляции. Ручное изменение переводит слой в «Другое»."
+      }
+    },
+    "second_insulation_thickness_mm": {
+      "service_name": "second_insulation_thickness_mm",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Толщина 2-го слоя",
+        "short": "δ 2 ИЗ",
+        "compact": "δ2"
+      },
+      "contexts": {
+        "table_by_key": {
+          "second_insulation_thickness": {
+            "label": "δ 2 ИЗ, мм",
+            "full_label": "Толщина 2-го слоя",
+            "tooltip": "Толщина 2-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "second_insulation_thickness": {
+            "label": "Толщина 2-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "second_insulation_thickness",
+        "tank": "second_insulation_thickness"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 0.01,
+        "max": 500,
+        "default_step": 1,
+        "configurable_step": false,
+        "input_unit": "mm",
+        "display_digits": 0,
+        "required": true
+      },
+      "description": "Толщина второго слоя изоляции. Диапазон ТНП: 0,01…500 мм."
+    },
+    "second_insulation_material": {
+      "service_name": "second_insulation_material",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Материал 2-го слоя",
+        "short": "Материал 2 ИЗ",
+        "compact": "Мат. 2"
+      },
+      "contexts": {
+        "table_by_key": {
+          "second_insulation_material": {
+            "label": "Материал 2 ИЗ",
+            "full_label": "Материал 2-го слоя",
+            "tooltip": "Материал 2-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "second_insulation_material": {
+            "label": "Материал 2-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "second_insulation_material",
+        "tank": "second_insulation_material"
+      },
+      "input": {
+        "type": "reference",
+        "required": true
+      },
+      "description": "Материал второго слоя изоляции. Используется в многослойном расчёте при 2 или 3 слоях."
+    },
+    "second_insulation_lambda": {
+      "service_name": "second_insulation_lambda",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "λ 2-го слоя",
+        "short": "λ 2 слоя",
+        "compact": "λ2"
+      },
+      "contexts": {
+        "table_by_key": {
+          "second_insulation_lambda": {
+            "label": "λ 2 слоя",
+            "full_label": "λ 2-го слоя",
+            "tooltip": "λ 2-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "second_insulation_lambda": {
+            "label": "λ 2-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "second_insulation_lambda",
+        "tank": "second_insulation_lambda"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.001,
+        "max": 400,
+        "default_step": 0.001,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 3
+      },
+      "description_by_mode": {
+        "manual": "Ручная теплопроводность второго слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).",
+        "reference": "Справочное значение λ второго слоя из выбранного материала изоляции. Ручное изменение переводит слой в «Другое»."
+      }
+    },
+    "third_insulation_thickness_mm": {
+      "service_name": "third_insulation_thickness_mm",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Толщина 3-го слоя",
+        "short": "δ 3 ИЗ",
+        "compact": "δ3"
+      },
+      "contexts": {
+        "table_by_key": {
+          "third_insulation_thickness": {
+            "label": "δ 3 ИЗ, мм",
+            "full_label": "Толщина 3-го слоя",
+            "tooltip": "Толщина 3-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "third_insulation_thickness": {
+            "label": "Толщина 3-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "third_insulation_thickness",
+        "tank": "third_insulation_thickness"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 0.01,
+        "max": 500,
+        "default_step": 1,
+        "configurable_step": false,
+        "input_unit": "mm",
+        "display_digits": 0,
+        "required": true
+      },
+      "description": "Толщина третьего слоя изоляции. Диапазон ТНП: 0,01…500 мм."
+    },
+    "third_insulation_material": {
+      "service_name": "third_insulation_material",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Материал 3-го слоя",
+        "short": "Материал 3 ИЗ",
+        "compact": "Мат. 3"
+      },
+      "contexts": {
+        "table_by_key": {
+          "third_insulation_material": {
+            "label": "Материал 3 ИЗ",
+            "full_label": "Материал 3-го слоя",
+            "tooltip": "Материал 3-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "third_insulation_material": {
+            "label": "Материал 3-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "third_insulation_material",
+        "tank": "third_insulation_material"
+      },
+      "input": {
+        "type": "reference",
+        "required": true
+      },
+      "description": "Материал третьего слоя изоляции. Используется в многослойном расчёте при 3 слоях."
+    },
+    "third_insulation_lambda": {
+      "service_name": "third_insulation_lambda",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "λ 3-го слоя",
+        "short": "λ 3 слоя",
+        "compact": "λ3"
+      },
+      "contexts": {
+        "table_by_key": {
+          "third_insulation_lambda": {
+            "label": "λ 3 слоя",
+            "full_label": "λ 3-го слоя",
+            "tooltip": "λ 3-го слоя"
+          }
+        },
+        "settings_by_key": {
+          "third_insulation_lambda": {
+            "label": "λ 3-го слоя"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "third_insulation_lambda",
+        "tank": "third_insulation_lambda"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.001,
+        "max": 400,
+        "default_step": 0.001,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 3
+      },
+      "description_by_mode": {
+        "manual": "Ручная теплопроводность третьего слоя для материала «Другое». Диапазон ТНП: 0,001…400 Вт/(м·К).",
+        "reference": "Справочное значение λ третьего слоя из выбранного материала изоляции. Ручное изменение переводит слой в «Другое»."
+      }
+    },
+    "insulation_cover_material": {
+      "service_name": "insulation_cover_material",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Материал покрытия",
+        "short": "Покрытие",
+        "compact": "Покр."
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_cover_material": {
+            "label": "Покрытие",
+            "full_label": "Материал покрытия",
+            "tooltip": "Материал покрытия"
+          }
+        },
+        "settings_by_key": {
+          "insulation_cover_material": {
+            "label": "Материал покрытия"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_cover_material",
+        "tank": "insulation_cover_material"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "none",
+            "label": "Не указано"
+          }
+        ]
+      },
+      "description": "Защитное покрытие теплоизоляции. Сохраняется в параметрах объекта для спецификации и отчёта."
+    },
+    "process_temperature": {
+      "service_name": "process_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Температура поддержания",
+        "short": "T подд.",
+        "compact": "T подд."
+      },
+      "contexts": {
+        "table_by_key": {
+          "process_temperature": {
+            "label": "T подд.",
+            "full_label": "Температура поддержания",
+            "tooltip": "Температура поддержания"
+          }
+        },
+        "settings_by_key": {
+          "process_temperature": {
+            "label": "Температура поддержания"
+          }
+        },
+        "form": {
+          "label": "Требуемая температура объекта"
+        }
+      },
+      "table_keys": {
+        "pipe": "process_temperature",
+        "tank": "process_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -90,
+        "max": 600,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Требуемая температура поддержания объекта, °C. Диапазон ТНП: −90…+600 °C. Используется в расчёте теплопотерь и проверке температурного диапазона кабеля.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "ambient_temperature": {
+      "service_name": "ambient_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Температура окружающей среды",
+        "short": "T окр.",
+        "compact": "T окр."
+      },
+      "contexts": {
+        "table_by_key": {
+          "ambient_temperature": {
+            "label": "T окр.",
+            "full_label": "Температура окружающей среды",
+            "tooltip": "Температура окружающей среды"
+          }
+        },
+        "settings_by_key": {
+          "ambient_temperature": {
+            "label": "Температура окружающей среды"
+          }
+        },
+        "form": {
+          "label": "Температура окружающей среды"
+        }
+      },
+      "table_keys": {
+        "pipe": "ambient_temperature",
+        "tank": "ambient_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -70,
+        "max": 70,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Расчётная температура окружающей среды. Диапазон ТНП: −70°C … +70°C. Может заполняться из климатического справочника.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "ambient_temperature_source": {
+      "service_name": "ambient_temperature_source",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Источник T окр.",
+        "short": "T окр. ист.",
+        "compact": "Ист. T"
+      },
+      "contexts": {
+        "table_by_key": {
+          "ambient_temperature_source": {
+            "label": "T окр. ист.",
+            "full_label": "Источник T окр.",
+            "tooltip": "Источник T окр."
+          }
+        },
+        "settings_by_key": {
+          "ambient_temperature_source": {
+            "label": "Источник T окр."
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "ambient_temperature_source",
+        "tank": "ambient_temperature_source"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "max_ambient_temperature": {
+      "service_name": "max_ambient_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Макс. T окружающей среды",
+        "short": "Макс. T окр.",
+        "compact": "T окр. max"
+      },
+      "contexts": {
+        "table_by_key": {
+          "max_ambient_temperature": {
+            "label": "Макс. T окр.",
+            "full_label": "Макс. T окружающей среды",
+            "tooltip": "Макс. T окружающей среды"
+          }
+        },
+        "settings_by_key": {
+          "max_ambient_temperature": {
+            "label": "Макс. T окружающей среды"
+          }
+        },
+        "form": {
+          "label": "Максимальная температура окружающей среды"
+        }
+      },
+      "table_keys": {
+        "pipe": "max_ambient_temperature",
+        "tank": "max_ambient_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -70,
+        "max": 70,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Максимальная температура окружающей среды, °C. Сохраняется в параметрах объекта для проверки условий эксплуатации."
+    },
+    "max_process_temperature": {
+      "service_name": "max_process_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Макс. допуст. T продукта",
+        "short": "Макс. T прод.",
+        "compact": "T прод. max"
+      },
+      "contexts": {
+        "table_by_key": {
+          "max_process_temperature": {
+            "label": "Макс. T прод.",
+            "full_label": "Макс. допуст. T продукта",
+            "tooltip": "Макс. допуст. T продукта"
+          }
+        },
+        "settings_by_key": {
+          "max_process_temperature": {
+            "label": "Макс. допуст. T продукта"
+          }
+        },
+        "form": {
+          "label": "Максимально допустимая температура продукта"
+        }
+      },
+      "table_keys": {
+        "pipe": "max_process_temperature",
+        "tank": "max_process_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -90,
+        "max": 600,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Максимально допустимая температура продукта, °C. Сохраняется в параметрах объекта и используется как эксплуатационное ограничение."
+    },
+    "wind_speed": {
+      "service_name": "wind_speed",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Скорость ветра",
+        "short": "Ветер",
+        "compact": "Ветер"
+      },
+      "contexts": {
+        "table_by_key": {
+          "wind_speed": {
+            "label": "Ветер",
+            "full_label": "Скорость ветра",
+            "tooltip": "Скорость ветра"
+          }
+        },
+        "settings_by_key": {
+          "wind_speed": {
+            "label": "Скорость ветра"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "wind_speed",
+        "tank": "wind_speed"
+      },
+      "input": {
+        "type": "number",
+        "unit": "м/с",
+        "min": 0,
+        "max": 20,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 1
+      },
+      "description": "Скорость ветра для расчёта внешней теплоотдачи α. Если выбран климатический город, берётся из справочника; можно переопределить вручную."
+    },
+    "wind_speed_source": {
+      "service_name": "wind_speed_source",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Источник ветра",
+        "short": "Ветер ист.",
+        "compact": "Ист. ветра"
+      },
+      "contexts": {
+        "table_by_key": {
+          "wind_speed_source": {
+            "label": "Ветер ист.",
+            "full_label": "Источник ветра",
+            "tooltip": "Источник ветра"
+          }
+        },
+        "settings_by_key": {
+          "wind_speed_source": {
+            "label": "Источник ветра"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "wind_speed_source",
+        "tank": "wind_speed_source"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "alpha_vnesh": {
+      "service_name": "alpha_vnesh",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "α внеш",
+        "short": "α внеш",
+        "compact": "α"
+      },
+      "contexts": {
+        "table_by_key": {
+          "alpha_vnesh": {
+            "label": "α внеш",
+            "full_label": "α внеш",
+            "tooltip": "α внеш"
+          }
+        },
+        "settings_by_key": {
+          "alpha_vnesh": {
+            "label": "α внеш"
+          }
+        },
+        "form": {
+          "label": "Коэффициент наружной теплоотдачи α"
+        }
+      },
+      "table_keys": {
+        "pipe": "alpha_vnesh",
+        "tank": "alpha_vnesh"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/м²К",
+        "min": 7,
+        "max": 52,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 1
+      },
+      "description": "Ручное значение коэффициента внешней теплоотдачи. Если пусто, backend рассчитывает α из скорости ветра и размещения."
+    },
+    "environment": {
+      "service_name": "environment",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Среда",
+        "short": "Среда",
+        "compact": "Среда"
+      },
+      "contexts": {
+        "table_by_key": {
+          "environment": {
+            "label": "Среда",
+            "full_label": "Среда",
+            "tooltip": "Среда"
+          }
+        },
+        "settings_by_key": {
+          "environment": {
+            "label": "Среда"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "environment",
+        "tank": "environment"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "normal",
+            "label": "Нормальная"
+          },
+          {
+            "value": "aggressive",
+            "label": "Агрессивная"
+          }
+        ]
+      },
+      "description": "Условия эксплуатации: нормальная или агрессивная среда. Сохраняется в параметрах объекта для спецификации и отчёта."
+    },
+    "zone_classification": {
+      "service_name": "zone_classification",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Классификация зоны",
+        "short": "Зона",
+        "compact": "Зона"
+      },
+      "contexts": {
+        "table_by_key": {
+          "zone_classification": {
+            "label": "Зона",
+            "full_label": "Классификация зоны",
+            "tooltip": "Классификация зоны"
+          }
+        },
+        "settings_by_key": {
+          "zone_classification": {
+            "label": "Классификация зоны"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "zone_classification",
+        "tank": "zone_classification"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "safe",
+            "label": "Безопасная"
+          },
+          {
+            "value": "explosive",
+            "label": "Взрывоопасная"
+          }
+        ]
+      },
+      "description": "Безопасная или взрывоопасная зона. Сохраняется в параметрах объекта для подбора исполнения и отчёта."
+    },
+    "temperature_group": {
+      "service_name": "temperature_group",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Температурная группа",
+        "short": "Темп. группа",
+        "compact": "T гр."
+      },
+      "contexts": {
+        "table_by_key": {
+          "temperature_group": {
+            "label": "Темп. группа",
+            "full_label": "Температурная группа",
+            "tooltip": "Температурная группа"
+          }
+        },
+        "settings_by_key": {
+          "temperature_group": {
+            "label": "Температурная группа"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "temperature_group",
+        "tank": "temperature_group"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "T1",
+            "label": "T1"
+          },
+          {
+            "value": "T2",
+            "label": "T2"
+          },
+          {
+            "value": "T3",
+            "label": "T3"
+          },
+          {
+            "value": "T4",
+            "label": "T4"
+          },
+          {
+            "value": "T5",
+            "label": "T5"
+          },
+          {
+            "value": "T6",
+            "label": "T6"
+          }
+        ]
+      },
+      "description": "Температурная группа T1…T6 для классификации зоны. Сохраняется в параметрах объекта для подбора исполнения и отчёта."
+    },
+    "climate_city": {
+      "service_name": "climate_city",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Климатический город",
+        "short": "Климат",
+        "compact": "Город"
+      },
+      "contexts": {
+        "table_by_key": {
+          "climate_city": {
+            "label": "Климат",
+            "full_label": "Климатический город",
+            "tooltip": "Климатический город"
+          }
+        },
+        "settings_by_key": {
+          "climate_city": {
+            "label": "Климатический город"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "climate_city",
+        "tank": "climate_city"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "climate_region": {
+      "service_name": "climate_region",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Климатический регион",
+        "short": "Регион",
+        "compact": "Регион"
+      },
+      "contexts": {
+        "table_by_key": {
+          "climate_region": {
+            "label": "Регион",
+            "full_label": "Климатический регион",
+            "tooltip": "Климатический регион"
+          }
+        },
+        "settings_by_key": {
+          "climate_region": {
+            "label": "Климатический регион"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "climate_region",
+        "tank": "climate_region"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "climate_key": {
+      "service_name": "climate_key",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Климат",
+        "short": "Климат",
+        "compact": "Климат"
+      },
+      "contexts": {
+        "table_by_key": {
+          "climate_key": {
+            "label": "Ключ клим.",
+            "full_label": "Ключ климата",
+            "tooltip": "Ключ климата"
+          }
+        },
+        "settings_by_key": {
+          "climate_key": {
+            "label": "Ключ климата"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "climate_key",
+        "tank": "climate_key"
+      },
+      "input": {
+        "type": "reference"
+      },
+      "description": "Климатический справочник: выбор города заполняет расчётную температуру среды и скорость ветра."
+    },
+    "climate_temperature_basis": {
+      "service_name": "climate_temperature_basis",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Обеспеченность климата",
+        "short": "Обесп.",
+        "compact": "Обесп."
+      },
+      "contexts": {
+        "table_by_key": {
+          "climate_temperature_basis": {
+            "label": "Обесп.",
+            "full_label": "Обеспеченность климата",
+            "tooltip": "Обеспеченность климата"
+          }
+        },
+        "settings_by_key": {
+          "climate_temperature_basis": {
+            "label": "Обеспеченность климата"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "climate_temperature_basis",
+        "tank": "climate_temperature_basis"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "t_0_92",
+            "label": "0,92"
+          },
+          {
+            "value": "t_0_98",
+            "label": "0,98"
+          },
+          {
+            "value": "t_abs_min",
+            "label": "Абс. мин."
+          }
+        ]
+      },
+      "description": "Какое значение из климатического справочника использовать для T° окр. среды: 0,92, 0,98 или абсолютный минимум."
+    },
+    "insulation_temperature_basis": {
+      "service_name": "insulation_temperature_basis",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Температура и среда",
+      "labels": {
+        "full": "Режим температуры изоляции",
+        "short": "tm изол.",
+        "compact": "tm"
+      },
+      "contexts": {
+        "form": {
+          "label": "Режим температуры изоляции (tm)"
+        },
+        "table_by_key": {
+          "insulation_temperature_basis": {
+            "label": "tm изол.",
+            "full_label": "Режим температуры изоляции",
+            "tooltip": "Режим расчётной температуры tm для λ изоляции"
+          }
+        },
+        "settings_by_key": {
+          "insulation_temperature_basis": {
+            "label": "Режим температуры изоляции"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_temperature_basis",
+        "tank": "insulation_temperature_basis"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "indoor",
+            "label": "Помещение"
+          },
+          {
+            "value": "outdoor_summer",
+            "label": "Открытый воздух, лето"
+          },
+          {
+            "value": "outdoor_winter",
+            "label": "Открытый воздух, зима"
+          },
+          {
+            "value": "channel",
+            "label": "Канал"
+          },
+          {
+            "value": "tunnel",
+            "label": "Тоннель"
+          },
+          {
+            "value": "technical_subfloor",
+            "label": "Техническое подполье"
+          },
+          {
+            "value": "attic",
+            "label": "Чердак"
+          },
+          {
+            "value": "basement",
+            "label": "Подвал"
+          }
+        ]
+      },
+      "description": "Документальный режим расчётной температуры tm для λ изоляции. Доступные варианты зависят от размещения: улица — лето/зима, подземно — канал/тоннель/техническое подполье, помещение — помещение/чердак/подвал."
+    },
+    "pipe_centerline_depth": {
+      "service_name": "pipe_centerline_depth",
+      "object_types": ["pipe"],
+      "group": "Грунт",
+      "labels": { "full": "Глубина прокладки", "short": "Глубина", "compact": "h" },
+      "contexts": {
+        "table_by_key": { "pipe_centerline_depth": { "label": "Глубина, м", "full_label": "Глубина прокладки", "tooltip": "Глубина оси трубы" } },
+        "settings_by_key": { "pipe_centerline_depth": { "label": "Глубина прокладки" } },
+        "form": { "label": "Глубина прокладки" }
+      },
+      "table_keys": { "pipe": "pipe_centerline_depth" },
+      "input": { "type": "number", "unit": "м", "min": 0, "max": 200, "default_step": 0.1, "configurable_step": false, "input_unit": "raw", "display_digits": 2 },
+      "description": "Глубина оси бесканально проложенной подземной трубы. Диапазон ТНП: 0…200 м."
+    },
+    "ground_temperature": {
+      "service_name": "ground_temperature",
+      "object_types": ["pipe", "tank"],
+      "group": "Грунт",
+      "labels": { "full": "Температура грунта", "short": "T грунта", "compact": "T гр." },
+      "contexts": {
+        "table_by_key": { "ground_temperature": { "label": "T грунта, °C", "full_label": "Температура грунта", "tooltip": "Температура грунта" } },
+        "settings_by_key": { "ground_temperature": { "label": "Температура грунта" } },
+        "form": { "label": "Температура грунта" }
+      },
+      "table_keys": { "pipe": "ground_temperature", "tank": "ground_temperature" },
+      "input": { "type": "number", "unit": "°C", "min": -70, "max": 70, "default_step": 1, "configurable_step": false, "input_unit": "raw", "display_digits": 1 },
+      "description": "Температура грунта для бесканальной трубы или грунтовой части частично заглублённого резервуара. Диапазон ТНП: −70…+70 °C."
+    },
+    "tank_buried_height": {
+      "service_name": "tank_buried_height",
+      "object_types": ["tank"],
+      "group": "Грунт",
+      "labels": {
+        "full": "Высота заглублённой части",
+        "short": "Высота заглубления",
+        "compact": "h"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_buried_height": {
+            "label": "Высота заглубления, м",
+            "full_label": "Высота части резервуара в контакте с грунтом",
+            "tooltip": "Высота части резервуара в контакте с грунтом"
+          }
+        },
+        "settings_by_key": {
+          "tank_buried_height": {
+            "label": "Высота заглублённой части"
+          }
+        },
+        "form_by_type": {
+          "tank": {
+            "label": "Высота подземной части"
+          }
+        }
+      },
+      "table_keys": { "tank": "tank_buried_height" },
+      "input": {
+        "type": "number",
+        "unit": "м",
+        "min": 0.01,
+        "max": 50,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 2
+      },
+      "description": "Высота части резервуара, контактирующей с грунтом: больше 0 и не больше полной высоты резервуара."
+    },
+    "ground_type": {
+      "service_name": "ground_type",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Грунт",
+      "labels": {
+        "full": "Тип грунта",
+        "short": "Грунт",
+        "compact": "Грунт"
+      },
+      "contexts": {
+        "table_by_key": {
+          "ground_type": {
+            "label": "Грунт",
+            "full_label": "Тип грунта",
+            "tooltip": "Тип грунта"
+          }
+        },
+        "settings_by_key": {
+          "ground_type": {
+            "label": "Тип грунта"
+          }
+        },
+        "form": {
+          "label": "Тип грунта"
+        }
+      },
+      "table_keys": {
+        "pipe": "ground_type",
+        "tank": "ground_type"
+      },
+      "input": {
+        "type": "reference",
+        "required": true
+      },
+      "description": "Тип грунта из справочника теплопроводности. При выборе справочного грунта λ грунта заполняется автоматически; можно переопределить вручную."
+    },
+    "ground_conductivity": {
+      "service_name": "ground_conductivity",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Грунт",
+      "labels": {
+        "full": "λ грунта",
+        "short": "λ гр.",
+        "compact": "λ гр."
+      },
+      "contexts": {
+        "table_by_key": {
+          "ground_conductivity": {
+            "label": "λ гр.",
+            "full_label": "λ грунта",
+            "tooltip": "λ грунта"
+          }
+        },
+        "settings_by_key": {
+          "ground_conductivity": {
+            "label": "λ грунта"
+          }
+        },
+        "form": {
+          "label": "Теплопроводность грунта λ"
+        }
+      },
+      "table_keys": {
+        "pipe": "ground_conductivity",
+        "tank": "ground_conductivity"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.5,
+        "max": 3,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 2
+      },
+      "description": "Теплопроводность грунта для подземной прокладки. Диапазон: 0,5…3,0 Вт/(м·К); включает все значения справочника грунтов."
+    },
+    "min_switch_temperature": {
+      "service_name": "min_switch_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Мин. T включения",
+        "short": "Мин. T вкл.",
+        "compact": "T вкл."
+      },
+      "contexts": {
+        "table_by_key": {
+          "min_switch_temperature": {
+            "label": "Мин. T вкл.",
+            "full_label": "Мин. T включения",
+            "tooltip": "Мин. T включения"
+          }
+        },
+        "settings_by_key": {
+          "min_switch_temperature": {
+            "label": "Мин. T включения"
+          }
+        },
+        "form": {
+          "label": "Минимальная температура включения"
+        }
+      },
+      "table_keys": {
+        "pipe": "min_switch_temperature",
+        "tank": "min_switch_temperature"
+      },
+      "input": {
+        "type": "number",
+        "required": true,
+        "unit": "°C",
+        "min": -40,
+        "max": 10,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Температура включения электрообогрева, °C. Сохраняется в параметрах объекта для электрораздела.",
+      "input_by_type": {
+        "pipe": {
+          "configurable_step": true
+        },
+        "tank": {
+          "configurable_step": false
+        }
+      },
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "safety_factor": {
+      "service_name": "safety_factor",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Коэффициент запаса",
+        "short": "Кзап",
+        "compact": "K"
+      },
+      "contexts": {
+        "table_by_key": {
+          "safety_factor": {
+            "label": "Кзап",
+            "full_label": "Коэффициент запаса",
+            "tooltip": "Коэффициент запаса"
+          }
+        },
+        "settings_by_key": {
+          "safety_factor": {
+            "label": "Коэффициент запаса"
+          }
+        },
+        "form": {
+          "label": "Коэффициент запаса (Kзап)"
+        }
+      },
+      "table_keys": {
+        "pipe": "safety_factor",
+        "tank": "safety_factor"
+      },
+      "input": {
+        "type": "number",
+        "min": 1.05,
+        "max": 1.7,
+        "default_step": 0.01,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 2
+      },
+      "description": "Коэффициент запаса Kзап. Используется в суммарных теплопотерях и при подборе кабеля.",
+      "description_by_type": {
+        "pipe": "Коэффициент запаса Kзап для трубопровода: 1,00…1,70. Значение 1 оставляет проектные теплопотери равными базовым.",
+        "tank": "Коэффициент запаса Kзап для резервуара: 1,05…1,70."
+      },
+      "input_by_type": {
+        "pipe": {
+          "min": 1,
+          "configurable_step": true
+        },
+        "tank": {
+          "configurable_step": false
+        }
+      },
+      "definition_object_types": [
+        "pipe"
+      ]
+    },
+    "steam_tracing": {
+      "service_name": "steam_tracing",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Пропарка",
+        "short": "Пропарка",
+        "compact": "Проп."
+      },
+      "contexts": {
+        "table_by_key": {
+          "steam_tracing": {
+            "label": "Пропарка",
+            "full_label": "Пропарка",
+            "tooltip": "Пропарка"
+          }
+        },
+        "settings_by_key": {
+          "steam_tracing": {
+            "label": "Пропарка"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "steam_tracing",
+        "tank": "steam_tracing"
+      },
+      "input": {
+        "type": "select",
+        "options": [
+          {
+            "value": "yes",
+            "label": "Да"
+          },
+          {
+            "value": "no",
+            "label": "Нет"
+          }
+        ]
+      },
+      "description": "Признак пропарки. Сохраняется в параметрах объекта для проверки эксплуатационных ограничений."
+    },
+    "vapor_temperature": {
+      "service_name": "vapor_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Температура пропарки",
+        "short": "T проп.",
+        "compact": "T проп."
+      },
+      "contexts": {
+        "table_by_key": {
+          "vapor_temperature": {
+            "label": "T проп.",
+            "full_label": "Температура пропарки",
+            "tooltip": "Температура пропарки"
+          }
+        },
+        "settings_by_key": {
+          "vapor_temperature": {
+            "label": "Температура пропарки"
+          }
+        },
+        "form": {
+          "label": "Температура пропарки"
+        }
+      },
+      "table_keys": {
+        "pipe": "vapor_temperature",
+        "tank": "vapor_temperature"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": 90,
+        "max": 200,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Смежный параметр карточки объекта по Case 1, стр. 26–27. Алгоритм выбора марки §6.13 температуру пропарки не использует.",
+      "definition_object_types": [
+        "pipe",
+        "tank"
+      ]
+    },
+    "maintain_temperature": {
+      "service_name": "maintain_temperature",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Температура поддержания",
+        "short": "T поддерж.",
+        "compact": "T подд."
+      },
+      "contexts": {
+        "form": {
+          "label": "Температура поддержания"
+        }
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -90,
+        "max": 600,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "input_unit": "raw",
+        "display_digits": 1
+      },
+      "description": "Смежный параметр карточки объекта по Case 1, стр. 26–27. Алгоритм выбора марки §6.13 температуру поддержания не использует."
+    },
+    "heating_height": {
+      "service_name": "heating_height",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Высота обогрева резервуара",
+        "short": "Высота обогрева",
+        "compact": "h обогр."
+      },
+      "contexts": {
+        "form": {
+          "label": "Высота обогрева резервуара"
+        }
+      },
+      "input": {
+        "type": "number",
+        "unit": "м",
+        "min": 0.001,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "raw",
+        "display_digits": 2
+      },
+      "description": "Явная высота зоны электрического обогрева резервуара. Полная высота объекта не подставляется автоматически."
+    },
+    "laying_step": {
+      "service_name": "laying_step",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Шаг укладки резервуара",
+        "short": "Шаг укладки",
+        "compact": "Шаг"
+      },
+      "contexts": {
+        "form": {
+          "label": "Шаг укладки резервуара"
+        }
+      },
+      "input": {
+        "type": "number",
+        "unit": "м",
+        "min": 0.1,
+        "max": 0.4,
+        "default_step": 0.01,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "raw",
+        "display_digits": 2
+      },
+      "description": "Явный шаг раскладки кабеля по резервуару, 0,1–0,4 м. Не является шагом навива трубы."
+    },
+    "num_local_elements": {
+      "service_name": "num_local_elements",
+      "object_types": ["pipe"],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Количество локальных элементов",
+        "short": "Лок. элементы",
+        "compact": "Лок."
+      },
+      "contexts": {
+        "table_by_key": {
+          "num_local_elements": {
+            "label": "Лок., шт",
+            "full_label": "Количество локальных элементов",
+            "tooltip": "Суммарное количество локальных элементов"
+          }
+        },
+        "settings_by_key": {
+          "num_local_elements": {
+            "label": "Количество локальных элементов"
+          }
+        },
+        "form": {
+          "label": "Количество локальных элементов"
+        }
+      },
+      "table_keys": {
+        "pipe": "num_local_elements"
+      },
+      "input": {
+        "type": "number",
+        "unit": "шт",
+        "min": 0,
+        "max": 100,
+        "default_step": 1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Суммарное количество локальных элементов трубопровода, шт. Диапазон: 0…100."
+    },
+    "local_element_equiv_length": {
+      "service_name": "local_element_equiv_length",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Lэкв",
+        "short": "L экв.",
+        "compact": "Lэкв"
+      },
+      "contexts": {
+        "table_by_key": {
+          "local_element_equiv_length": {
+            "label": "L экв.",
+            "full_label": "Эквивалентная длина локальных элементов",
+            "tooltip": "Эквивалентная длина локальных элементов"
+          }
+        },
+        "settings_by_key": {
+          "local_element_equiv_length": {
+            "label": "Эквивалентная длина локальных элементов"
+          }
+        },
+        "form": {
+          "label": "Эквивалентная длина локального элемента"
+        }
+      },
+      "table_keys": {
+        "pipe": "local_element_equiv_length"
+      },
+      "input": {
+        "type": "number",
+        "unit": "м",
+        "min": 0.1,
+        "max": 6.9,
+        "default_step": 0.1,
+        "configurable_step": false,
+        "input_unit": "raw",
+        "display_digits": 1
+      },
+      "description": "Эквивалентная длина одного локального элемента Lэкв. Прибавляется к длине трубы как N × Lэкв."
+    },
+    "heat_loss_per_meter_base": {
+      "service_name": "heat_loss_per_meter_base",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Теплопотери",
+      "labels": {
+        "full": "Базовые линейные теплопотери (до K)",
+        "short": "q до K, Вт/м",
+        "compact": "q base"
+      },
+      "contexts": {
+        "table_by_key": {
+          "heat_loss_per_meter_base": {
+            "label": "q до K, Вт/м",
+            "full_label": "Базовые линейные теплопотери (до K)",
+            "compact_label": "q base",
+            "tooltip": "Базовые линейные теплопотери трубы до коэффициента K"
+          }
+        },
+        "settings_by_key": {
+          "heat_loss_per_meter_base": {
+            "label": "Базовые линейные теплопотери (до K)"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "heat_loss_per_meter_base"
+      },
+      "input": {
+        "type": "computed"
+      },
+      "description": "Базовые теплопотери на 1 метр трубы до применения коэффициента запаса K. Не хранятся во входных параметрах."
+    },
+    "heat_loss_per_m2_bare_base": {
+      "service_name": "heat_loss_per_m2_bare_base",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Теплопотери",
+      "labels": {
+        "full": "Базовые удельные теплопотери (до K)",
+        "short": "q до K, Вт/м²",
+        "compact": "q base"
+      },
+      "contexts": {
+        "table_by_key": {
+          "heat_loss_per_m2_bare_base": {
+            "label": "q до K, Вт/м²",
+            "full_label": "Базовые удельные теплопотери (до K)",
+            "compact_label": "q base",
+            "tooltip": "Базовые удельные теплопотери резервуара до коэффициента K"
+          }
+        },
+        "settings_by_key": {
+          "heat_loss_per_m2_bare_base": {
+            "label": "Базовые удельные теплопотери (до K)"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "heat_loss_per_m2_bare_base"
+      },
+      "input": {
+        "type": "computed"
+      },
+      "description": "Базовые теплопотери на 1 м² неизолированной поверхности резервуара до применения K. Не хранятся во входных параметрах."
+    },
+    "total_heat_loss_design": {
+      "service_name": "total_heat_loss_design",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Теплопотери",
+      "labels": {
+        "full": "Проектные суммарные теплопотери",
+        "short": "Q проект., Вт",
+        "compact": "Q design"
+      },
+      "contexts": {
+        "table_by_key": {
+          "total_heat_loss_design": {
+            "label": "Q проект., Вт",
+            "full_label": "Проектные суммарные теплопотери",
+            "compact_label": "Q design",
+            "tooltip": "Проектная тепловая нагрузка после коэффициента K"
+          }
+        },
+        "settings_by_key": {
+          "total_heat_loss_design": {
+            "label": "Проектные суммарные теплопотери"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "total_heat_loss_design",
+        "tank": "total_heat_loss_design"
+      },
+      "input": {
+        "type": "computed"
+      },
+      "description": "Проектная суммарная нагрузка после применения K; для резервуара включает Qдоп после K. Не хранится во входных параметрах."
+    },
+    "delta_t": {
+      "service_name": "delta_t",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Разница температур",
+        "short": "ΔT",
+        "compact": "ΔT"
+      },
+      "contexts": {
+        "table_by_key": {
+          "delta_t": {
+            "label": "ΔT",
+            "full_label": "Разница температур",
+            "tooltip": "Разница температур"
+          }
+        },
+        "settings_by_key": {
+          "delta_t": {
+            "label": "Разница температур"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "delta_t",
+        "tank": "delta_t"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "applied_alpha_vnesh": {
+      "service_name": "applied_alpha_vnesh",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "α применённая",
+        "short": "α примен.",
+        "compact": "α примен."
+      },
+      "contexts": {
+        "table_by_key": {
+          "applied_alpha_vnesh": {
+            "label": "α примен.",
+            "full_label": "α применённая",
+            "tooltip": "α применённая"
+          }
+        },
+        "settings_by_key": {
+          "applied_alpha_vnesh": {
+            "label": "α применённая"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "applied_alpha_vnesh",
+        "tank": "applied_alpha_vnesh"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "applied_safety_factor": {
+      "service_name": "applied_safety_factor",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Kзап применённый",
+        "short": "Kзап примен.",
+        "compact": "Kзап примен."
+      },
+      "contexts": {
+        "table_by_key": {
+          "applied_safety_factor": {
+            "label": "Kзап примен.",
+            "full_label": "Kзап применённый",
+            "tooltip": "Kзап применённый"
+          }
+        },
+        "settings_by_key": {
+          "applied_safety_factor": {
+            "label": "Kзап применённый"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "applied_safety_factor",
+        "tank": "applied_safety_factor"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "thermal_resistance": {
+      "service_name": "thermal_resistance",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Суммарное сопротивление",
+        "short": "RΣ",
+        "compact": "RΣ"
+      },
+      "contexts": {
+        "table_by_key": {
+          "thermal_resistance": {
+            "label": "RΣ",
+            "full_label": "Суммарное сопротивление",
+            "tooltip": "Суммарное сопротивление"
+          }
+        },
+        "settings_by_key": {
+          "thermal_resistance": {
+            "label": "Суммарное сопротивление"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "thermal_resistance"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "wall_resistance": {
+      "service_name": "wall_resistance",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Сопротивление стенки",
+        "short": "Rст",
+        "compact": "Rст"
+      },
+      "contexts": {
+        "table_by_key": {
+          "wall_resistance": {
+            "label": "Rст",
+            "full_label": "Сопротивление стенки",
+            "tooltip": "Сопротивление стенки"
+          }
+        },
+        "settings_by_key": {
+          "wall_resistance": {
+            "label": "Сопротивление стенки"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "wall_resistance",
+        "tank": "wall_resistance"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "insulation_resistance": {
+      "service_name": "insulation_resistance",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Сопротивление изоляции",
+        "short": "Rиз",
+        "compact": "Rиз"
+      },
+      "contexts": {
+        "table_by_key": {
+          "insulation_resistance": {
+            "label": "Rиз",
+            "full_label": "Сопротивление изоляции",
+            "tooltip": "Сопротивление изоляции"
+          }
+        },
+        "settings_by_key": {
+          "insulation_resistance": {
+            "label": "Сопротивление изоляции"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "insulation_resistance",
+        "tank": "insulation_resistance"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "external_resistance": {
+      "service_name": "external_resistance",
+      "object_types": [
+        "pipe",
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Внешнее сопротивление",
+        "short": "Rвнеш",
+        "compact": "Rвнеш"
+      },
+      "contexts": {
+        "table_by_key": {
+          "external_resistance": {
+            "label": "Rвнеш",
+            "full_label": "Внешнее сопротивление",
+            "tooltip": "Внешнее сопротивление"
+          }
+        },
+        "settings_by_key": {
+          "external_resistance": {
+            "label": "Внешнее сопротивление"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "external_resistance",
+        "tank": "external_resistance"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "effective_length": {
+      "service_name": "effective_length",
+      "object_types": [
+        "pipe"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Расчётная длина",
+        "short": "Lэфф",
+        "compact": "Lэфф"
+      },
+      "contexts": {
+        "table_by_key": {
+          "effective_length": {
+            "label": "Lэфф",
+            "full_label": "Расчётная длина",
+            "tooltip": "Расчётная длина"
+          }
+        },
+        "settings_by_key": {
+          "effective_length": {
+            "label": "Расчётная длина"
+          }
+        }
+      },
+      "table_keys": {
+        "pipe": "effective_length"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "shape": {
+      "service_name": "shape",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Форма резервуара",
+        "short": "Форма",
+        "compact": "Форма"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_shape": {
+            "label": "Форма",
+            "full_label": "Форма резервуара",
+            "tooltip": "Форма резервуара"
+          }
+        },
+        "settings_by_key": {
+          "tank_shape": {
+            "label": "Форма резервуара"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "tank_shape"
+      },
+      "input": {
+        "type": "select",
+        "required": true,
+        "options": [
+          {
+            "value": "cylindrical",
+            "label": "Цилиндрическая"
+          },
+          {
+            "value": "rectangular",
+            "label": "Параллелепипед"
+          }
+        ]
+      },
+      "description": "Форма резервуара определяет набор геометрических размеров, необходимых для расчёта площади поверхности."
+    },
+    "tank_dimensions": {
+      "service_name": "tank_dimensions",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Габариты",
+        "short": "Габариты",
+        "compact": "Габар."
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_dimensions": {
+            "label": "Габариты",
+            "full_label": "Габариты",
+            "tooltip": "Габариты"
+          }
+        },
+        "settings_by_key": {
+          "tank_dimensions": {
+            "label": "Габариты"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "tank_dimensions"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "diameter_mm": {
+      "service_name": "diameter_mm",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Диаметр резервуара",
+        "short": "Ø",
+        "compact": "Ø"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_diameter": {
+            "label": "Ø, мм",
+            "full_label": "Диаметр",
+            "tooltip": "Диаметр"
+          }
+        },
+        "settings_by_key": {
+          "tank_diameter": {
+            "label": "Диаметр"
+          }
+        },
+        "form": {
+          "label": "Диаметр"
+        }
+      },
+      "table_keys": {
+        "tank": "tank_diameter"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 100,
+        "max": 30000,
+        "default_step": 100,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Внешний диаметр цилиндрического резервуара Ø, мм. Диапазон: 100–30 000 мм.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "height_mm": {
+      "service_name": "height_mm",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Высота резервуара",
+        "short": "Высота",
+        "compact": "H"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_height": {
+            "label": "H, мм",
+            "full_label": "Высота",
+            "tooltip": "Высота"
+          }
+        },
+        "settings_by_key": {
+          "tank_height": {
+            "label": "Высота"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "tank_height"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 100,
+        "max": 50000,
+        "default_step": 100,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Высота резервуара. Обязательна для цилиндрической и прямоугольной форм. Диапазон: 100–50 000 мм.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "length_mm": {
+      "service_name": "length_mm",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Длина резервуара",
+        "short": "Длина",
+        "compact": "L"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_length": {
+            "label": "L, мм",
+            "full_label": "Длина",
+            "tooltip": "Длина"
+          }
+        },
+        "settings_by_key": {
+          "tank_length": {
+            "label": "Длина"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "tank_length"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 100,
+        "max": 100000,
+        "default_step": 100,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Длина прямоугольного резервуара L, мм. Диапазон: 100–100 000 мм.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "width_mm": {
+      "service_name": "width_mm",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "Ширина резервуара",
+        "short": "Ширина",
+        "compact": "B"
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_width": {
+            "label": "B, мм",
+            "full_label": "Ширина",
+            "tooltip": "Ширина"
+          }
+        },
+        "settings_by_key": {
+          "tank_width": {
+            "label": "Ширина"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "tank_width"
+      },
+      "input": {
+        "type": "number",
+        "unit": "мм",
+        "min": 100,
+        "max": 100000,
+        "default_step": 100,
+        "configurable_step": true,
+        "required": true,
+        "input_unit": "mm",
+        "display_digits": 0
+      },
+      "description": "Ширина прямоугольного резервуара B, мм. Диапазон: 100–100 000 мм.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "wall_lambda": {
+      "service_name": "wall_lambda",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Форма и геометрия",
+      "labels": {
+        "full": "λ стенки",
+        "short": "λ ст.",
+        "compact": "λ ст."
+      },
+      "contexts": {
+        "table_by_key": {
+          "tank_wall_lambda": {
+            "label": "λ ст.",
+            "full_label": "λ стенки",
+            "tooltip": "λ стенки"
+          }
+        },
+        "settings_by_key": {
+          "tank_wall_lambda": {
+            "label": "λ стенки"
+          }
+        },
+        "form": {
+          "label": "Теплопроводность стенки λ"
+        }
+      },
+      "table_keys": {
+        "tank": "tank_wall_lambda"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт/мК",
+        "min": 0.001,
+        "max": 400,
+        "default_step": 0.1,
+        "configurable_step": true,
+        "input_unit": "raw",
+        "display_digits": 3
+      },
+      "description": "Теплопроводность стенки резервуара. Работает в паре с толщиной стенки.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "q_additional": {
+      "service_name": "q_additional",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Электропараметры и арматура",
+      "labels": {
+        "full": "Q_доп",
+        "short": "Q_доп",
+        "compact": "Q"
+      },
+      "contexts": {
+        "table_by_key": {
+          "q_additional": {
+            "label": "Q доп., Вт",
+            "full_label": "Q доп.",
+            "tooltip": "Q доп."
+          }
+        },
+        "settings_by_key": {
+          "q_additional": {
+            "label": "Q доп."
+          }
+        },
+        "form": {
+          "label": "Дополнительные теплопотери"
+        }
+      },
+      "table_keys": {
+        "tank": "q_additional"
+      },
+      "input": {
+        "type": "number",
+        "unit": "Вт",
+        "min": 0,
+        "default_step": 10,
+        "configurable_step": true,
+        "input_unit": "raw",
+        "display_digits": 0
+      },
+      "description": "Дополнительные теплопотери (днище, штуцера и пр.). Прибавляется к суммарным теплопотерям, не влияет на удельные.",
+      "definition_object_types": [
+        "tank"
+      ]
+    },
+    "ground_resistance": {
+      "service_name": "ground_resistance",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Сопротивление грунта",
+        "short": "Rгр",
+        "compact": "Rгр"
+      },
+      "contexts": {
+        "table_by_key": {
+          "ground_resistance": {
+            "label": "Rгр",
+            "full_label": "Сопротивление грунта",
+            "tooltip": "Сопротивление грунта"
+          }
+        },
+        "settings_by_key": {
+          "ground_resistance": {
+            "label": "Сопротивление грунта"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "ground_resistance"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "surface_area_bare": {
+      "service_name": "surface_area_bare",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Площадь поверхности",
+        "short": "Sпов.",
+        "compact": "Sпов."
+      },
+      "contexts": {
+        "table_by_key": {
+          "surface_area_bare": {
+            "label": "Sпов.",
+            "full_label": "Площадь поверхности",
+            "tooltip": "Площадь поверхности"
+          }
+        },
+        "settings_by_key": {
+          "surface_area_bare": {
+            "label": "Площадь поверхности"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "surface_area_bare"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "air_surface_area": {
+      "service_name": "air_surface_area",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Площадь над грунтом",
+        "short": "Sвозд",
+        "compact": "Sвозд"
+      },
+      "contexts": {
+        "table_by_key": {
+          "air_surface_area": {
+            "label": "Sвозд",
+            "full_label": "Площадь над грунтом",
+            "tooltip": "Площадь над грунтом"
+          }
+        },
+        "settings_by_key": {
+          "air_surface_area": {
+            "label": "Площадь над грунтом"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "air_surface_area"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "ground_surface_area": {
+      "service_name": "ground_surface_area",
+      "object_types": [
+        "tank"
+      ],
+      "group": "Расчётные детали",
+      "labels": {
+        "full": "Площадь в грунте",
+        "short": "Sгр",
+        "compact": "Sгр"
+      },
+      "contexts": {
+        "table_by_key": {
+          "ground_surface_area": {
+            "label": "Sгр",
+            "full_label": "Площадь в грунте",
+            "tooltip": "Площадь в грунте"
+          }
+        },
+        "settings_by_key": {
+          "ground_surface_area": {
+            "label": "Площадь в грунте"
+          }
+        }
+      },
+      "table_keys": {
+        "tank": "ground_surface_area"
+      },
+      "input": {
+        "type": "computed"
+      }
+    },
+    "first_insulation_temperature_range": {
+      "service_name": "first_insulation_temperature_range",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Диапазон T 1-го слоя",
+        "short": "Диапазон T",
+        "compact": "T"
+      },
+      "contexts": {
+        "form": {
+          "label": "Диапазон температур"
+        }
+      },
+      "input": {
+        "type": "range",
+        "unit": "°C",
+        "default_step": 1,
+        "configurable_step": false
+      },
+      "description": "Температурный диапазон применения выбранного материала изоляции. Поле доступно всегда; ручное изменение переводит материал слоя в «Другое»."
+    },
+    "first_insulation_temperature_min": {
+      "service_name": "first_insulation_temperature_min",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Мин. T 1-го слоя",
+        "short": "Мин. T",
+        "compact": "T min"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    },
+    "first_insulation_temperature_max": {
+      "service_name": "first_insulation_temperature_max",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Макс. T 1-го слоя",
+        "short": "Макс. T",
+        "compact": "T max"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    },
+    "second_insulation_temperature_range": {
+      "service_name": "second_insulation_temperature_range",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Диапазон T 2-го слоя",
+        "short": "Диапазон T",
+        "compact": "T"
+      },
+      "contexts": {
+        "form": {
+          "label": "Диапазон температур"
+        }
+      },
+      "input": {
+        "type": "range",
+        "unit": "°C",
+        "default_step": 1,
+        "configurable_step": false
+      },
+      "description": "Температурный диапазон применения материала второго слоя изоляции. Поле доступно всегда; ручное изменение переводит материал слоя в «Другое»."
+    },
+    "second_insulation_temperature_min": {
+      "service_name": "second_insulation_temperature_min",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Мин. T 2-го слоя",
+        "short": "Мин. T",
+        "compact": "T min"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    },
+    "second_insulation_temperature_max": {
+      "service_name": "second_insulation_temperature_max",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Макс. T 2-го слоя",
+        "short": "Макс. T",
+        "compact": "T max"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    },
+    "third_insulation_temperature_range": {
+      "service_name": "third_insulation_temperature_range",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Диапазон T 3-го слоя",
+        "short": "Диапазон T",
+        "compact": "T"
+      },
+      "contexts": {
+        "form": {
+          "label": "Диапазон температур"
+        }
+      },
+      "input": {
+        "type": "range",
+        "unit": "°C",
+        "default_step": 1,
+        "configurable_step": false
+      },
+      "description": "Температурный диапазон применения материала третьего слоя изоляции. Поле доступно всегда; ручное изменение переводит материал слоя в «Другое»."
+    },
+    "third_insulation_temperature_min": {
+      "service_name": "third_insulation_temperature_min",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Мин. T 3-го слоя",
+        "short": "Мин. T",
+        "compact": "T min"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    },
+    "third_insulation_temperature_max": {
+      "service_name": "third_insulation_temperature_max",
+      "object_types": [],
+      "group": "Теплоизоляция",
+      "labels": {
+        "full": "Макс. T 3-го слоя",
+        "short": "Макс. T",
+        "compact": "T max"
+      },
+      "input": {
+        "type": "number",
+        "unit": "°C",
+        "min": -273,
+        "max": 1000,
+        "default_step": 1,
+        "configurable_step": false
+      }
+    }
+  },
+  "table": {
+    "settings_version": 9,
+    "registry": {
+      "pipe": [
+        {
+          "key": "index",
+          "group": "Основные",
+          "defaultWidthPct": 4.2,
+          "minWidthPx": 48,
+          "copyTitle": "№",
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": false,
+          "resizable": true,
+          "field": "index"
+        },
+        {
+          "key": "heat_loss_status",
+          "group": "Основные",
+          "defaultWidthPct": 5.6,
+          "minWidthPx": 52,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_status"
+        },
+        {
+          "key": "heat_loss_per_meter_base",
+          "group": "Теплопотери",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_per_meter_base"
+        },
+        {
+          "key": "total_heat_loss_design",
+          "group": "Теплопотери",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "total_heat_loss_design"
+        },
+        {
+          "key": "type",
+          "group": "Основные",
+          "defaultWidthPct": 7,
+          "minWidthPx": 48,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "type"
+        },
+        {
+          "key": "name",
+          "group": "Основные",
+          "defaultWidthPct": 24,
+          "minWidthPx": 160,
+          "required": true,
+          "ellipsis": true,
+          "valueType": "text",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "name"
+        },
+        {
+          "key": "pipe_outer_diameter",
+          "group": "Геометрия",
+          "defaultWidthPct": 7.6,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "outer_diameter_mm"
+        },
+        {
+          "key": "pipe_dn",
+          "group": "Геометрия",
+          "defaultWidthPct": 5.8,
+          "minWidthPx": 48,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "nominal_diameter"
+        },
+        {
+          "key": "pipe_length",
+          "group": "Геометрия",
+          "defaultWidthPct": 7.4,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "pipe_length"
+        },
+        {
+          "key": "pipe_wall_thickness",
+          "group": "Геометрия",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wall_thickness_mm"
+        },
+        {
+          "key": "pipe_material",
+          "group": "Геометрия",
+          "defaultWidthPct": 15,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "pipe_material"
+        },
+        {
+          "key": "pipe_lambda",
+          "group": "Геометрия",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "pipe_lambda"
+        },
+        {
+          "key": "pipe_lambda_mode",
+          "group": "Геометрия",
+          "defaultWidthPct": 9.4,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "pipe_lambda_mode"
+        },
+        {
+          "key": "placement",
+          "group": "Геометрия",
+          "defaultWidthPct": 11.6,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "placement"
+        },
+        {
+          "key": "insulation_layer_count",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_layer_count"
+        },
+        {
+          "key": "insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_thickness_mm"
+        },
+        {
+          "key": "insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_material"
+        },
+        {
+          "key": "first_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "first_insulation_lambda"
+        },
+        {
+          "key": "second_insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_thickness_mm"
+        },
+        {
+          "key": "second_insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_material"
+        },
+        {
+          "key": "second_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_lambda"
+        },
+        {
+          "key": "third_insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_thickness_mm"
+        },
+        {
+          "key": "third_insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_material"
+        },
+        {
+          "key": "third_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_lambda"
+        },
+        {
+          "key": "insulation_cover_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 13.2,
+          "minWidthPx": 80,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_cover_material"
+        },
+        {
+          "key": "process_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "process_temperature"
+        },
+        {
+          "key": "ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ambient_temperature"
+        },
+        {
+          "key": "ambient_temperature_source",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.4,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ambient_temperature_source"
+        },
+        {
+          "key": "max_ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "max_ambient_temperature"
+        },
+        {
+          "key": "max_process_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10.2,
+          "minWidthPx": 80,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "max_process_temperature"
+        },
+        {
+          "key": "wind_speed",
+          "group": "Температура и среда",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wind_speed"
+        },
+        {
+          "key": "wind_speed_source",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wind_speed_source"
+        },
+        {
+          "key": "alpha_vnesh",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "alpha_vnesh"
+        },
+        {
+          "key": "environment",
+          "group": "Температура и среда",
+          "defaultWidthPct": 11.2,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "environment"
+        },
+        {
+          "key": "zone_classification",
+          "group": "Температура и среда",
+          "defaultWidthPct": 11.2,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "zone_classification"
+        },
+        {
+          "key": "temperature_group",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "temperature_group"
+        },
+        {
+          "key": "climate_city",
+          "group": "Температура и среда",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_city"
+        },
+        {
+          "key": "climate_region",
+          "group": "Температура и среда",
+          "defaultWidthPct": 15,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_region"
+        },
+        {
+          "key": "climate_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_temperature_basis"
+        },
+        {
+          "key": "insulation_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 86,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_temperature_basis"
+        },
+        {
+          "key": "pipe_centerline_depth",
+          "group": "Грунт",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "pipe_centerline_depth"
+        },
+        {
+          "key": "ground_temperature",
+          "group": "Грунт",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ground_temperature"
+        },
+        {
+          "key": "ground_conductivity",
+          "group": "Грунт",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ground_conductivity"
+        },
+        {
+          "key": "min_switch_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "min_switch_temperature"
+        },
+        {
+          "key": "safety_factor",
+          "group": "Электропараметры",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "safety_factor"
+        },
+        {
+          "key": "steam_tracing",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "boolean",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "steam_tracing"
+        },
+        {
+          "key": "vapor_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "vapor_temperature"
+        },
+        {
+          "key": "num_local_elements",
+          "group": "Локальные элементы",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "num_local_elements"
+        },
+        {
+          "key": "local_element_equiv_length",
+          "group": "Локальные элементы",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "local_element_equiv_length"
+        },
+        {
+          "key": "delta_t",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "delta_t"
+        },
+        {
+          "key": "applied_alpha_vnesh",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "applied_alpha_vnesh"
+        },
+        {
+          "key": "applied_safety_factor",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 72,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "applied_safety_factor"
+        },
+        {
+          "key": "thermal_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "thermal_resistance"
+        },
+        {
+          "key": "wall_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "wall_resistance"
+        },
+        {
+          "key": "insulation_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "insulation_resistance"
+        },
+        {
+          "key": "external_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "external_resistance"
+        },
+        {
+          "key": "effective_length",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "effective_length"
+        }
+      ],
+      "tank": [
+        {
+          "key": "index",
+          "group": "Основные",
+          "defaultWidthPct": 4.2,
+          "minWidthPx": 48,
+          "copyTitle": "№",
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": false,
+          "resizable": true,
+          "field": "index"
+        },
+        {
+          "key": "heat_loss_status",
+          "group": "Основные",
+          "defaultWidthPct": 5.6,
+          "minWidthPx": 52,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_status"
+        },
+        {
+          "key": "heat_loss_per_m2_bare_base",
+          "group": "Теплопотери",
+          "defaultWidthPct": 8.4,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "heat_loss_per_m2_bare_base"
+        },
+        {
+          "key": "total_heat_loss_design",
+          "group": "Теплопотери",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "total_heat_loss_design"
+        },
+        {
+          "key": "type",
+          "group": "Основные",
+          "defaultWidthPct": 7,
+          "minWidthPx": 48,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "type"
+        },
+        {
+          "key": "name",
+          "group": "Основные",
+          "defaultWidthPct": 24,
+          "minWidthPx": 160,
+          "required": true,
+          "ellipsis": true,
+          "valueType": "text",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "name"
+        },
+        {
+          "key": "tank_shape",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "shape"
+        },
+        {
+          "key": "tank_dimensions",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 19,
+          "minWidthPx": 120,
+          "ellipsis": true,
+          "valueType": "text",
+          "defaultVisible": true,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "tank_dimensions"
+        },
+        {
+          "key": "tank_diameter",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 7.6,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "diameter_mm"
+        },
+        {
+          "key": "tank_height",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 7.6,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "height_mm"
+        },
+        {
+          "key": "tank_length",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 7.6,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "length_mm"
+        },
+        {
+          "key": "tank_width",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 7.6,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "width_mm"
+        },
+        {
+          "key": "tank_wall_thickness",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wall_thickness_mm"
+        },
+        {
+          "key": "tank_wall_lambda",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wall_lambda"
+        },
+        {
+          "key": "placement",
+          "group": "Форма и геометрия",
+          "defaultWidthPct": 11.6,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "placement"
+        },
+        {
+          "key": "insulation_layer_count",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_layer_count"
+        },
+        {
+          "key": "insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_thickness_mm"
+        },
+        {
+          "key": "insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_material"
+        },
+        {
+          "key": "first_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "first_insulation_lambda"
+        },
+        {
+          "key": "second_insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_thickness_mm"
+        },
+        {
+          "key": "second_insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_material"
+        },
+        {
+          "key": "second_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "second_insulation_lambda"
+        },
+        {
+          "key": "third_insulation_thickness",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_thickness_mm"
+        },
+        {
+          "key": "third_insulation_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_material"
+        },
+        {
+          "key": "third_insulation_lambda",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "third_insulation_lambda"
+        },
+        {
+          "key": "insulation_cover_material",
+          "group": "Теплоизоляция",
+          "defaultWidthPct": 13.2,
+          "minWidthPx": 80,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_cover_material"
+        },
+        {
+          "key": "process_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "process_temperature"
+        },
+        {
+          "key": "ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ambient_temperature"
+        },
+        {
+          "key": "ambient_temperature_source",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.4,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ambient_temperature_source"
+        },
+        {
+          "key": "max_ambient_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "max_ambient_temperature"
+        },
+        {
+          "key": "max_process_temperature",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10.2,
+          "minWidthPx": 80,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "max_process_temperature"
+        },
+        {
+          "key": "wind_speed",
+          "group": "Температура и среда",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wind_speed"
+        },
+        {
+          "key": "wind_speed_source",
+          "group": "Температура и среда",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "wind_speed_source"
+        },
+        {
+          "key": "alpha_vnesh",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "alpha_vnesh"
+        },
+        {
+          "key": "environment",
+          "group": "Температура и среда",
+          "defaultWidthPct": 11.2,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "environment"
+        },
+        {
+          "key": "zone_classification",
+          "group": "Температура и среда",
+          "defaultWidthPct": 11.2,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "zone_classification"
+        },
+        {
+          "key": "temperature_group",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 80,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "temperature_group"
+        },
+        {
+          "key": "climate_city",
+          "group": "Температура и среда",
+          "defaultWidthPct": 16,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_city"
+        },
+        {
+          "key": "climate_region",
+          "group": "Температура и среда",
+          "defaultWidthPct": 15,
+          "minWidthPx": 110,
+          "ellipsis": true,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_region"
+        },
+        {
+          "key": "climate_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "climate_temperature_basis"
+        },
+        {
+          "key": "insulation_temperature_basis",
+          "group": "Температура и среда",
+          "defaultWidthPct": 10,
+          "minWidthPx": 86,
+          "valueType": "enum",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "insulation_temperature_basis"
+        },
+        {
+          "key": "tank_buried_height",
+          "group": "Грунт",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "tank_buried_height"
+        },
+        {
+          "key": "ground_conductivity",
+          "group": "Грунт",
+          "defaultWidthPct": 7.8,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "ground_conductivity"
+        },
+        {
+          "key": "min_switch_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 9.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "min_switch_temperature"
+        },
+        {
+          "key": "safety_factor",
+          "group": "Электропараметры",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "safety_factor"
+        },
+        {
+          "key": "q_additional",
+          "group": "Электропараметры",
+          "defaultWidthPct": 9.4,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": true,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "q_additional"
+        },
+        {
+          "key": "steam_tracing",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.6,
+          "minWidthPx": 64,
+          "valueType": "boolean",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "steam_tracing"
+        },
+        {
+          "key": "vapor_temperature",
+          "group": "Электропараметры",
+          "defaultWidthPct": 8.2,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": true,
+          "filterable": true,
+          "resizable": true,
+          "field": "vapor_temperature"
+        },
+        {
+          "key": "delta_t",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "delta_t"
+        },
+        {
+          "key": "applied_alpha_vnesh",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8.8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "applied_alpha_vnesh"
+        },
+        {
+          "key": "applied_safety_factor",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 9.8,
+          "minWidthPx": 72,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "applied_safety_factor"
+        },
+        {
+          "key": "wall_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "wall_resistance"
+        },
+        {
+          "key": "insulation_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "insulation_resistance"
+        },
+        {
+          "key": "external_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "external_resistance"
+        },
+        {
+          "key": "ground_resistance",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 7.2,
+          "minWidthPx": 48,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "ground_resistance"
+        },
+        {
+          "key": "surface_area_bare",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "surface_area_bare"
+        },
+        {
+          "key": "air_surface_area",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "air_surface_area"
+        },
+        {
+          "key": "ground_surface_area",
+          "group": "Расчётные детали",
+          "defaultWidthPct": 8,
+          "minWidthPx": 64,
+          "valueType": "number",
+          "defaultVisible": false,
+          "sortable": false,
+          "filterable": false,
+          "resizable": true,
+          "field": "ground_surface_area"
+        }
+      ]
+    },
+    "default_visible": {
+      "pipe": [
+        "index",
+        "heat_loss_status",
+        "heat_loss_per_meter_base",
+        "total_heat_loss_design",
+        "name",
+        "placement",
+        "pipe_outer_diameter",
+        "pipe_dn",
+        "pipe_length",
+        "insulation_layer_count",
+        "insulation_thickness",
+        "insulation_material",
+        "process_temperature",
+        "ambient_temperature",
+        "num_local_elements",
+        "local_element_equiv_length"
+      ],
+      "tank": [
+        "index",
+        "heat_loss_status",
+        "heat_loss_per_m2_bare_base",
+        "total_heat_loss_design",
+        "name",
+        "tank_shape",
+        "tank_dimensions",
+        "placement",
+        "insulation_layer_count",
+        "insulation_thickness",
+        "insulation_material",
+        "process_temperature",
+        "ambient_temperature",
+        "q_additional"
+      ],
+      "all": [
+        "index",
+        "heat_loss_status",
+        "total_heat_loss_design",
+        "type",
+        "name",
+        "placement",
+        "insulation_layer_count",
+        "insulation_thickness",
+        "insulation_material",
+        "process_temperature",
+        "ambient_temperature"
+      ]
+    },
+    "export": {
+      "pipe": [
+        "*"
+      ],
+      "tank": [
+        "*"
+      ]
+    }
+  },
+  "form": {
+    "field_input_settings_version": 2,
+    "sections": {
+      "pipe": [
+        {
+          "key": "geometry",
+          "title": "Геометрия трубы",
+          "fields": [
+            "name",
+            "outer_diameter_mm",
+            "pipe_length",
+            "wall_thickness_mm",
+            "pipe_lambda_mode",
+            "pipe_material",
+            "pipe_lambda",
+            "placement",
+            "pipe_centerline_depth",
+            "ground_type",
+            "ground_conductivity",
+            "ground_temperature"
+          ]
+        },
+        {
+          "key": "thermal",
+          "title": "Теплоизоляция",
+          "fields": [
+            "insulation_layer_count",
+            "insulation_material",
+            "insulation_thickness_mm",
+            "first_insulation_lambda",
+            "first_insulation_temperature_range",
+            "second_insulation_material",
+            "second_insulation_thickness_mm",
+            "second_insulation_lambda",
+            "second_insulation_temperature_range",
+            "third_insulation_material",
+            "third_insulation_thickness_mm",
+            "third_insulation_lambda",
+            "third_insulation_temperature_range",
+            "insulation_cover_material"
+          ]
+        },
+        {
+          "key": "temperature",
+          "title": "Температура и среда",
+          "fields": [
+            "climate_key",
+            "climate_temperature_basis",
+            "insulation_temperature_basis",
+            "ambient_temperature",
+            "ground_temperature",
+            "process_temperature",
+            "wind_speed",
+            "alpha_vnesh",
+            "max_ambient_temperature",
+            "max_process_temperature",
+            "environment",
+            "zone_classification",
+            "temperature_group"
+          ]
+        },
+        {
+          "key": "electrical",
+          "title": "Электропараметры и арматура",
+          "fields": [
+            "min_switch_temperature",
+            "safety_factor",
+            "steam_tracing",
+            "vapor_temperature",
+            "maintain_temperature",
+            "num_local_elements",
+            "local_element_equiv_length"
+          ]
+        }
+      ],
+      "tank": [
+        {
+          "key": "geometry",
+          "title": "Форма и геометрия",
+          "fields": [
+            "name",
+            "shape",
+            "diameter_mm",
+            "height_mm",
+            "length_mm",
+            "width_mm",
+            "wall_thickness_mm",
+            "wall_lambda",
+            "placement",
+            "tank_buried_height",
+            "ground_type",
+            "ground_conductivity"
+          ]
+        },
+        {
+          "key": "thermal",
+          "title": "Теплоизоляция",
+          "fields": [
+            "insulation_layer_count",
+            "insulation_material",
+            "insulation_thickness_mm",
+            "first_insulation_lambda",
+            "first_insulation_temperature_range",
+            "second_insulation_material",
+            "second_insulation_thickness_mm",
+            "second_insulation_lambda",
+            "second_insulation_temperature_range",
+            "third_insulation_material",
+            "third_insulation_thickness_mm",
+            "third_insulation_lambda",
+            "third_insulation_temperature_range",
+            "insulation_cover_material"
+          ]
+        },
+        {
+          "key": "temperature",
+          "title": "Температура и среда",
+          "fields": [
+            "climate_key",
+            "climate_temperature_basis",
+            "insulation_temperature_basis",
+            "ambient_temperature",
+            "process_temperature",
+            "wind_speed",
+            "alpha_vnesh",
+            "max_ambient_temperature",
+            "max_process_temperature",
+            "environment",
+            "zone_classification",
+            "temperature_group"
+          ]
+        },
+        {
+          "key": "electrical",
+          "title": "Электропараметры и арматура",
+          "fields": [
+            "min_switch_temperature",
+            "safety_factor",
+            "q_additional",
+            "steam_tracing",
+            "vapor_temperature",
+            "maintain_temperature",
+            "heating_height",
+            "laying_step"
+          ]
+        }
+      ]
+    }
+  },
+  "report": {
+    "fields": []
+  },
+  "import": {
+    "fields": []
+  }
+}

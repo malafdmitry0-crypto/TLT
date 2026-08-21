@@ -1,0 +1,337 @@
+{
+  "version": 2,
+  "columns": {
+    "index": {
+      "labels": { "short": "#", "full": "Номер строки", "compact": "#" },
+      "group": "Основные",
+      "source": "service",
+      "valueType": "service",
+      "description": "Порядковый номер строки на текущей странице таблицы."
+    },
+    "object_name": {
+      "labels": { "short": "Объект", "full": "Наименование объекта", "compact": "Объект" },
+      "group": "Основные",
+      "source": "params",
+      "valueType": "input",
+      "description": "Наименование объекта из project_objects.params.name."
+    },
+    "object_type": {
+      "labels": { "short": "Тип", "full": "Тип объекта", "compact": "Тип" },
+      "group": "Основные",
+      "source": "params",
+      "valueType": "input",
+      "description": "Тип объекта: трубопровод или резервуар."
+    },
+    "heat_loss_status": {
+      "labels": { "short": "Теплопотери", "full": "Статус теплового расчёта", "compact": "ТП" },
+      "group": "Диагностика",
+      "source": "project_objects",
+      "valueType": "computed",
+      "description": "Статус предыдущего расчёта теплопотерь объекта."
+    },
+    "electrical_status": {
+      "labels": { "short": "Статус", "full": "Статус электрорасчёта", "compact": "Статус" },
+      "group": "Диагностика",
+      "source": "electrical_calculations",
+      "valueType": "service",
+      "description": "Показывает, рассчитан ли объект, есть ли ошибка, статус не применимо или расчёт ещё не выполнен."
+    },
+    "cable_type": {
+      "labels": { "short": "Тип кабеля", "full": "Тип греющего кабеля", "compact": "Тип каб." },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "input",
+      "description": "Тип кабеля, с которым выполнен расчёт текущего ЭР."
+    },
+    "cable_mark": {
+      "labels": { "short": "Марка", "full": "Марка кабеля", "compact": "Марка" },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "input",
+      "description": "Подобранная или вручную выбранная марка кабеля."
+    },
+    "power_per_meter": {
+      "labels": { "short": "P каб., Вт/м", "full": "Удельная мощность выбранного кабеля, Вт/м", "compact": "P каб." },
+      "group": "Кабель",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Паспортная удельная мощность выбранной точной марки кабеля, Вт/м."
+    },
+    "cable_snapshot_status": {
+      "labels": { "short": "Статус кабеля", "full": "Статус кабеля в базе", "compact": "Стат. каб." },
+      "group": "Кабель",
+      "source": "electrical_calculations",
+      "valueType": "computed",
+      "description": "Показывает, совпадает ли сохранённый в проекте снимок кабеля с текущей базой."
+    },
+    "selection_policy": {
+      "labels": { "short": "Критерий", "full": "Запрошенный критерий подбора", "compact": "Крит." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "input",
+      "description": "Критерий, выбранный пользователем для ранжирования технически подходящих кабелей."
+    },
+    "applied_selection_policy": {
+      "labels": { "short": "Критерий", "full": "Фактически применённый критерий", "compact": "Крит." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Фактически применённая политика; отличается от критерия при fallback."
+    },
+    "selection_reason": {
+      "labels": { "short": "Причина", "full": "Причина выбора кабеля", "compact": "Прич." },
+      "group": "Коммерческий подбор",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Пояснение backend, почему выбран этот кабель."
+    },
+    "winding_pitch_mm": {
+      "labels": { "short": "Шаг навива, мм", "full": "Шаг навива кабеля, мм", "compact": "Шаг, мм" },
+      "group": "Укладка",
+      "source": "results",
+      "valueType": "input",
+      "description": "Шаг навива кабеля. В строке можно изменить значение для пересчёта объекта."
+    },
+    "number_of_threads": {
+      "labels": { "short": "Ниток", "full": "Количество ниток кабеля", "compact": "Ниток" },
+      "group": "Укладка",
+      "source": "results",
+      "valueType": "input",
+      "description": "Количество параллельных ниток кабеля для объекта."
+    },
+    "laying_step": {
+      "labels": { "short": "Шаг укладки, м", "full": "Шаг укладки на резервуаре, м", "compact": "Шаг укл." },
+      "group": "Укладка",
+      "source": "params",
+      "valueType": "input",
+      "description": "Шаг укладки кабеля на резервуаре из параметров электрорасчёта."
+    },
+    "heating_height": {
+      "labels": { "short": "Высота обогр., м", "full": "Высота обогреваемой зоны, м", "compact": "H обогр." },
+      "group": "Укладка",
+      "source": "params",
+      "valueType": "input",
+      "description": "Высота обогреваемой зоны для резервуаров."
+    },
+    "connection_type": {
+      "labels": { "short": "Схема", "full": "Схема подключения", "compact": "Схема" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Схема подключения резистивного кабеля."
+    },
+    "supply_voltage": {
+      "labels": { "short": "U, В", "full": "Рабочее напряжение, В", "compact": "U" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Напряжение питания, переданное в электрорасчёт."
+    },
+    "winding_coefficient": {
+      "labels": { "short": "w", "full": "Коэффициент навива", "compact": "w" },
+      "group": "Электропараметры",
+      "source": "params",
+      "valueType": "input",
+      "description": "Коэффициент навива для резистивного расчёта."
+    },
+    "installed_cable_length": {
+      "labels": { "short": "L факт, м", "full": "Фактическая длина кабеля после секционирования, м", "compact": "L факт" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Каноническая расчётная/уложенная длина кабеля. Используется для мощности, тока и технической проверки."
+    },
+    "order_cable_length": {
+      "labels": { "short": "L заказ, м", "full": "Заказная длина кабеля с монтажным запасом, м", "compact": "L заказ" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Длина кабеля для спецификации и закупки: расчётная длина с монтажным запасом 10%."
+    },
+    "required_installed_length_m": {
+      "labels": { "short": "L треб., м", "full": "Требуемая уложенная длина, м", "compact": "L треб." },
+      "group": "Инженерные ограничения",
+      "source": "results.layout",
+      "valueType": "computed",
+      "description": "Требуемая длина из канонического TT-снимка; legacy top-level значение поддерживается для чтения."
+    },
+    "section_l_max_m": {
+      "labels": { "short": "L макс, м", "full": "Максимальная длина секции, м", "compact": "L макс" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Ограничение длины секции из каталога секционирования."
+    },
+    "section_l_tok_m": {
+      "labels": { "short": "L ток, м", "full": "Ограничение длины секции по току, м", "compact": "L ток" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Допустимая длина секции по пусковому току."
+    },
+    "section_l_ogr_m": {
+      "labels": { "short": "L огр, м", "full": "Итоговое ограничение длины секции, м", "compact": "L огр" },
+      "group": "Инженерные ограничения",
+      "source": "results.section_plan",
+      "valueType": "computed",
+      "description": "Итоговая допустимая длина секции по техническим ограничениям."
+    },
+    "section_l_excess_m": {
+      "labels": { "short": "L доп., м", "full": "Дополнительная длина после выравнивания секций, м", "compact": "L доп." },
+      "group": "Инженерные ограничения",
+      "source": "results.layout",
+      "valueType": "computed",
+      "description": "Разность Lфакт − Lтреб после деления на равные секции."
+    },
+    "provenance": {
+      "labels": { "short": "Источники", "full": "Трассируемость расчёта", "compact": "Источники" },
+      "group": "Инженерные ограничения",
+      "source": "results.provenance",
+      "valueType": "computed",
+      "description": "Компактная трассируемость источников укладки, тока, каталога секций, версии и fingerprint формулы."
+    },
+    "total_power": {
+      "labels": { "short": "Мощность, Вт", "full": "Суммарная мощность, Вт", "compact": "P" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Суммарная электрическая мощность объекта."
+    },
+    "installed_power_per_meter": {
+      "labels": { "short": "P уст., Вт/м", "full": "Установленная удельная мощность, Вт/м", "compact": "P уст." },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Удельная мощность с учётом укладки: мощность кабеля × коэффициент навива × количество ниток."
+    },
+    "current": {
+      "labels": { "short": "Ток, А", "full": "Расчётный ток, А", "compact": "I" },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Расчётный ток объекта."
+    },
+    "voltage": {
+      "labels": { "short": "U расч., В", "full": "Напряжение в результате расчёта, В", "compact": "U расч." },
+      "group": "Результат",
+      "source": "results",
+      "valueType": "computed",
+      "description": "Напряжение, применённое в результате электрорасчёта."
+    },
+    "price_per_meter": {
+      "labels": { "short": "Цена за м", "full": "Цена кабеля за метр", "compact": "Цена/м" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Цена кабеля за метр из commercial snapshot расчёта."
+    },
+    "required_order_length": {
+      "labels": { "short": "Заказ партия, м", "full": "Заказная длина с учётом кратности и минимальной партии, м", "compact": "Партия" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "computed",
+      "description": "Длина заказа с учётом кратности и минимальной партии."
+    },
+    "total_cost": {
+      "labels": { "short": "Стоимость", "full": "Стоимость кабеля", "compact": "Сумма" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "computed",
+      "description": "Стоимость только кабеля: заказная длина × цена за метр."
+    },
+    "stock_status": {
+      "labels": { "short": "Склад", "full": "Статус склада", "compact": "Склад" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Складской статус выбранного кабеля."
+    },
+    "lead_time_days": {
+      "labels": { "short": "Срок, дн.", "full": "Срок поставки, дней", "compact": "Срок" },
+      "group": "Коммерческий подбор",
+      "source": "results.commercial",
+      "valueType": "input",
+      "description": "Срок поставки выбранного кабеля."
+    },
+    "heat_loss_per_meter_base": {
+      "labels": { "short": "q до K, Вт/м", "full": "Базовые теплопотери трубы (до K), Вт/м", "compact": "q base" },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Базовые удельные теплопотери трубы до коэффициента запаса K."
+    },
+    "heat_loss_per_m2_bare_base": {
+      "labels": { "short": "q до K, Вт/м²", "full": "Базовые теплопотери резервуара (до K), Вт/м²", "compact": "q base" },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Базовые удельные теплопотери резервуара до коэффициента запаса K."
+    },
+    "total_heat_loss_design": {
+      "labels": { "short": "Q проект., Вт", "full": "Проектные суммарные теплопотери, Вт", "compact": "Q design" },
+      "group": "Теплопотери",
+      "source": "project_objects.results",
+      "valueType": "computed",
+      "description": "Готовая проектная тепловая нагрузка после K; для резервуара включает Qдоп после K."
+    }
+  },
+  "table": {
+    "default_visible": [
+      "index",
+      "object_name",
+      "electrical_status",
+      "cable_mark",
+      "power_per_meter",
+      "applied_selection_policy",
+      "winding_pitch_mm",
+      "number_of_threads",
+      "required_installed_length_m",
+      "installed_cable_length",
+      "section_l_tok_m",
+      "section_l_excess_m",
+      "order_cable_length",
+      "total_power",
+      "current"
+    ],
+    "registry": [
+      { "key": "index", "defaultWidthPct": 4, "minWidthPx": 40, "required": true },
+      { "key": "object_name", "defaultWidthPct": 22, "minWidthPx": 160, "required": true, "ellipsis": true },
+      { "key": "object_type", "defaultWidthPct": 8, "minWidthPx": 80 },
+      { "key": "heat_loss_status", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "electrical_status", "defaultWidthPct": 5.6, "minWidthPx": 56 },
+      { "key": "cable_type", "defaultWidthPct": 13, "minWidthPx": 120 },
+      { "key": "cable_mark", "defaultWidthPct": 18, "minWidthPx": 140, "required": true },
+      { "key": "power_per_meter", "defaultWidthPct": 10, "minWidthPx": 86 },
+      { "key": "cable_snapshot_status", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "applied_selection_policy", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "selection_reason", "defaultWidthPct": 18, "minWidthPx": 160, "ellipsis": true },
+      { "key": "winding_pitch_mm", "defaultWidthPct": 12, "minWidthPx": 90 },
+      { "key": "number_of_threads", "defaultWidthPct": 7.4, "minWidthPx": 60 },
+      { "key": "laying_step", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "heating_height", "defaultWidthPct": 11, "minWidthPx": 100 },
+      { "key": "connection_type", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "supply_voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
+      { "key": "winding_coefficient", "defaultWidthPct": 7, "minWidthPx": 64 },
+      { "key": "installed_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "order_cable_length", "defaultWidthPct": 9, "minWidthPx": 70 },
+      { "key": "required_installed_length_m", "defaultWidthPct": 10, "minWidthPx": 86 },
+      { "key": "section_l_max_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_tok_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_ogr_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "section_l_excess_m", "defaultWidthPct": 9, "minWidthPx": 78 },
+      { "key": "provenance", "defaultWidthPct": 18, "minWidthPx": 150, "ellipsis": true },
+      { "key": "total_power", "defaultWidthPct": 11, "minWidthPx": 90 },
+      { "key": "installed_power_per_meter", "defaultWidthPct": 10, "minWidthPx": 86 },
+      { "key": "current", "defaultWidthPct": 8, "minWidthPx": 70 },
+      { "key": "voltage", "defaultWidthPct": 8, "minWidthPx": 74 },
+      { "key": "price_per_meter", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "required_order_length", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "total_cost", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "stock_status", "defaultWidthPct": 10, "minWidthPx": 90 },
+      { "key": "lead_time_days", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "heat_loss_per_meter_base", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "heat_loss_per_m2_bare_base", "defaultWidthPct": 9, "minWidthPx": 80 },
+      { "key": "total_heat_loss_design", "defaultWidthPct": 11, "minWidthPx": 90 }
+    ]
+  }
+}

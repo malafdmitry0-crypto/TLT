@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "owners": {
+    "src/components/admin/formulas/formulaPrimitives.tsx": 8,
+    "src/theme/appTheme.ts": 2,
+    "src/utils/glideGridPrimitives.ts": 25
+  },
+  "files": {},
+  "totalNonOwner": 0
+}

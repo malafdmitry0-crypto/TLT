@@ -1,0 +1,22 @@
+[
+  {
+    "id": "compound-interest-fixed-json",
+    "requirementId": "compound_interest",
+    "kind": "fixed",
+    "input": { "P": 1000, "r": 0.05, "n": 12, "t": 10 },
+    "metadata": {
+      "formulaId": "compound_interest",
+      "runner": "mock"
+    }
+  },
+  {
+    "id": "circle-area-metamorphic-json",
+    "requirementId": "circle_area",
+    "kind": "metamorphic",
+    "input": { "r": 6 },
+    "metadata": {
+      "formulaId": "circle_area",
+      "property": "area(2r) ~= 4 * area(r)"
+    }
+  }
+]

@@ -1,0 +1,164 @@
+/* Shared form-grid / inline-form shell — used by Heat, Elec params, UIKit (C18) */
+
+.inline-form-srs {
+  background: var(--color-surface);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 7px;
+  box-shadow: 0 1px 4px var(--color-alpha-48ecfeeb);
+  padding: 2px;
+}
+.inline-form-shell {
+  min-width: 0;
+  position: relative;
+}
+.form-grid-srs {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  overflow: hidden;
+  gap: 2px;
+}
+.form-grid-srs--merged {
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 0 0 7px 7px;
+  background: var(--color-surface);
+}
+.form-grid-srs--merged .form-col-srs {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.form-grid-srs .form-col-srs {
+  display: grid;
+  --field-pair-min-width: 260px;
+  --field-label-width: 84px;
+  --compact-field-label-width: 84px;
+  --field-input-min-width: 160px;
+  --numeric-value-width: 6ch;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--field-pair-min-width), calc((100% - 4px) / 2))), 1fr));
+  align-content: start;
+  align-items: start;
+  justify-content: start;
+  gap: 2px 4px;
+  min-width: var(--field-pair-min-width);
+  overflow: hidden;
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+  padding: 3px 3px 2px;
+  flex: none;
+}
+.form-grid-srs .form-col-srs--primary {
+  --field-label-width: 82px;
+  --compact-field-label-width: 74px;
+  --field-input-min-width: 128px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 2px 8px;
+}
+.form-grid-srs .form-col-srs--primary > h4 {
+  flex: 0 0 calc(100% + 6px);
+  width: calc(100% + 6px);
+}
+.pdf-form-column-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  line-height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.pdf-form-column-title::before {
+  display: none;
+}
+.form-col-resize-handle {
+  flex: 0 0 4px;
+  align-self: stretch;
+  position: relative;
+  width: 4px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+  background: transparent;
+}
+.form-col-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 1px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--color-swatch-d8e6f3);
+}
+.form-col-resize-handle:hover::before,
+.form-col-resize-handle:focus-visible::before,
+.heatcalc-form-section-resizing .form-col-resize-handle::before {
+  background: var(--color-primary);
+}
+
+/* C20: form-col titles + compact select dropdown */
+
+.form-col-srs h4 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  grid-column: 1 / -1;
+  min-height: 18px;
+  margin: -3px -3px 3px;
+  font-size: 8px;
+  color: var(--color-swatch-2f3d4f);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  background: var(--color-swatch-f8fbff);
+  border-bottom: 1px solid var(--heatcalc-panel-border);
+}
+.form-col-srs h4::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-swatch-2457d6);
+  color: var(--color-surface);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 3px 8px var(--color-alpha-1eb8fd56);
+}
+.form-col-srs h4 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body .ant-select-dropdown .ant-select-item {
+  font-size: 10px;
+  min-height: 22px;
+  line-height: 18px;
+  padding: 2px 8px;
+}
+body .ant-select-dropdown .ant-select-item-option-content {
+  font-size: 10px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body .ant-select-dropdown .ant-select-item-option-selected .ant-select-item-option-content {
+  font-weight: 600;
+}

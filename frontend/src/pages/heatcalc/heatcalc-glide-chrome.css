@@ -1,0 +1,53 @@
+/* OWNER: HeatCalc glide chrome (extracted from calc-spreadsheet-base)
+ * Import from HeatCalc page/workspace shell.
+ */
+
+/* C20: heat glide + drag rows */
+
+.heatcalc-glide-editor {
+  width: 100%;
+}
+.heatcalc-normal-glide-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-top: 1px solid var(--heatcalc-table-outer-border);
+  background: var(--color-surface);
+}
+.heatcalc-normal-glide-filter-popup {
+  position: fixed;
+  z-index: 1100;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  box-shadow: 0 6px 16px var(--color-alpha-bd39d373);
+}
+.heatcalc-glide-engine-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 2;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-alpha-fd618982);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+.heatcalc-glide-cell-editor {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 2px solid var(--color-primary);
+  border-radius: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--heatcalc-table-font-size);
+  line-height: 1.2;
+  outline: none;
+  box-shadow: none;
+}

@@ -1,0 +1,27 @@
+/* OWNER: ObjectCalcCard — status/cable presentation colors */
+
+.object-calc-card {
+  margin-bottom: 12px;
+}
+
+.object-calc-card__ok-icon {
+  color: var(--color-success);
+}
+
+.object-calc-card__cable-mark {
+  color: var(--color-info);
+}
+
+.object-calc-card__block {
+  margin-bottom: 6px;
+}
+
+.object-calc-card__hint {
+  font-size: 12px;
+}
+
+.object-calc-card__hint--block {
+  font-size: 12px;
+  display: block;
+  margin-bottom: 6px;
+}

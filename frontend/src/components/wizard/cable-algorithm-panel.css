@@ -1,0 +1,227 @@
+/**
+ * ============================================================================
+ * CSS ISLAND — CableAlgorithmPanel ONLY
+ * Root: .object-wizard-cable-panel
+ * ============================================================================
+ * Isolation contract:
+ *   ✅ All selectors MUST start with .object-wizard-cable-panel
+ *   ⛔ NEVER select .heat-object-fields / .insulation-layers-table
+ * Эталон horizontal field row + type scale for dual-form.
+ * Адаптивная сетка: auto-fit колонки фиксированной ширины, центрированные в блоке.
+ * Field internals scoped under .cable-algorithm-fields (0,3,1) — island wins
+ * over kit adapter (0,2,1) and inline-object-form chrome regardless of order.
+ * ============================================================================
+ */
+.object-wizard-cable-panel {
+  /* Same dual-form chrome as the heat pane (heatcalc-field-chrome-core):
+     banner 8px uppercase, labels 9px, controls 36px, number 12px, select 9px. */
+  --dual-form-banner-size: 8px;
+  --dual-form-label-size: 9px;
+  --dual-form-label-line-height: 1.05;
+  --dual-form-label-color: var(--color-swatch-26364a);
+  --dual-form-control-height: 36px;
+  --dual-form-control-font: 12px;
+  --dual-form-hint-size: 10px;
+  --cable-banner-size: var(--dual-form-banner-size);
+  --cable-label-size: var(--dual-form-label-size);
+  --cable-label-line-height: var(--dual-form-label-line-height);
+  --cable-label-color: var(--dual-form-label-color);
+  --cable-control-height: var(--dual-form-control-height);
+  --cable-control-font: var(--dual-form-control-font);
+  --cable-hint-size: var(--dual-form-hint-size);
+  --inline-control-height: var(--dual-form-control-height);
+  /* Bridge to Tlt control tokens (tlt-form-controls.css) */
+  --tlt-field-radius: 6px;
+  --tlt-field-control-height: var(--cable-control-height);
+  --tlt-field-control-font-size: var(--cable-control-font);
+  --tlt-field-number-font-size: 12px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-unit-font-size: 9px;
+  --dual-field-label-width: 88px;
+  --cable-control-target-width: 222px;
+  --cable-column-width: calc(var(--dual-field-label-width) + 8px + var(--cable-control-target-width));
+  isolation: isolate;
+  /* определённая ширина: под fit-content auto-fit ниже всегда даёт одну колонку */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+.object-wizard-cable-panel .inline-form-section-banner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: var(--cable-banner-size);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--color-swatch-2f3d4f);
+  background: var(--color-swatch-f8fbff);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+}
+.object-wizard-cable-panel .ant-form-item {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+.object-wizard-cable-panel .cable-algorithm-grid {
+  padding: 8px 10px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 0 0 7px 7px;
+}
+/* Reset the shell's full-row fallback so compact fields follow grid flow. */
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item {
+  grid-area: auto;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-row {
+  display: grid;
+  /* контрол не шире 99px (−40%, затем ещё −7% по решению владельца) */
+  grid-template-columns: var(--dual-field-label-width) minmax(0, 99px);
+  column-gap: 8px;
+  row-gap: 0;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-label {
+  width: auto;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  white-space: normal;
+  text-align: left;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-label > label {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  min-height: 11px;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  color: var(--cable-label-color);
+  font-size: var(--cable-label-size);
+  font-weight: 600;
+  line-height: var(--cable-label-line-height);
+  white-space: normal;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .field-label-two-line {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .field-label-two-line > span {
+  display: block;
+  font-size: var(--cable-label-size);
+  font-weight: 600;
+  white-space: normal;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control-input,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-form-item-control-input-content,
+.object-wizard-cable-panel .cable-algorithm-fields .field-control-with-help,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select__trigger,
+.object-wizard-cable-panel .cable-algorithm-fields .reference-picker-control {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number-group-wrapper,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: var(--cable-control-height);
+  height: var(--cable-control-height);
+  font-size: var(--cable-control-font);
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+/* Inside tlt-select-shell, flex child needs flex:1 to fill (min-width: auto from
+   flex constraints defeats width:100% on short content like «Среда»).
+   Full-width select ensures Ant popupMatchSelectWidth measures correctly. */
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell {
+  display: flex;
+  width: 100%;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+/* inner selector must not duplicate the focus ring — only outer .ant-select gets it */
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-focused .ant-select-selector,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus,
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select-shell .ant-select-selector:focus-within {
+  outline: none;
+  box-shadow: none;
+  border-color: inherit;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-input-number-input {
+  height: var(--cable-control-height);
+  padding: 0 3px;
+  font-size: 12px; /* как в теплопотерях */
+}
+.object-wizard-cable-panel .cable-algorithm-fields .tlt-select__trigger,
+.object-wizard-cable-panel .cable-algorithm-fields .reference-picker-control {
+  display: flex;
+  align-items: center;
+}
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-item,
+.object-wizard-cable-panel .cable-algorithm-fields .ant-select-selection-placeholder {
+  font-size: 9px;
+  line-height: calc(var(--cable-control-height) - 2px);
+}
+.object-wizard-cable-panel .cable-algorithm-fields .unit-input-number__addon {
+  height: var(--cable-control-height);
+  font-size: 9px;
+  line-height: calc(var(--cable-control-height) - 2px);
+}
+.object-wizard-cable-panel .cable-algorithm-fields .cable-algorithm-number {
+  width: 100%;
+}
+/* Одна колонка фиксированной ширины (как поле «Наименование»: label 96 + gap 8 + control 222),
+   центрированная в карточке. */
+.object-wizard-cable-panel .cable-algorithm-fields {
+  grid-template-columns: minmax(0, var(--cable-column-width));
+  grid-auto-flow: row;
+  justify-content: center;
+  width: 100%;
+}
+/* Две колонки должны поместиться в 390px пане: 2×(72+8+96) + 8 = 360 ≤ 368.
+   Раньше стояло 124px, колонки не влезали и сжимались до 76px — значения
+   селектов резались («Нормаль…»). */
+.object-wizard-cable-panel {
+  --cable-control-target-width: 88px;
+}
+/* auto-fit + непустой минимум: в узком окне сетка переходит в одну колонку,
+   а не сплющивает контрол (при minmax(0,…) он падал до 73px и резал «Нормальная»). */
+.object-wizard-cable-panel .cable-algorithm-fields {
+  /* две колонки, когда влезают; иначе одна — иначе значения селектов режутся.
+     Второй столбец уже первого на 40% — правилом ниже, а не треком сетки:
+     трек сломал бы перенос в одну колонку на узком окне. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+  column-gap: 12px;
+}
+/* запас, навив, температурная группа, мин. температура — поля на 40% уже */
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-select,
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number,
+.object-wizard-cable-panel .cable-algorithm-fields > .ant-form-item:nth-child(even) .ant-input-number-group-wrapper { max-width: 59px; }

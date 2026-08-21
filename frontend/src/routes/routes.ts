@@ -1,0 +1,18 @@
+export const ROUTES = {
+  home: '/',
+  login: '/login',
+  uiKit: '/ui-kit',
+  workspace: '/workspace',
+  heatCalc: '/workspace/heat-calc',
+  elecCalc: '/workspace/elec-calc',
+  specification: '/workspace/specification',
+  report: '/workspace/report',
+  reportWizard: '/report-wizard',
+  projects: '/projects',
+  admin: '/admin',
+  adminUsers: '/admin/users',
+  adminCoefficients: '/admin/coefficients',
+  adminDatabase: '/admin/database',
+  adminReferences: '/admin/references',
+  adminFormulas: '/admin/formulas',
+} as const;

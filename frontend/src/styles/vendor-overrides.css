@@ -1,0 +1,26 @@
+/**
+ * Third-party (Ant Design) overrides scoped under app mount (#root).
+ * Layer 4 of global CSS import order.
+ * Prefer tokens; do not add feature-specific rules here.
+ */
+
+#root .ant-typography-secondary {
+  color: var(--color-text-secondary);
+}
+
+#root .ant-empty-description,
+#root .ant-tag {
+  color: var(--color-text-secondary);
+}
+
+#root .ant-tag-green {
+  color: var(--color-text-success-strong);
+}
+
+#root .ant-btn-link:not(:disabled) {
+  color: var(--color-primary);
+}
+
+#root .ant-table-expanded-row-fixed {
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,162 @@
+import { useEffect, useState } from 'react';
+import { Checkbox, Typography } from 'antd';
+
+import {
+  toInputNumberValue,
+  type HeatCalcFilterKind,
+} from '@/utils/heatCalcPageUtils';
+import type { HeatCalcColumnFilter } from '@/utils/heatCalcTableFindability';
+import { TltButton, TltNumberField, TltTextField } from '@/components/ui-kit';
+
+const { Text } = Typography;
+
+interface HeatCalcColumnFilterDropdownProps {
+  title: string;
+  kind: HeatCalcFilterKind;
+  filter?: HeatCalcColumnFilter;
+  enumOptions: { label: string; value: string }[];
+  onApply: (filter?: HeatCalcColumnFilter) => void;
+  onReset: () => void;
+  onClose: () => void;
+}
+
+export default function HeatCalcColumnFilterDropdown({
+  title,
+  kind,
+  filter,
+  enumOptions,
+  onApply,
+  onReset,
+  onClose,
+}: HeatCalcColumnFilterDropdownProps) {
+  const [textValue, setTextValue] = useState('');
+  const [minValue, setMinValue] = useState<number | null>(null);
+  const [maxValue, setMaxValue] = useState<number | null>(null);
+  const [enumValues, setEnumValues] = useState<string[]>([]);
+  const [includeEmpty, setIncludeEmpty] = useState(false);
+
+  useEffect(() => {
+    setTextValue(filter?.kind === 'text' ? filter.value : '');
+    setMinValue(filter?.kind === 'numberRange' ? toInputNumberValue(filter.min) : null);
+    setMaxValue(filter?.kind === 'numberRange' ? toInputNumberValue(filter.max) : null);
+    setEnumValues(filter?.kind === 'enum' ? filter.values : []);
+    setIncludeEmpty(
+      filter?.kind === 'numberRange' || filter?.kind === 'enum'
+        ? !!filter.includeEmpty
+        : false,
+    );
+  }, [filter]);
+
+  const invalidRange = kind === 'numberRange'
+    && minValue != null
+    && maxValue != null
+    && minValue > maxValue;
+
+  function applyFilter() {
+    if (kind === 'text') {
+      const value = textValue.trim();
+      onApply(value ? { kind: 'text', value } : undefined);
+      onClose();
+      return;
+    }
+
+    if (kind === 'numberRange') {
+      if (invalidRange) return;
+      onApply(
+        minValue != null || maxValue != null || includeEmpty
+          ? {
+              kind: 'numberRange',
+              min: minValue ?? undefined,
+              max: maxValue ?? undefined,
+              includeEmpty,
+            }
+          : undefined,
+      );
+      onClose();
+      return;
+    }
+
+    onApply(
+      enumValues.length > 0 || includeEmpty
+        ? { kind: 'enum', values: enumValues, includeEmpty }
+        : undefined,
+    );
+    onClose();
+  }
+
+  function resetFilter() {
+    setTextValue('');
+    setMinValue(null);
+    setMaxValue(null);
+    setEnumValues([]);
+    setIncludeEmpty(false);
+    onReset();
+    onClose();
+  }
+
+  const toggleEnumValue = (value: string, checked: boolean) => {
+    setEnumValues((prev) => (
+      checked ? [...prev, value] : prev.filter((item) => item !== value)
+    ));
+  };
+
+  return (
+    <div className="table-filter-dropdown" onKeyDown={(event) => {
+      if (event.key === 'Enter') applyFilter();
+    }}>
+      <div className="table-filter-title">{title}</div>
+      {kind === 'text' && (
+        <TltTextField
+          autoFocus
+          value={textValue}
+          placeholder="Найти"
+          aria-label={`Поиск: ${title}`}
+          onChange={setTextValue}
+        />
+      )}
+      {kind === 'numberRange' && (
+        <div className="table-filter-number-range">
+          <TltNumberField
+            value={minValue}
+            placeholder="от"
+            aria-label={`Минимум: ${title}`}
+            onChange={(value) => setMinValue(toInputNumberValue(value))}
+          />
+          <TltNumberField
+            value={maxValue}
+            placeholder="до"
+            aria-label={`Максимум: ${title}`}
+            onChange={(value) => setMaxValue(toInputNumberValue(value))}
+          />
+          {invalidRange && <Text type="danger">Минимум больше максимума</Text>}
+        </div>
+      )}
+      {kind === 'enum' && (
+        <div className="table-filter-enum-list" role="group" aria-label={`Значения: ${title}`}>
+          {enumOptions.map((option) => (
+            <Checkbox
+              key={option.value}
+              checked={enumValues.includes(option.value)}
+              onChange={(event) => toggleEnumValue(option.value, event.target.checked)}
+            >
+              {option.label}
+            </Checkbox>
+          ))}
+        </div>
+      )}
+      {(kind === 'numberRange' || kind === 'enum') && (
+        <Checkbox checked={includeEmpty} onChange={(event) => setIncludeEmpty(event.target.checked)}>
+          Пустые
+        </Checkbox>
+      )}
+      <div className="table-filter-actions">
+        <TltButton size="compact" onClick={resetFilter}>
+          Сбросить
+        </TltButton>
+        <TltButton size="compact" variant="primary" disabled={invalidRange} onClick={applyFilter}>
+          Применить
+        </TltButton>
+      </div>
+    </div>
+  );
+}

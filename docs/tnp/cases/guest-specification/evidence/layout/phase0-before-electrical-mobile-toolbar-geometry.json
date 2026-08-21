@@ -1,0 +1,191 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/elec-calc",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "document": {
+    "clientWidth": 390,
+    "scrollWidth": 390
+  },
+  "pageHorizontalOverflow": false,
+  "buttons": [
+    {
+      "text": "СО1",
+      "disabled": false,
+      "x": 13,
+      "y": 405.5,
+      "width": 41.53125,
+      "height": 22,
+      "right": 54.53125,
+      "bottom": 427.5,
+      "withinViewport": true,
+      "fullyWithinViewport": true
+    },
+    {
+      "text": "СО2",
+      "disabled": false,
+      "x": 59.53125,
+      "y": 405.5,
+      "width": 43.21875,
+      "height": 22,
+      "right": 102.75,
+      "bottom": 427.5,
+      "withinViewport": true,
+      "fullyWithinViewport": true
+    },
+    {
+      "text": "СО3",
+      "disabled": false,
+      "x": 107.75,
+      "y": 405.5,
+      "width": 43.5,
+      "height": 22,
+      "right": 151.25,
+      "bottom": 427.5,
+      "withinViewport": true,
+      "fullyWithinViewport": true
+    },
+    {
+      "text": "СО4",
+      "disabled": false,
+      "x": 156.25,
+      "y": 405.5,
+      "width": 43.6875,
+      "height": 22,
+      "right": 199.9375,
+      "bottom": 427.5,
+      "withinViewport": true,
+      "fullyWithinViewport": true
+    },
+    {
+      "text": "Создать на основании",
+      "disabled": false,
+      "x": 204.9375,
+      "y": 405.5,
+      "width": 168.203125,
+      "height": 22,
+      "right": 373.140625,
+      "bottom": 427.5,
+      "withinViewport": true,
+      "fullyWithinViewport": true
+    },
+    {
+      "text": "Пересчитать выбранные (0)",
+      "disabled": true,
+      "x": 722.34375,
+      "y": 405.5,
+      "width": 201.890625,
+      "height": 22,
+      "right": 924.234375,
+      "bottom": 427.5,
+      "withinViewport": false,
+      "fullyWithinViewport": false
+    },
+    {
+      "text": "Пересчитать все СО1",
+      "disabled": true,
+      "x": 929.234375,
+      "y": 405.5,
+      "width": 162.171875,
+      "height": 22,
+      "right": 1091.40625,
+      "bottom": 427.5,
+      "withinViewport": false,
+      "fullyWithinViewport": false
+    },
+    {
+      "text": "Настройки",
+      "disabled": false,
+      "x": 1096.40625,
+      "y": 405.5,
+      "width": 99.640625,
+      "height": 22,
+      "right": 1196.046875,
+      "bottom": 427.5,
+      "withinViewport": false,
+      "fullyWithinViewport": false
+    },
+    {
+      "text": "Сбросить фильтры",
+      "disabled": true,
+      "x": 1201.046875,
+      "y": 405.5,
+      "width": 146.859375,
+      "height": 22,
+      "right": 1347.90625,
+      "bottom": 427.5,
+      "withinViewport": false,
+      "fullyWithinViewport": false
+    }
+  ],
+  "hiddenActionLabels": [
+    "Пересчитать выбранные (0)",
+    "Пересчитать все СО1",
+    "Настройки",
+    "Сбросить фильтры"
+  ],
+  "partiallyClippedActionLabels": [],
+  "ancestors": [
+    {
+      "tag": "DIV",
+      "className": "electrical-actionbar-row electrical-actionbar-row--setup",
+      "x": 13,
+      "y": 404.5,
+      "width": 697.34375,
+      "height": 24,
+      "clientWidth": 697,
+      "scrollWidth": 697,
+      "overflowX": "visible",
+      "overflowY": "visible"
+    },
+    {
+      "tag": "DIV",
+      "className": "actionbar-srs electrical-actionbar",
+      "x": 6,
+      "y": 401.5,
+      "width": 378,
+      "height": 30,
+      "clientWidth": 376,
+      "scrollWidth": 1347,
+      "overflowX": "auto",
+      "overflowY": "hidden"
+    },
+    {
+      "tag": "DIV",
+      "className": "ant-space-item",
+      "x": 6,
+      "y": 401.5,
+      "width": 378,
+      "height": 30,
+      "clientWidth": 378,
+      "scrollWidth": 378,
+      "overflowX": "visible",
+      "overflowY": "visible"
+    },
+    {
+      "tag": "DIV",
+      "className": "ant-space css-dev-only-do-not-override-fiqxn8 ant-space-vertical",
+      "x": 6,
+      "y": 100,
+      "width": 378,
+      "height": 544.484375,
+      "clientWidth": 378,
+      "scrollWidth": 378,
+      "overflowX": "visible",
+      "overflowY": "visible"
+    },
+    {
+      "tag": "DIV",
+      "className": "",
+      "x": 6,
+      "y": 100,
+      "width": 378,
+      "height": 544.484375,
+      "clientWidth": 378,
+      "scrollWidth": 378,
+      "overflowX": "visible",
+      "overflowY": "visible"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+.specification-settings-modal .ant-modal-body {
+  max-height: min(72vh, 650px);
+  overflow-y: auto;
+  padding-inline-end: 6px;
+}
+
+.specification-settings-modal .specification-settings-er-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}

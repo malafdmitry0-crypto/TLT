@@ -1,0 +1,27 @@
+/**
+ * Wide-only sizing contract for InsulationLayersTable.
+ * The table owns a grid independent from the object fields above it.
+ */
+.insulation-layers-table[data-layout="wide"] {
+  --ins-col-index: 72px;
+  --ins-col-material: minmax(216px, 1fr);
+  --ins-col-thickness: 154px;
+  --ins-col-lambda: 124px;
+  --ins-col-range: minmax(190px, 1fr);
+}
+
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .ant-form-item {
+  flex: 0 0 128px;
+  width: 128px;
+  max-width: 128px;
+}
+
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .ant-form-item-row,
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .ant-form-item-control,
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .ant-form-item-control-input,
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .ant-form-item-control-input-content,
+.insulation-layers-table[data-layout="wide"] .insulation-layer-cell--thickness .field-control-with-help {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}

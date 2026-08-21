@@ -1,0 +1,105 @@
+/* OWNER: help pages — static chrome moved from *HelpPage.tsx */
+
+.help-page {
+  min-height: 100vh;
+  background: var(--color-page-canvas);
+  padding: 40px 24px;
+}
+
+.help-page-inner {
+  margin: 0 auto;
+}
+
+.help-page-inner--admin,
+.help-page-inner--employee {
+  max-width: 860px;
+}
+
+.help-page-inner--guest {
+  max-width: 820px;
+}
+
+.help-page-back {
+  margin-bottom: 24px;
+}
+
+.help-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.help-page-title {
+  margin: 0;
+  color: var(--color-primary);
+}
+
+.help-page-alert {
+  margin-bottom: 24px;
+}
+
+.help-page-alert--sm {
+  margin-bottom: 16px;
+}
+
+.help-page-steps {
+  margin-top: 16px;
+}
+
+.help-page-step-p {
+  margin: 0;
+}
+
+.help-page-step-list {
+  margin: 8px 0 0 0;
+}
+
+.help-page-step-note {
+  margin: 8px 0 0 0;
+}
+
+.help-page-table {
+  margin-bottom: 16px;
+}
+
+.help-page-section-lead {
+  margin-bottom: 8px;
+}
+
+.help-page-section-lead--tight {
+  margin-bottom: 6px;
+}
+
+.help-page-section-lead--md {
+  margin-bottom: 10px;
+}
+
+.help-page-body-sm {
+  font-size: 13px;
+}
+
+.help-page-icon-inline {
+  margin-right: 6px;
+  color: var(--color-info);
+}
+
+.help-page-status-ok {
+  color: var(--color-success);
+}
+
+.tlt-ui-card.help-page-tip--admin {
+  background: var(--color-help-tip-admin);
+}
+
+.tlt-ui-card.help-page-tip--employee {
+  background: var(--color-help-tip-employee);
+}
+
+.tlt-ui-card.help-page-tip--guest {
+  background: var(--color-help-tip-guest);
+}
+
+.help-page-tip-text {
+  margin: 0;
+}

@@ -1,0 +1,13 @@
+/* OWNER: CableSelector — static chrome */
+
+.cable-selector-tag {
+  margin-left: 4px;
+}
+
+.cable-selector-actions {
+  margin-top: 12px;
+}
+
+.cable-selector-hint {
+  font-size: 12px;
+}

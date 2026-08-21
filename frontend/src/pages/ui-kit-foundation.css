@@ -1,0 +1,218 @@
+/*
+ * UI Kit foundation showcase — colors, type, spacing, foundation grids.
+ * JSX owner: UIKitFoundationSection (UIKitPage).
+ */
+
+.uikit-section {
+  scroll-margin-top: 12px;
+  padding: 18px 0 20px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.uikit-section__heading {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.uikit-section__index {
+  min-width: 22px;
+  padding-top: 2px;
+  color: var(--ui-blue-strong);
+  font: 700 10px var(--font-family-data);
+}
+
+.uikit-section h2 {
+  margin: 0;
+  color: var(--color-swatch-213244);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.uikit-section__heading p {
+  margin: 3px 0 0;
+  color: var(--ui-ink-muted);
+  font-size: 11px;
+}
+
+.uikit-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.uikit-grid--colors {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.uikit-swatch {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--ui-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.uikit-swatch:hover {
+  border-color: var(--color-swatch-9fc4ee);
+  box-shadow: 0 1px 5px var(--color-alpha-48ed076d);
+}
+
+.uikit-swatch:focus-visible {
+  outline: 2px solid var(--color-swatch-8bb8ff);
+  outline-offset: 2px;
+}
+
+.uikit-swatch__color {
+  width: 40px;
+  height: 34px;
+  border-radius: 4px;
+}
+
+.uikit-swatch__color--primary { background: var(--ui-blue); }
+
+.uikit-swatch__color--link { background: var(--ui-blue-strong); }
+
+.uikit-swatch__color--label { background: var(--tlt-field-label-color); }
+
+.uikit-swatch__color--green { background: var(--ui-success); }
+
+.uikit-swatch__color--amber { background: var(--ui-warning); }
+
+.uikit-swatch__color--red { background: var(--ui-danger); }
+
+.uikit-swatch__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uikit-swatch__meta strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uikit-swatch__meta code {
+  color: var(--color-swatch-6d7f93);
+  font-size: 9px;
+}
+
+.uikit-foundation-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.uikit-type-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-swatch-eef3f8);
+}
+
+.uikit-font-contract {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 9px;
+}
+
+.uikit-font-contract strong {
+  font-size: 14px;
+}
+
+.uikit-font-contract code {
+  overflow: hidden;
+  color: var(--color-swatch-63758b);
+  font: 9px var(--font-family-data);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uikit-type-row > span {
+  color: var(--color-swatch-7b8ba0);
+  font: 9px var(--font-family-data);
+}
+
+.uikit-type-row p {
+  margin: 0;
+}
+
+.uikit-type-display {
+  font-size: 14px;
+  line-height: 16px;
+}
+
+.uikit-type-heading {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.uikit-type-row code {
+  font-family: var(--font-family-data);
+  font-weight: 600;
+}
+
+.uikit-spacing-scale {
+  display: grid;
+  gap: 8px;
+}
+
+.uikit-spacing-scale div {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 24px;
+  gap: 8px;
+  align-items: center;
+}
+
+.uikit-spacing-scale span {
+  display: block;
+  height: 5px;
+  max-width: 100%;
+  background: var(--ui-blue-strong);
+}
+
+.uikit-spacing-scale code {
+  color: var(--color-swatch-6d7f93);
+  font-family: var(--font-family-data);
+  font-size: 9px;
+}
+
+.uikit-radius-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.uikit-radius-row span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ui-border);
+  color: var(--color-swatch-63758b);
+  font: 9px var(--font-family-data);
+}
+
+/* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+@media (max-width: 1200px) {
+  .uikit-grid--colors {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
+}

@@ -1,0 +1,32 @@
+/* OWNER: LoginPage — static chrome colors moved from LoginPage.tsx */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+}
+
+.login-page-card {
+  width: 420px;
+}
+
+.login-page-title {
+  text-align: center;
+  color: var(--color-primary);
+}
+
+.login-page-back {
+  width: 100%;
+  color: var(--color-primary);
+}
+
+.login-page-help {
+  width: 100%;
+  color: var(--color-text-secondary);
+}
+
+.login-page-submit {
+  width: 100%;
+}

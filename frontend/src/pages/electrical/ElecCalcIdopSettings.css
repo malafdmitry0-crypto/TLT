@@ -1,0 +1,24 @@
+/* OWNER: ElecCalcIdopSettings — project-level current-limit form. */
+
+.elec-idop-settings__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Лейбл слева, поле справа — одной строкой. */
+.elec-idop-settings__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.elec-idop-settings__fields .elec-idop-settings__label {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}

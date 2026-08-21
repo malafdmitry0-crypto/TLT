@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HeatCalc">
+  <defs>
+    <linearGradient id="background" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1677ff" />
+      <stop offset="1" stop-color="#0958d9" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#background)" />
+  <path d="M37 7 17 35h13l-4 22 21-31H34L37 7Z" fill="#fff" />
+  <path
+    d="M11 49c4-4 8-4 12 0s8 4 12 0 8-4 12 0 8 4 11 1"
+    fill="none"
+    stroke="#fa8c16"
+    stroke-linecap="round"
+    stroke-width="4"
+  />
+</svg>

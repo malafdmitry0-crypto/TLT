@@ -1,0 +1,49 @@
+/* OWNER: WorkspacePage — static chrome colors moved from WorkspacePage.tsx */
+
+.workspace-page-card {
+  margin-bottom: 16px;
+}
+
+.workspace-step-card {
+  cursor: pointer;
+}
+
+.workspace-step-card--current {
+  border-color: var(--color-info);
+}
+
+.workspace-step-card--far {
+  opacity: 0.6;
+}
+
+.workspace-step-icon--done {
+  color: var(--color-success);
+}
+
+.workspace-step-card .ant-statistic-content {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.workspace-step-card--done .ant-statistic-content,
+.workspace-step-card--done .workspace-step-icon--done {
+  color: var(--color-success);
+}
+
+.workspace-step-card--current .ant-statistic-content {
+  color: var(--color-info);
+}
+
+/* Static debt remaining on WorkspacePage */
+
+.workspace-page-title {
+  margin-top: 0;
+}
+
+.workspace-page-alert {
+  max-width: 520px;
+}
+
+.workspace-page-lead {
+  margin: 0;
+}

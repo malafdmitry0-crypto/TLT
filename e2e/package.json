@@ -1,0 +1,25 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test --reporter=list",
+    "test:chrome": "PLAYWRIGHT_CHROMIUM_CHANNEL=chrome playwright test --reporter=list",
+    "test:phase5": "playwright test tests/phase5-specification-proof.spec.ts tests/phase5-actionable-close.spec.ts --reporter=list",
+    "test:ui-kit-parity": "playwright test tests/ui-kit-heatcalc-parity.spec.ts --reporter=list",
+    "test:ui-kit-parity:chrome": "PLAYWRIGHT_CHROMIUM_CHANNEL=chrome playwright test tests/ui-kit-heatcalc-parity.spec.ts --reporter=list"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@playwright/test": "^1.59.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.3"
+  }
+}
