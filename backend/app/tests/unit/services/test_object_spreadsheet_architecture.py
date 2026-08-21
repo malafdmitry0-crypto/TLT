@@ -9,6 +9,7 @@ _PACKAGE_ROOT = Path(__file__).resolve().parents[3] / "services/object_spreadshe
 _PURE_MODULES = (
     "export.py",
     "mapping.py",
+    "parsing.py",
     "pipe_mapping.py",
     "tank_mapping.py",
     "templates.py",

@@ -14,12 +14,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.models.project_object import ProjectObject
 from app.services.excel_import_service import (
-    ExcelImportError,
     _commit_object_batch,
     _commit_object_batch_row_by_row,
-    _parse_csv,
-    _parse_excel_workbook,
-    _validate_xlsx_archive,
     import_objects_from_csv,
     import_objects_from_excel,
 )
@@ -35,6 +31,12 @@ from app.services.object_spreadsheet.mapping import (
     _resolve_material_entry,
     _resolve_shape,
     _to_float,
+)
+from app.services.object_spreadsheet.parsing import (
+    ExcelImportError,
+    _parse_csv,
+    _parse_excel_workbook,
+    _validate_xlsx_archive,
 )
 from app.services.object_spreadsheet.pipe_mapping import _build_pipe_params
 from app.services.object_spreadsheet.tank_mapping import _build_tank_params
@@ -1862,6 +1864,7 @@ class TestAddRowsHelper:
         from uuid import uuid4
 
         from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import parsing
 
         class FakeWorkbook:
             sheetnames = ["Трубопроводы", "Резервуары", "Неизвестный"]
@@ -1905,11 +1908,11 @@ class TestAddRowsHelper:
             return 1, next_sort + 1, current_count + 1, [], [object_id], 0, 0, 0, []
 
         monkeypatch.setattr(mod, "_validate_xlsx_archive", lambda content: None)
-        monkeypatch.setattr(mod, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
+        monkeypatch.setattr(parsing, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
         monkeypatch.setattr(mod, "_existing_dedupe_keys", fake_dedupe_keys)
-        monkeypatch.setattr(mod, "_read_sheet", fake_read_sheet)
+        monkeypatch.setattr(parsing, "_read_sheet", fake_read_sheet)
         monkeypatch.setattr(mod, "_add_rows", fake_add_rows)
 
         result = await import_objects_from_excel(AsyncMock(), project_id, object(), b"xlsx")
@@ -1934,6 +1937,7 @@ class TestAddRowsHelper:
         from uuid import uuid4
 
         from app.services import excel_import_service as mod
+        from app.services.object_spreadsheet import parsing
 
         class FakeWorkbook:
             sheetnames = ["Лист1"]
@@ -1945,7 +1949,7 @@ class TestAddRowsHelper:
             return 0, 0
 
         monkeypatch.setattr(mod, "_validate_xlsx_archive", lambda content: None)
-        monkeypatch.setattr(mod, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
+        monkeypatch.setattr(parsing, "load_workbook", lambda *args, **kwargs: FakeWorkbook())
         monkeypatch.setattr(mod, "_ensure_import_access", fake_access)
         monkeypatch.setattr(mod, "_project_import_state", fake_state)
 

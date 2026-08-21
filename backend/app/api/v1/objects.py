@@ -400,10 +400,10 @@ async def import_excel(
 ) -> dict[str, object]:
     from app.schemas.heat_loss import HeatLossBatchJobRequest
     from app.services.excel_import_service import (
-        ExcelImportError,
         import_objects_from_csv,
         import_objects_from_excel,
     )
+    from app.services.object_spreadsheet.parsing import ExcelImportError
     from app.services.task_service import TaskLimitError, TaskService
 
     await enforce_principal_rate_limit(
