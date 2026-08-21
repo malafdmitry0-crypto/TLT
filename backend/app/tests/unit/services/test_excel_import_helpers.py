@@ -14,28 +14,30 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.models.project_object import ProjectObject
 from app.services.excel_import_service import (
-    GENERIC_MATERIAL_ALIASES,
-    SHAPE_ALIASES,
-    SPECIAL_MATERIAL_ALIASES,
     ExcelImportError,
-    _build_pipe_params,
-    _build_tank_params,
     _commit_object_batch,
     _commit_object_batch_row_by_row,
-    _mark_edited_climate_temperature_as_manual,
-    _norm,
     _parse_csv,
     _parse_excel_workbook,
-    _resolve_material,
-    _resolve_material_entry,
-    _resolve_shape,
-    _to_float,
     _validate_xlsx_archive,
     import_objects_from_csv,
     import_objects_from_excel,
 )
 from app.services.heat_loss_application import apply_climate_policy
 from app.services.object_spreadsheet.export import build_objects_xlsx
+from app.services.object_spreadsheet.mapping import (
+    GENERIC_MATERIAL_ALIASES,
+    SHAPE_ALIASES,
+    SPECIAL_MATERIAL_ALIASES,
+    _mark_edited_climate_temperature_as_manual,
+    _norm,
+    _resolve_material,
+    _resolve_material_entry,
+    _resolve_shape,
+    _to_float,
+)
+from app.services.object_spreadsheet.pipe_mapping import _build_pipe_params
+from app.services.object_spreadsheet.tank_mapping import _build_tank_params
 from app.services.object_spreadsheet.templates import build_template_csv, build_template_xlsx
 
 

@@ -6,17 +6,24 @@ import ast
 from pathlib import Path
 
 _PACKAGE_ROOT = Path(__file__).resolve().parents[3] / "services/object_spreadsheet"
-_PURE_MODULES = ("export.py", "templates.py")
+_PURE_MODULES = (
+    "export.py",
+    "mapping.py",
+    "pipe_mapping.py",
+    "tank_mapping.py",
+    "templates.py",
+)
 _FORBIDDEN_IMPORT_ROOTS = {"fastapi", "sqlalchemy"}
+_MAPPING_MODULES = {"mapping.py", "pipe_mapping.py", "tank_mapping.py"}
 
 
-def test_export_owners_stay_below_module_size_limit() -> None:
+def test_pure_owners_stay_below_module_size_limit() -> None:
     for filename in _PURE_MODULES:
         path = _PACKAGE_ROOT / filename
         assert len(path.read_text(encoding="utf-8").splitlines()) <= 400, filename
 
 
-def test_export_owners_do_not_depend_on_api_or_persistence() -> None:
+def test_pure_owners_do_not_depend_on_api_or_persistence() -> None:
     for filename in _PURE_MODULES:
         path = _PACKAGE_ROOT / filename
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=filename)
@@ -32,3 +39,5 @@ def test_export_owners_do_not_depend_on_api_or_persistence() -> None:
             for alias in node.names
         )
         assert imported_roots.isdisjoint(_FORBIDDEN_IMPORT_ROOTS), filename
+        if filename in _MAPPING_MODULES:
+            assert "openpyxl" not in imported_roots, filename
