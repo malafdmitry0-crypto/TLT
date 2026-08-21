@@ -78,9 +78,7 @@ class TestObjectsLifecycle:
                     "outer_diameter": 0.108,
                     "wall_thickness": 0.004,
                     "pipe_material": "carbon_steel",
-                    "insulation_layers": [
-                        {"thickness": 0.05, "material": MINERAL_WOOL}
-                    ],
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
@@ -149,10 +147,7 @@ class TestObjectsLifecycle:
             results["total_heat_loss_base"] * results["safety_factor_applied"],
             rel=1e-3,
         )
-        assert (
-            results["insulation_layers_applied"][0]["conductivity_source"]
-            == "reference_data"
-        )
+        assert results["insulation_layers_applied"][0]["conductivity_source"] == "reference_data"
         assert results["insulation_layers_applied"][0][
             "conductivity_temperature_applied"
         ] == pytest.approx(40.0)
@@ -727,13 +722,13 @@ class TestObjectsLifecycle:
         assert body["is_valid"] is False
         assert body["results"] is None
         assert body["validation_errors"]["missing_fields"] == [
-                "outer_diameter",
-                "wall_thickness",
-                "insulation_layers",
-                "process_temperature",
-                "pipe_length",
-                "placement",
-                "min_switch_temperature",
+            "outer_diameter",
+            "wall_thickness",
+            "insulation_layers",
+            "process_temperature",
+            "pipe_length",
+            "placement",
+            "min_switch_temperature",
         ]
 
     async def test_pipe_wall_equal_to_radius_returns_actionable_field_error(
@@ -788,9 +783,7 @@ class TestObjectsLifecycle:
                     "outer_diameter": 0.1,
                     "wall_thickness": 0.004,
                     "pipe_material": "carbon_steel",
-                    "insulation_layers": [
-                        {"thickness": 0.05, "material": MINERAL_WOOL}
-                    ],
+                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -20,
                     "process_temperature": 80,
@@ -826,9 +819,7 @@ class TestObjectsLifecycle:
             headers=headers,
         )
         assert objects_response.status_code == 200, objects_response.text
-        reloaded = next(
-            item for item in objects_response.json() if item["id"] == created["id"]
-        )
+        reloaded = next(item for item in objects_response.json() if item["id"] == created["id"])
         assert reloaded["version"] == created["version"] + 1
         assert reloaded["params"]["wall_thickness"] is None
 
@@ -1052,18 +1043,18 @@ class TestObjectsLifecycle:
                 json={
                     "object_type": "pipe",
                     "params": {
-                    "outer_diameter": 0.1,
-                    "wall_thickness": 0.004,
-                    "pipe_material": "carbon_steel",
-                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+                        "outer_diameter": 0.1,
+                        "wall_thickness": 0.004,
+                        "pipe_material": "carbon_steel",
+                        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                         "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
                         "min_switch_temperature": -20,
-                    "pipe_length": 10,
-                    "placement": "outdoor",
-                    "wind_speed": 0,
-                },
+                        "pipe_length": 10,
+                        "placement": "outdoor",
+                        "wind_speed": 0,
+                    },
                 },
                 headers={"X-Session-Id": guest_session},
             )
@@ -1120,7 +1111,7 @@ class TestObjectsLifecycle:
                 "version": created["version"],
                 "params": {
                     **created["params"],
-                    "insulation_layers": [{"thickness": 0.04, "material": MINERAL_WOOL}]
+                    "insulation_layers": [{"thickness": 0.04, "material": MINERAL_WOOL}],
                 },
             },
             headers=headers,
@@ -1134,7 +1125,7 @@ class TestObjectsLifecycle:
                 "version": created["version"],
                 "params": {
                     **created["params"],
-                    "insulation_layers": [{"thickness": 0.03, "material": MINERAL_WOOL}]
+                    "insulation_layers": [{"thickness": 0.03, "material": MINERAL_WOOL}],
                 },
             },
             headers=headers,
@@ -1158,18 +1149,18 @@ class TestObjectsLifecycle:
                     "sort_order": idx,
                     "params": {
                         "name": f"Pipe-{idx}",
-                    "outer_diameter": 0.1 + idx * 0.01,
-                    "wall_thickness": 0.004,
-                    "pipe_material": "carbon_steel",
-                    "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
+                        "outer_diameter": 0.1 + idx * 0.01,
+                        "wall_thickness": 0.004,
+                        "pipe_material": "carbon_steel",
+                        "insulation_layers": [{"thickness": 0.05, "material": MINERAL_WOOL}],
                         "insulation_temperature_basis": "outdoor_winter",
                         "ambient_temperature": -20,
                         "process_temperature": 80,
                         "min_switch_temperature": -20,
-                    "pipe_length": 10,
-                    "placement": "outdoor",
-                    "wind_speed": 0,
-                },
+                        "pipe_length": 10,
+                        "placement": "outdoor",
+                        "wind_speed": 0,
+                    },
                 },
                 headers=headers,
             )
@@ -1277,9 +1268,7 @@ class TestObjectsLifecycle:
         assert results["wall_resistance"] > 0
         assert results["insulation_resistance"] > 0
         assert results["external_resistance"] > 0
-        assert results["alpha_vnesh_applied"] == pytest.approx(
-            round(11.6 + 7 * math.sqrt(1.7), 3)
-        )
+        assert results["alpha_vnesh_applied"] == pytest.approx(round(11.6 + 7 * math.sqrt(1.7), 3))
         assert results["wind_speed_applied"] == pytest.approx(1.7)
         assert results["safety_factor_applied"] == 1.2
         assert results["local_elements_count_applied"] == 3
@@ -1426,9 +1415,7 @@ class TestObjectsLifecycle:
                     "length": 4.0,
                     "width": 2.0,
                     "height": 3.0,
-                    "insulation_layers": [
-                        {"thickness": 0.08, "material": MINERAL_WOOL}
-                    ],
+                    "insulation_layers": [{"thickness": 0.08, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "channel",
                     "ambient_temperature": -20,
                     "ground_temperature": 5,
@@ -1459,9 +1446,7 @@ class TestObjectsLifecycle:
                     "laying_step": 0.2,
                     "diameter": 2.0,
                     "height": 3.0,
-                    "insulation_layers": [
-                        {"thickness": 0.06, "material": MINERAL_WOOL}
-                    ],
+                    "insulation_layers": [{"thickness": 0.06, "material": MINERAL_WOOL}],
                     "insulation_temperature_basis": "outdoor_winter",
                     "ambient_temperature": -15,
                     "process_temperature": 75,

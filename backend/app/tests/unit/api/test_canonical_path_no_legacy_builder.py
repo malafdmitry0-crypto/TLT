@@ -47,9 +47,7 @@ def _python_files_under(*relative_parts: str) -> list[Path]:
     if root.is_file():
         return [root]
     return sorted(
-        path
-        for path in root.rglob("*.py")
-        if path.is_file() and path.name != "__pycache__"
+        path for path in root.rglob("*.py") if path.is_file() and path.name != "__pycache__"
     )
 
 
@@ -67,9 +65,9 @@ def _imported_modules(path: Path) -> list[str]:
 def _assert_no_legacy_builder_imports(path: Path) -> None:
     for name in _imported_modules(path):
         for prefix in _FORBIDDEN_PREFIXES:
-            assert not (name == prefix or name.startswith(prefix + ".")), (
-                f"{path.relative_to(_APP_ROOT)} imports forbidden module {name!r}"
-            )
+            assert not (
+                name == prefix or name.startswith(prefix + ".")
+            ), f"{path.relative_to(_APP_ROOT)} imports forbidden module {name!r}"
 
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in ast.walk(tree):
@@ -139,12 +137,15 @@ def test_specification_repository_has_no_legacy_generation_surface() -> None:
         for node in service.body
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
     }
-    assert not {
-        "generate",
-        "generate_for_electrical_variants",
-        "preflight_variant",
-        "preflight_for_electrical_variants",
-    } & method_names
+    assert (
+        not {
+            "generate",
+            "generate_for_electrical_variants",
+            "preflight_variant",
+            "preflight_for_electrical_variants",
+        }
+        & method_names
+    )
 
 
 def test_loader_has_no_spec_accessories_runtime_entry() -> None:

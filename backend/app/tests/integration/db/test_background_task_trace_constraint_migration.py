@@ -116,8 +116,7 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
         connection = await asyncpg.connect(database_url)
         try:
             await connection.execute(
-                "DELETE FROM background_tasks "
-                "WHERE id = '00000000-0000-0000-0000-000000004631'"
+                "DELETE FROM background_tasks " "WHERE id = '00000000-0000-0000-0000-000000004631'"
             )
         finally:
             await connection.close()

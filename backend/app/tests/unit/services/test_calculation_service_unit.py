@@ -27,6 +27,12 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import ElectricalRequest
 from app.services import heat_loss_application as heat_loss_application_module
+from app.services.calculation.electrical_sources import (
+    is_manual_cable_selection,
+    normalize_cable_mark_source,
+    normalize_cable_type_source,
+    resolve_cable_mark_source,
+)
 from app.services.calculation_service import (
     BatchCancelChecker,
     BatchCancelledError,
@@ -712,7 +718,7 @@ class TestCableLayoutMapping:
         total_heat_loss_base = 1000.0
         q_additional = 100.0
         total_heat_loss_design = total_heat_loss_base * safety_factor + q_additional
-        heat_loss = service._tank_heat_loss_without_double_safety(
+        heat_loss = service._electrical_inputs._tank_heat_loss_without_double_safety(
             {
                 "total_heat_loss_base": total_heat_loss_base,
                 "total_heat_loss_design": total_heat_loss_design,
@@ -744,11 +750,10 @@ class TestCableLayoutMapping:
             is_valid=True,
         )
 
-        data = service._build_electrical_data(
+        data = service._electrical_inputs._build_electrical_data(
             obj=obj,
             cable_type="self_regulating_tt",
             cable_mark=None,
-            tlt_catalog=[],
             overrides={},
         )
 
@@ -757,13 +762,11 @@ class TestCableLayoutMapping:
 
 class TestCableSourceNormalization:
     def test_source_normalizers_accept_case_and_whitespace(self):
-        assert CalculationService._normalize_cable_type_source(" Manual ") == "manual"
-        assert CalculationService._normalize_cable_type_source("BULK") == "bulk"
-        assert CalculationService._normalize_cable_mark_source(" Manual ") == "manual"
+        assert normalize_cable_type_source(" Manual ") == "manual"
+        assert normalize_cable_type_source("BULK") == "bulk"
+        assert normalize_cable_mark_source(" Manual ") == "manual"
         assert (
-            CalculationService._resolve_cable_mark_source(
-                {"cable_mark": "ТЛТ-60", "cable_mark_source": "Manual"}
-            )
+            resolve_cable_mark_source({"cable_mark": "ТЛТ-60", "cable_mark_source": "Manual"})
             == "manual"
         )
 
@@ -774,7 +777,7 @@ class TestCableSourceNormalization:
             params={},
         )
 
-        assert CalculationService._is_manual_cable_selection(calc) is True
+        assert is_manual_cable_selection(calc) is True
 
     def test_skip_manual_does_not_treat_known_auto_mark_as_manual(self):
         calc = SimpleNamespace(
@@ -783,7 +786,7 @@ class TestCableSourceNormalization:
             params={},
         )
 
-        assert CalculationService._is_manual_cable_selection(calc) is False
+        assert is_manual_cable_selection(calc) is False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -848,7 +851,9 @@ class TestBatchRecalculate:
         db.commit.assert_awaited_once()
 
     async def test_processes_objects_in_chunks(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr("app.services.calculation_service.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 2)
+        monkeypatch.setattr(
+            "app.services.calculation.heat_batch.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 2
+        )
         project_id = uuid.uuid4()
         objects = [
             SimpleNamespace(
@@ -900,14 +905,14 @@ class TestBatchRecalculate:
 
     async def test_yields_event_loop_inside_large_chunk(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
-            "app.services.calculation_service.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 10
+            "app.services.calculation.heat_batch.BATCH_HEAT_RECALCULATE_CHUNK_SIZE", 10
         )
         monkeypatch.setattr(
-            "app.services.calculation_service.BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS",
+            "app.services.calculation.heat_batch.BATCH_HEAT_RECALCULATE_YIELD_EVERY_OBJECTS",
             2,
         )
         sleep = AsyncMock()
-        monkeypatch.setattr("app.services.calculation_service.asyncio.sleep", sleep)
+        monkeypatch.setattr("app.services.calculation.heat_batch.asyncio.sleep", sleep)
         project_id = uuid.uuid4()
         objects = [
             SimpleNamespace(
@@ -1168,7 +1173,8 @@ class TestBulkElectricalUpsert:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(
-            "app.services.calculation_service.ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
+            "app.services.calculation.electrical_repository."
+            "ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
             2,
         )
         db = AsyncMock()
@@ -1183,7 +1189,7 @@ class TestBulkElectricalUpsert:
             ]
         )
 
-        calcs = await CalculationService(db)._bulk_upsert_electrical_calculations(rows)
+        calcs = await CalculationService(db)._electrical_repository.bulk_upsert(rows)
 
         assert db.execute.await_count == 3
         assert [calc.object_id for calc in calcs] == object_ids
@@ -1193,7 +1199,8 @@ class TestBulkElectricalUpsert:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(
-            "app.services.calculation_service.ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
+            "app.services.calculation.electrical_repository."
+            "ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
             2,
         )
         db = AsyncMock()
@@ -1204,7 +1211,7 @@ class TestBulkElectricalUpsert:
         ]
         db.execute = AsyncMock()
 
-        calcs = await CalculationService(db)._bulk_upsert_electrical_calculations(
+        calcs = await CalculationService(db)._electrical_repository.bulk_upsert(
             rows,
             return_calcs=False,
         )
@@ -1251,43 +1258,6 @@ class TestBatchCancelChecker:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestLoadCableCatalog:
-    """Покрытие веток source: builtin / extended / all + invalid fallback."""
-
-    async def test_invalid_source_falls_back_to_builtin(self):
-        service = CalculationService(AsyncMock())
-        result = await service.load_cable_catalog("nonexistent")
-        assert all(c["source"] == "builtin" for c in result)
-
-    async def test_extended_only(self):
-        ext = SimpleNamespace(
-            cable_type="self_regulating",
-            brand="X",
-            model="X-Mod",
-            power_per_meter=20.0,
-            max_temperature=100.0,
-            min_temperature=-30.0,
-            resistance_per_meter=None,
-            price_per_meter=500.0,
-            stock_quantity_m=100.0,
-            lead_time_days=3,
-            supplier_priority=10,
-            is_preferred=True,
-            order_multiple_m=5.0,
-        )
-        db = AsyncMock()
-        result = MagicMock()
-        result.scalars = lambda: MagicMock(all=lambda: [ext])
-        db.execute = AsyncMock(return_value=result)
-        service = CalculationService(db)
-        cables = await service.load_cable_catalog("extended")
-        assert len(cables) == 1
-        assert cables[0]["source"] == "extended"
-        assert cables[0]["brand"] == "X"
-        assert cables[0]["price_per_meter"] == 500.0
-        assert cables[0]["is_preferred"] is True
-
-
 class TestCoefficientsCaching:
     """Кэш коэффициентов — ключ-инвалидация работает, второй вызов не идёт в БД."""
 
@@ -1325,14 +1295,14 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
-        service._tt_calculation_catalogs_cache = {
+        service._tt_context._tt_calculation_catalogs_cache = {
             kind: ElectricalCatalogService._static_calculation_fallback(kind)
             for kind in ("power", "section", "bom")
         }
-        service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
+        service._electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service._save_failed_electrical(obj, "TestError")
-        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        await service._electrical_failures.save(obj, "TestError")
+        rows = service._electrical_failures._bulk_upsert.await_args.args[0]
         assert rows[0]["project_id"] == obj.project_id
         assert rows[0]["object_id"] == obj.id
         assert rows[0]["variant_number"] == 1
@@ -1352,14 +1322,14 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
-        service._tt_calculation_catalogs_cache = {
+        service._tt_context._tt_calculation_catalogs_cache = {
             kind: ElectricalCatalogService._static_calculation_fallback(kind)
             for kind in ("power", "section", "bom")
         }
-        service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
+        service._electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service._save_failed_electrical(obj, "Some error")
-        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        await service._electrical_failures.save(obj, "Some error")
+        rows = service._electrical_failures._bulk_upsert.await_args.args[0]
         row = rows[0]
         # cable_mark обнуляется, results заменяются на structured failure payload.
         assert row["cable_mark"] is None
@@ -1386,14 +1356,14 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationService(db)
-        service._tt_calculation_catalogs_cache = {
+        service._tt_context._tt_calculation_catalogs_cache = {
             kind: ElectricalCatalogService._static_calculation_fallback(kind)
             for kind in ("power", "section", "bom")
         }
-        service._bulk_upsert_electrical_calculations = AsyncMock(return_value=[SimpleNamespace()])  # type: ignore[method-assign]
+        service._electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
-        await service._save_failed_electrical(obj, "boom", variant_number=2)
-        rows = service._bulk_upsert_electrical_calculations.await_args.args[0]
+        await service._electrical_failures.save(obj, "boom", variant_number=2)
+        rows = service._electrical_failures._bulk_upsert.await_args.args[0]
         assert rows[0]["variant_number"] == 2
 
 
@@ -1427,7 +1397,7 @@ class TestGetCableOptions:
         db.execute = AsyncMock(return_value=result_mock)
 
         service = CalculationService(db)
-        service._tt_calculation_catalogs_cache = {
+        service._tt_context._tt_calculation_catalogs_cache = {
             kind: ElectricalCatalogService._static_calculation_fallback(kind)
             for kind in ("power", "section", "bom")
         }
@@ -1481,9 +1451,9 @@ class TestCalcElectricalEligibility:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[scope_result, MagicMock(), object_result])
         service = CalculationService(db)
-        service._prepare_self_regulating_tt_request = AsyncMock()  # type: ignore[method-assign]
-        service._upsert_electrical_calculation = AsyncMock()  # type: ignore[method-assign]
-        service._upsert_failed_electrical = AsyncMock()  # type: ignore[method-assign]
+        service._tt_preparation._prepare_self_regulating_tt_request = AsyncMock()  # type: ignore[method-assign]
+        service._electrical_repository.upsert_one = AsyncMock()  # type: ignore[method-assign]
+        service._electrical_failures.upsert = AsyncMock()  # type: ignore[method-assign]
 
         with pytest.raises(CalculationError, match="не рассчитаны"):
             await service.calc_electrical(
@@ -1494,9 +1464,9 @@ class TestCalcElectricalEligibility:
                 )
             )
 
-        service._prepare_self_regulating_tt_request.assert_not_awaited()
-        service._upsert_electrical_calculation.assert_not_awaited()
-        service._upsert_failed_electrical.assert_not_awaited()
+        service._tt_preparation._prepare_self_regulating_tt_request.assert_not_awaited()
+        service._electrical_repository.upsert_one.assert_not_awaited()
+        service._electrical_failures.upsert.assert_not_awaited()
         db.commit.assert_not_awaited()
 
     async def test_batch_loader_selects_only_valid_heat_objects(self):
@@ -1505,7 +1475,7 @@ class TestCalcElectricalEligibility:
         result.scalars.return_value.all.return_value = []
         db.execute = AsyncMock(return_value=result)
 
-        await CalculationService(db)._load_valid_project_object_chunk(
+        await CalculationService(db)._electrical_batch._load_valid_project_object_chunk(
             uuid.uuid4(),
             limit=100,
             after_sort_order=None,
@@ -1553,4 +1523,4 @@ class TestSelectCableManual:
         db.execute = AsyncMock(return_value=result)
 
         with pytest.raises(CalculationError, match="не рассчитан"):
-            await CalculationService(db)._load_selectable_object(obj.id)
+            await CalculationService(db)._electrical_single._load_selectable_object(obj.id)

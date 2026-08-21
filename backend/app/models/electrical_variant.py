@@ -422,9 +422,7 @@ _DROP_SYNC_TRIGGER_DDLS = [
         ON electrical_variants
         """
     ),
-    _postgresql_ddl(
-        "DROP FUNCTION IF EXISTS tlt_0047_enforce_electrical_variant_limit()"
-    ),
+    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_0047_enforce_electrical_variant_limit()"),
     _postgresql_ddl(
         """
         DROP TRIGGER IF EXISTS trg_0027_sync_project_object_assignments

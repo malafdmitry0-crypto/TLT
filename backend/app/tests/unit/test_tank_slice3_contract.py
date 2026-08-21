@@ -123,8 +123,12 @@ def test_partially_buried_rectangular_golden_uses_separate_temperatures_and_area
 
 def test_partial_burial_ambient_and_ground_temperature_affect_only_their_branches() -> None:
     baseline = calc_tank_heat_loss(_buried_rectangular(q_additional=0.0))
-    warmer_air = calc_tank_heat_loss(_buried_rectangular(ambient_temperature=-10.0, q_additional=0.0))
-    warmer_ground = calc_tank_heat_loss(_buried_rectangular(ground_temperature=10.0, q_additional=0.0))
+    warmer_air = calc_tank_heat_loss(
+        _buried_rectangular(ambient_temperature=-10.0, q_additional=0.0)
+    )
+    warmer_ground = calc_tank_heat_loss(
+        _buried_rectangular(ground_temperature=10.0, q_additional=0.0)
+    )
 
     assert warmer_air.heat_loss_air_base < baseline.heat_loss_air_base
     assert warmer_air.heat_loss_ground_base == pytest.approx(baseline.heat_loss_ground_base)
@@ -158,9 +162,7 @@ def test_partly_buried_auto_alpha_requires_explicit_wind_speed() -> None:
     with pytest.raises(ValidationError, match="wind_speed"):
         _buried_rectangular(wind_speed=None)
 
-    result = calc_tank_heat_loss(
-        _buried_rectangular(wind_speed=0.0)
-    )
+    result = calc_tank_heat_loss(_buried_rectangular(wind_speed=0.0))
 
     assert result.alpha_vnesh_applied == pytest.approx(11.6)
     assert result.wind_speed_applied == 0.0

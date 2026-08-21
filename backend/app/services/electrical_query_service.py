@@ -43,7 +43,7 @@ from app.schemas.project import (
     ProjectObjectsPageCursor,
     ProjectObjectsPageInfo,
 )
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.electrical_result_lifecycle import current_tt_result_sql_predicate
 from app.services.project_service import ProjectService
 
@@ -341,18 +341,16 @@ def _calc_provenance_summary(row: ElectricalQueryRow) -> str | None:
     if row.calc is None or not isinstance(row.calc.results, dict):
         return None
     results = row.calc.results
+
     def dict_value(value: Any) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
     layout = dict_value(results.get("layout"))
     provenance = dict_value(results.get("provenance"))
-    input_sources = (
-        dict_value(provenance.get("input_sources"))
-        or dict_value(results.get("input_sources"))
+    input_sources = dict_value(provenance.get("input_sources")) or dict_value(
+        results.get("input_sources")
     )
-    catalogs = (
-        dict_value(provenance.get("catalogs")) or dict_value(results.get("catalogs"))
-    )
+    catalogs = dict_value(provenance.get("catalogs")) or dict_value(results.get("catalogs"))
     section_catalog = dict_value(catalogs.get("section"))
     parts: list[str] = []
     thread_source = layout.get("thread_selection_source") or input_sources.get("thread_count")
@@ -1107,9 +1105,9 @@ class ElectricalQueryService:
         if self._can_use_default_page(data):
             if page == 1 or (data.after_sort_order is not None and data.after_id is not None):
                 return await self._query_default_keyset_page(data, page=page, page_size=page_size)
-            objects, calculations, summary, page_info = await CalculationService(
+            objects, calculations, summary, page_info = await CalculationContainer(
                 self.db
-            ).electrical_project_page(
+            ).electrical_summary.electrical_project_page(
                 data.project_id,
                 variant_number=data.variant_number,
                 electrical_variant_id=data.electrical_variant_id,
@@ -1152,7 +1150,9 @@ class ElectricalQueryService:
         page_rows = sorted_rows[offset : offset + page_size]
         total_pages = ceil(filtered_count / page_size) if filtered_count else 0
 
-        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+        _, _, summary, _ = await CalculationContainer(
+            self.db
+        ).electrical_summary.electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
             electrical_variant_id=data.electrical_variant_id,
@@ -1223,7 +1223,9 @@ class ElectricalQueryService:
         else:
             calculations = []
 
-        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+        _, _, summary, _ = await CalculationContainer(
+            self.db
+        ).electrical_summary.electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
             electrical_variant_id=data.electrical_variant_id,
@@ -1694,7 +1696,9 @@ class ElectricalQueryService:
         ]
         total_pages = ceil(filtered_count / page_size) if filtered_count else 0
 
-        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+        _, _, summary, _ = await CalculationContainer(
+            self.db
+        ).electrical_summary.electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
             electrical_variant_id=data.electrical_variant_id,
@@ -1780,7 +1784,9 @@ class ElectricalQueryService:
         page_rows = [ElectricalQueryRow(obj=obj, calc=calc) for obj, calc in rows_result.all()]
         total_pages = ceil(filtered_count / page_size) if filtered_count else 0
 
-        _, _, summary, _ = await CalculationService(self.db).electrical_project_page(
+        _, _, summary, _ = await CalculationContainer(
+            self.db
+        ).electrical_summary.electrical_project_page(
             data.project_id,
             variant_number=data.variant_number,
             electrical_variant_id=data.electrical_variant_id,
@@ -1942,7 +1948,7 @@ class ElectricalQueryService:
         calculations: list[ElectricalCalculation],
         catalog_source: str = "builtin",
     ) -> list[ElectricalCalcSummary]:
-        statuses = await CalculationService(self.db).cable_snapshot_statuses(
+        statuses = await CalculationContainer(self.db).electrical_snapshots.statuses(
             calculations,
             catalog_source,
         )

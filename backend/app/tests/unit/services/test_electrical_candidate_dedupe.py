@@ -3,7 +3,7 @@
 import uuid
 
 from app.models.electrical_candidate import ElectricalCandidate
-from app.services.calculation_service import CalculationService
+from app.services.calculation.electrical_candidates import ElectricalCandidateService
 from app.services.electrical_candidate_dedupe import (
     build_dedupe_key,
     build_identity_payload,
@@ -412,7 +412,7 @@ def test_apply_upsert_clears_is_applied_when_status_not_applicable():
         risk_flags=[],
         candidate_meta={},
     )
-    CalculationService._apply_candidate_upsert(
+    ElectricalCandidateService._apply_candidate_upsert(
         existing,
         params={},
         results=None,

@@ -40,7 +40,7 @@ def _service(obj: SimpleNamespace) -> CalculationService:
     object_result.scalar_one_or_none.return_value = obj
     db.execute.return_value = object_result
     service = CalculationService(db)
-    service._tt_calculation_catalogs_cache = {
+    service._tt_context._tt_calculation_catalogs_cache = {
         kind: ElectricalCatalogService._static_calculation_fallback(kind)
         for kind in ("power", "section", "bom")
     }
@@ -65,11 +65,11 @@ async def test_voltage_override_in_an_exact_er_does_not_change_candidate_options
     first_variant = uuid4()
     second_variant = uuid4()
     service = _service(obj)
-    service._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = SimpleNamespace(
-        electrical_overrides={"supply_voltage_v": 230}
+    service._tt_context._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = (
+        SimpleNamespace(electrical_overrides={"supply_voltage_v": 230})
     )
-    service._tt_assignment_cache[(obj.project_id, second_variant, obj.id)] = SimpleNamespace(
-        electrical_overrides={"supply_voltage_v": 380}
+    service._tt_context._tt_assignment_cache[(obj.project_id, second_variant, obj.id)] = (
+        SimpleNamespace(electrical_overrides={"supply_voltage_v": 380})
     )
 
     at_230 = await service.get_cable_options(obj.id, electrical_variant_id=first_variant)

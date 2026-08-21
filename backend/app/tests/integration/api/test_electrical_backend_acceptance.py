@@ -239,9 +239,7 @@ async def test_ac_be_25_batch_persists_success_and_typed_object_error(
     )
     assert repeated_batch.status_code == 200, repeated_batch.text
     repeated_ready = next(
-        item
-        for item in repeated_batch.json()["results"]
-        if item["object_id"] == successful["id"]
+        item for item in repeated_batch.json()["results"] if item["object_id"] == successful["id"]
     )
     assert repeated_ready["results"]["resolved_inputs"]["nominal_voltage_v"] == "380.0"
     assert repeated_ready["results"]["input_sources"]["nominal_voltage_v"] == (

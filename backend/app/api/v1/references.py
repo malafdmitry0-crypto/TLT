@@ -100,8 +100,6 @@ def _extended_cable_payload(cable: CableExtended) -> dict[str, object]:
     }
 
 
-
-
 def _insulation_material_payload(material: InsulationMaterial) -> dict[str, object]:
     payload: dict[str, object] = {
         "material": material.material,
@@ -138,14 +136,6 @@ async def _insulation_catalog(db: AsyncSession) -> list[dict[str, object]]:
     if rows:
         return [_insulation_material_payload(row) for row in rows]
     return list_insulation_materials()
-
-
-
-
-
-
-
-
 
 
 def _builtin_cables_for_type(cable_type: ReferenceCableType) -> list[dict[str, object]]:
@@ -223,8 +213,6 @@ async def soil_conductivity(
     return list_soil_conductivity()
 
 
-
-
 @router.get("/tt-cables", summary="Справочник саморегулирующихся кабелей ТТН/ТТВ/ТТХ")
 @cache.cached("references:tt-cables", ttl=_BUILTIN_TTL)
 async def tt_cables(
@@ -275,8 +263,6 @@ async def cables(
         response.headers["ETag"] = _etag(builtin)
         return builtin
     return await _cables_for_type(db, source, cable_type)
-
-
 
 
 @router.get(

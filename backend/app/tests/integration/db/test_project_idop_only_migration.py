@@ -111,10 +111,13 @@ async def test_0045_drops_assignment_idop_without_promoting_data() -> None:
         connection = await asyncpg.connect(database_url)
         try:
             assert await _assignment_idop_column_exists(connection) is False
-            assert await connection.fetchval(
-                "SELECT max_section_start_current_a FROM project_electrical_settings "
-                "WHERE project_id = '00000000-0000-0000-0000-000000004510'"
-            ) is None
+            assert (
+                await connection.fetchval(
+                    "SELECT max_section_start_current_a FROM project_electrical_settings "
+                    "WHERE project_id = '00000000-0000-0000-0000-000000004510'"
+                )
+                is None
+            )
         finally:
             await connection.close()
 

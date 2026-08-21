@@ -56,7 +56,7 @@ def _with_single_project_name(raw: bytes, project_name: str) -> bytes:
     raise AssertionError("Single-project CSV does not contain metadata name")
 
 
-async def _seed_sparse_v2_export_graph(
+async def _seed_sparse_current_export_graph(
     db_session: AsyncSession,
     owner: User,
     *,
@@ -141,7 +141,7 @@ async def _seed_sparse_v2_export_graph(
                 cable_type_source="manual",
                 cable_mark="TLT-SR-1",
                 cable_mark_source="manual",
-                params={"source": "v2-roundtrip"},
+                params={"source": "current-roundtrip"},
                 results={"selected_cable": "TLT-SR-1", "total_power": 120.0},
             ),
             ElectricalCalculation(
@@ -153,7 +153,7 @@ async def _seed_sparse_v2_export_graph(
                 cable_type_source="manual",
                 cable_mark=None,
                 cable_mark_source="auto",
-                params={"source": "v2-roundtrip"},
+                params={"source": "current-roundtrip"},
                 results={
                     "category": "unsupported",
                     "error_code": "UNSUPPORTED_CABLE_TYPE",
@@ -168,7 +168,7 @@ async def _seed_sparse_v2_export_graph(
                 cable_type_source="manual",
                 cable_mark="TLT-R-4",
                 cable_mark_source="manual",
-                params={"source": "v2-roundtrip"},
+                params={"source": "current-roundtrip"},
                 results={"selected_cable": "TLT-R-4", "total_power": 180.0},
             ),
             Specification(
@@ -203,7 +203,6 @@ async def _assert_sparse_imported_graph(
             )
         ).scalars()
     )
-    assert [variant.legacy_variant_number for variant in variants] == [1, 4]
     assert [variant.name for variant in variants] == ["ЭР1", "ЭР4"]
     assert [variant.is_active for variant in variants] == [True, False]
 
@@ -266,15 +265,14 @@ async def _assert_sparse_imported_graph(
             )
         ).scalars()
     )
-    assert sorted(calculation.variant_number for calculation in calculations) == [1, 4, 4]
     assert all(calculation.electrical_variant_id is not None for calculation in calculations)
     calculation_by_scope = {
-        (calculation.object_id, calculation.variant_number): calculation
+        (calculation.object_id, calculation.electrical_variant_id): calculation
         for calculation in calculations
     }
-    assert calculation_by_scope[(first.id, 1)].electrical_variant_id == er1.id
-    assert calculation_by_scope[(first.id, 4)].electrical_variant_id == er4.id
-    assert calculation_by_scope[(second.id, 4)].electrical_variant_id == er4.id
+    assert calculation_by_scope[(first.id, er1.id)]
+    assert calculation_by_scope[(first.id, er4.id)]
+    assert calculation_by_scope[(second.id, er4.id)]
 
     specs = list(
         (
@@ -295,7 +293,6 @@ async def _assert_sparse_imported_graph(
     assert spec.stale_details is not None
     assert spec.stale_details.get("sections_status") == "not_ready"
     assert spec.stale_details.get("error_code") == "ELECTRICAL_SECTIONS_NOT_READY"
-    assert spec.stale_details.get("import_schema_version") == "3"
     assert spec.stale_details.get("variant_key")
     assert spec.stale_details.get("electrical_variant_id") == str(er4.id)
 
@@ -503,8 +500,8 @@ class TestSingleExportImport:
             headers=source_headers,
         )
         assert exported.status_code == 200, exported.text
-        legacy_payload = exported.content.replace(b"cylindrical", b"spherical")
-        assert legacy_payload != exported.content
+        unsupported_payload = exported.content.replace(b"cylindrical", b"spherical")
+        assert unsupported_payload != exported.content
 
         target_session = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         target_headers = {"X-Session-Id": target_session}
@@ -512,7 +509,7 @@ class TestSingleExportImport:
 
         response = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("legacy-sphere.tlt.csv", legacy_payload, "text/csv")},
+            files={"file": ("unsupported-sphere.tlt.csv", unsupported_payload, "text/csv")},
             headers=target_headers,
         )
 
@@ -676,7 +673,7 @@ class TestSingleExportImport:
         assert listing[0]["cable_mark"] == exported_mark
         assert listing[0]["cable_mark_source"] == "manual"
 
-    async def test_roundtrip_sparse_legacy_slots_reconstructs_uuid_graph(
+    async def test_roundtrip_sparse_current_slots_reconstructs_uuid_graph(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -684,7 +681,7 @@ class TestSingleExportImport:
         db_session: AsyncSession,
     ):
         suffix = uuid.uuid4().hex[:8]
-        source = await _seed_sparse_v2_export_graph(
+        source = await _seed_sparse_current_export_graph(
             db_session,
             employee_user,
             suffix=suffix,
@@ -766,57 +763,35 @@ class TestSingleExportImport:
         )
         assert variants == []
 
-    @pytest.mark.parametrize(
-        ("invalid_section", "expected_error"),
-        [
-            (
-                "[SECTION];electrical\n"
-                "object_key;variant_number;cable_type;cable_type_source;"
-                "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-                "missing;5;self_regulating;auto;;auto;;{};\n",
-                "1..4",
-            ),
-            (
-                "[SECTION];specifications\n" "variant_number;items\n" "1;[]\n",
-                "schema_version=2 не поддерживается",
-            ),
-        ],
-        ids=["electrical-slot-5", "legacy-specification-section"],
-    )
-    async def test_guest_import_invalid_slot_is_atomic(
+    async def test_guest_import_uses_versionless_format(
         self,
         client: AsyncClient,
         guest_session: str,
-        invalid_section: str,
-        expected_error: str,
     ):
         headers = {"X-Session-Id": guest_session}
         original = (await client.get("/api/v1/projects", headers=headers)).json()
         assert len(original) == 1
         original_id = original[0]["id"]
         csv_payload = (
-            "[SECTION];metadata\n"
-            "key;value\n"
-            "schema_version;2\n"
-            "name;Invalid legacy slot\n"
-            "\n"
-            "[SECTION];objects\n"
-            "object_key;type;name;sort_order;params;results;is_valid;"
-            "validation_errors\n"
-            "\n"
-            f"{invalid_section}"
-        ).encode()
+            b"[SECTION];metadata\n"
+            b"key;value\n"
+            b"name;Versionless import\n"
+            b"\n"
+            b"[SECTION];objects\n"
+            b"object_key;type;name;sort_order;params;results;is_valid;"
+            b"validation_errors\n"
+        )
 
         response = await client.post(
             "/api/v1/projects/import-csv",
-            files={"file": ("invalid-slot.csv", csv_payload, "text/csv")},
+            files={"file": ("project.csv", csv_payload, "text/csv")},
             headers=headers,
         )
 
-        assert response.status_code == 422, response.text
-        assert expected_error in response.json()["detail"]
+        assert response.status_code == 201, response.text
         remaining = (await client.get("/api/v1/projects", headers=headers)).json()
-        assert [project["id"] for project in remaining] == [original_id]
+        assert [project["id"] for project in remaining] == [response.json()["id"]]
+        assert response.json()["id"] != original_id
 
     async def test_guest_import_identity_conflict_is_atomic_422(
         self, client: AsyncClient, guest_session: str
@@ -826,16 +801,15 @@ class TestSingleExportImport:
         csv_payload = (
             "[SECTION];metadata\n"
             "key;value\n"
-            "schema_version;3\n"
             "name;Identity conflict\n"
             "\n"
             "[SECTION];objects\n"
             "object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
             "\n"
             "[SECTION];electrical_variants\n"
-            "variant_key;name;sort_order;is_active;legacy_variant_number;copied_from_key\n"
-            "er-a;ЭР1;0;true;1;\n"
-            "er-b;ЭР2;1;false;2;\n"
+            "variant_key;name;sort_order;is_active;copied_from_key\n"
+            "er-a;ЭР1;0;true;\n"
+            "er-b;ЭР2;1;false;\n"
             "\n"
             "[SECTION];specifications\n"
             "variant_key;electrical_variant_id;items;snapshot\n"
@@ -860,15 +834,14 @@ class TestSingleExportImport:
         csv_payload = (
             "[SECTION];metadata\n"
             "key;value\n"
-            "schema_version;3\n"
             "name;Duplicate ER\n"
             "\n"
             "[SECTION];objects\n"
             "object_key;type;name;sort_order;params;results;is_valid;validation_errors\n"
             "\n"
             "[SECTION];electrical_variants\n"
-            "variant_key;name;sort_order;is_active;legacy_variant_number;copied_from_key\n"
-            "er-a;ЭР1;0;true;1;\n"
+            "variant_key;name;sort_order;is_active;copied_from_key\n"
+            "er-a;ЭР1;0;true;\n"
             "\n"
             "[SECTION];specifications\n"
             "variant_key;electrical_variant_id;items;snapshot\n"
@@ -949,7 +922,7 @@ class TestBulkExportImport:
         assert "Проект А (импорт)" in names
         assert "Проект Б (импорт)" in names
 
-    async def test_bulk_roundtrip_sparse_slots_reconstructs_uuid_graph(
+    async def test_bulk_roundtrip_sparse_current_slots_reconstructs_uuid_graph(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -957,7 +930,7 @@ class TestBulkExportImport:
         db_session: AsyncSession,
     ):
         suffix = uuid.uuid4().hex[:8]
-        source = await _seed_sparse_v2_export_graph(
+        source = await _seed_sparse_current_export_graph(
             db_session,
             employee_user,
             suffix=f"bulk-{suffix}",
@@ -986,7 +959,7 @@ class TestBulkExportImport:
         assert imported_project is not None
         await _assert_sparse_imported_graph(db_session, imported_project.id)
 
-    async def test_bulk_invalid_slot_rolls_back_project_and_continues(
+    async def test_bulk_import_uses_versionless_format(
         self,
         client: AsyncClient,
         employee_token: str,
@@ -994,65 +967,34 @@ class TestBulkExportImport:
         db_session: AsyncSession,
     ):
         suffix = uuid.uuid4().hex[:8]
-        bad_task = f"BAD-SLOT-{suffix}"
-        good_task = f"GOOD-EMPTY-{suffix}"
+        task_number = f"VERSIONLESS-{suffix}"
         csv_payload = (
-            "[SECTION];meta\n"
-            "key;value\n"
-            "schema_version;2\n"
-            "\n"
             "[SECTION];projects\n"
             "project_key;name;task_number;description;status\n"
-            f"bad;Bad slot;{bad_task};;draft\n"
-            f"good;Good empty;{good_task};;draft\n"
-            "\n"
-            "[SECTION];electrical\n"
-            "project_key;object_key;variant_number;cable_type;cable_type_source;"
-            "cable_mark;cable_mark_source;cable_snapshot;params;results\n"
-            "bad;missing;5;self_regulating;auto;;auto;;{};\n"
+            f"p1;Versionless bulk;{task_number};;draft\n"
         ).encode()
         headers = {"Authorization": f"Bearer {employee_token}"}
 
         response = await client.post(
             "/api/v1/projects/import-csv-bulk",
-            files={"file": ("invalid-slot-bulk.csv", csv_payload, "text/csv")},
+            files={"file": ("bulk.csv", csv_payload, "text/csv")},
             headers=headers,
         )
 
         assert response.status_code == 200, response.text
-        assert response.json()["imported"] == 1
-        # Product contract: допустимые legacy-слоты 1..4.
-        assert response.json()["errors"] == [
-            {
-                "project_key": "bad",
-                "error": "variant_number в секции electrical должен быть "
-                "в диапазоне 1..4: получено 5",
-            }
-        ]
+        assert response.json() == {"imported": 1, "errors": []}
 
         projects = list(
             (
                 await db_session.execute(
                     select(Project).where(
                         Project.user_id == employee_user.id,
-                        Project.task_number.in_([bad_task, good_task]),
+                        Project.task_number == task_number,
                     )
                 )
             ).scalars()
         )
-        assert [project.task_number for project in projects] == [good_task]
-        imported_empty = projects[0]
-        assert imported_empty.electrical_initialized_at is None
-        variants = list(
-            (
-                await db_session.execute(
-                    select(ElectricalVariant).where(
-                        ElectricalVariant.project_id == imported_empty.id
-                    )
-                )
-            ).scalars()
-        )
-        assert variants == []
+        assert len(projects) == 1
 
     async def test_employee_bulk_import_empty_section(
         self, client: AsyncClient, employee_token: str
@@ -1095,7 +1037,7 @@ class TestBulkExportImport:
     async def test_bulk_import_rejects_single_export(
         self, client: AsyncClient, employee_token: str
     ):
-        """Пакетный импорт принимает только bulk-формат с [SECTION];meta/projects."""
+        """Пакетный импорт принимает только bulk-формат с [SECTION];projects."""
         headers = {"Authorization": f"Bearer {employee_token}"}
         src = (
             await client.post(
@@ -1279,10 +1221,6 @@ class TestBulkExportImport:
         headers = {"Authorization": f"Bearer {employee_token}"}
         # CSV вручную: 2 проекта, второй с пустым ключом
         csv = (
-            b"[SECTION];meta\n"
-            b"key;value\n"
-            b"schema_version;2\n"
-            b"\n"
             b"[SECTION];projects\n"
             b"project_key;name;task_number;description;status\n"
             b"p1;Valid;T-V;;draft\n"
@@ -1317,10 +1255,6 @@ class TestBulkExportImport:
             ensure_ascii=False,
         ).replace('"', '""')
         csv = (
-            "[SECTION];meta\n"
-            "key;value\n"
-            "schema_version;2\n"
-            "\n"
             "[SECTION];projects\n"
             "project_key;name;task_number;description;status\n"
             f"bad;Broken;{bad_task};;draft\n"
@@ -1506,12 +1440,11 @@ class TestProjectSettingsRoundtrip:
     async def test_import_without_settings_sections_uses_defaults(
         self, client: AsyncClient, guest_session: str, db_session: AsyncSession
     ):
-        """Старые файлы без секций настроек импортируются с дефолтами."""
+        """Файлы без секций настроек импортируются с дефолтами."""
         headers = {"X-Session-Id": guest_session}
         csv_text = (
             "[SECTION];metadata\n"
             "key;value\n"
-            "schema_version;3\n"
             "name;Без настроек\n"
             "\n"
             "[SECTION];objects\n"

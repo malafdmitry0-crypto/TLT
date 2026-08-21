@@ -942,7 +942,9 @@ class TestCsvImport:
             "Количество локальных элементов": 0,
         }
         buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=CSV_HEADERS, delimiter=";", extrasaction="ignore")
+        writer = csv.DictWriter(
+            buffer, fieldnames=CSV_HEADERS, delimiter=";", extrasaction="ignore"
+        )
         writer.writeheader()
         writer.writerow(row)
         resp = await client.post(
@@ -969,8 +971,18 @@ class TestCsvImport:
         assert params["pipe_lambda"] == 45
         assert params["insulation_cover_material"] == "aluminum"
         assert params["insulation_layers"] == [
-            {"thickness": 0.03, "material": "other", "conductivity": 0.04, "temperature_range": [-30.0, 120.0]},
-            {"thickness": 0.02, "material": "other", "conductivity": 0.039, "temperature_range": [-40.0, 180.0]},
+            {
+                "thickness": 0.03,
+                "material": "other",
+                "conductivity": 0.04,
+                "temperature_range": [-30.0, 120.0],
+            },
+            {
+                "thickness": 0.02,
+                "material": "other",
+                "conductivity": 0.039,
+                "temperature_range": [-40.0, 180.0],
+            },
             {"thickness": 0.01, "material": POLYURETHANE},
         ]
 

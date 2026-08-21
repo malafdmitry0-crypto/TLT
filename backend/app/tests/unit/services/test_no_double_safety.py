@@ -41,7 +41,9 @@ async def test_heat_loss_per_meter_base_never_includes_safety_factor():
     r2 = await service.calc_heat_loss("pipe", {**pipe_params, "safety_factor": 1.5})
 
     # q_linear — инвариант: НЕ зависит от safety_factor
-    assert r1["heat_loss_per_meter_base"] == pytest.approx(r2["heat_loss_per_meter_base"], rel=1e-6), (
+    assert r1["heat_loss_per_meter_base"] == pytest.approx(
+        r2["heat_loss_per_meter_base"], rel=1e-6
+    ), (
         "heat_loss_per_meter_base изменился при изменении safety_factor — "
         "значит K применяется к q_linear. Это сломает электрорасчёт "
         "(будет двойная накрутка). Fix: убрать × K из расчёта q_linear в pipe.py."

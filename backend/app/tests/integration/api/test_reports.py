@@ -35,10 +35,7 @@ def _report_row_cells(report_html: str, object_name: str) -> list[str]:
     )
     assert row_html is not None, f"Report row not found: {object_name}"
     cells = re.findall(r"<td[^>]*>(.*?)</td>", row_html, flags=re.DOTALL)
-    return [
-        " ".join(html_lib.unescape(re.sub(r"<[^>]+>", " ", cell)).split())
-        for cell in cells
-    ]
+    return [" ".join(html_lib.unescape(re.sub(r"<[^>]+>", " ", cell)).split()) for cell in cells]
 
 
 async def _project_with_object(client: AsyncClient, session_id: str) -> str:
@@ -202,9 +199,12 @@ class TestReports:
         assert "Глава:" in body["html"] or er1["name"] in body["html"]
         assert body["html"].count("Tокр. min, °C") == 2
         assert body["html"].count("Tокр. max, °C") == 2
-        assert body["html"].count(
-            "Tокр. max — справочное значение; в текущем расчёте не используется."
-        ) == 2
+        assert (
+            body["html"].count(
+                "Tокр. max — справочное значение; в текущем расчёте не используется."
+            )
+            == 2
+        )
 
     async def test_preview_distinguishes_ambient_bounds_by_object_context(
         self,
@@ -294,9 +294,10 @@ class TestReports:
         report_html = preview.json()["html"]
         assert report_html.count("Tокр. min, °C") == 2
         assert report_html.count("Tокр. max, °C") == 2
-        assert report_html.count(
-            "Tокр. max — справочное значение; в текущем расчёте не используется."
-        ) == 2
+        assert (
+            report_html.count("Tокр. max — справочное значение; в текущем расчёте не используется.")
+            == 2
+        )
 
         filled_pipe = _report_row_cells(report_html, "Pipe filled maximum")
         empty_pipe = _report_row_cells(report_html, "Pipe empty maximum")

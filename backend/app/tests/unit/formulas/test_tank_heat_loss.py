@@ -10,9 +10,14 @@ from app.schemas.heat_loss import InsulationLayer, TankHeatLossParams
 
 def _cyl(**overrides: object) -> TankHeatLossParams:
     data: dict[str, object] = {
-        "shape": "cylindrical", "diameter": 2.0, "height": 3.0,
-        "placement": "outdoor", "ambient_temperature": -20.0,
-        "process_temperature": 80.0, "wind_speed": 0.0, "safety_factor": 1.1,
+        "shape": "cylindrical",
+        "diameter": 2.0,
+        "height": 3.0,
+        "placement": "outdoor",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
         "insulation_temperature_basis": "outdoor_winter",
         "insulation_layers": [InsulationLayer(thickness=0.1, material="mineral_wool_boards_120")],
     }
@@ -22,9 +27,15 @@ def _cyl(**overrides: object) -> TankHeatLossParams:
 
 def _rect(**overrides: object) -> TankHeatLossParams:
     data: dict[str, object] = {
-        "shape": "rectangular", "length": 4.0, "width": 2.0, "height": 2.0,
-        "placement": "outdoor", "ambient_temperature": -20.0,
-        "process_temperature": 80.0, "wind_speed": 0.0, "safety_factor": 1.1,
+        "shape": "rectangular",
+        "length": 4.0,
+        "width": 2.0,
+        "height": 2.0,
+        "placement": "outdoor",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
         "insulation_temperature_basis": "outdoor_winter",
         "insulation_layers": [InsulationLayer(thickness=0.1, material="mineral_wool_boards_120")],
     }
@@ -60,10 +71,16 @@ def test_auto_alpha_indoor_and_outdoor():
 
 
 def test_partly_buried_tank_uses_distinct_boundary_temperatures_and_areas():
-    result = calc_tank_heat_loss(_cyl(
-        placement="underground", ground_temperature=5.0, ground_conductivity=1.5,
-        tank_buried_height=1.5, wind_speed=2.0, insulation_temperature_basis="channel",
-    ))
+    result = calc_tank_heat_loss(
+        _cyl(
+            placement="underground",
+            ground_temperature=5.0,
+            ground_conductivity=1.5,
+            tank_buried_height=1.5,
+            wind_speed=2.0,
+            insulation_temperature_basis="channel",
+        )
+    )
     assert result.air_surface_area + result.ground_surface_area == pytest.approx(8 * math.pi)
     assert result.ground_temperature_applied == 5.0
     assert result.heat_loss_air_base != result.heat_loss_ground_base
@@ -71,14 +88,21 @@ def test_partly_buried_tank_uses_distinct_boundary_temperatures_and_areas():
 
 @pytest.mark.parametrize(
     ("field", "value", "code"),
-    [("ambient_temperature", 70.0, "process_temperature_not_above_ambient"),
-     ("ground_temperature", 70.0, "process_temperature_not_above_ground")],
+    [
+        ("ambient_temperature", 70.0, "process_temperature_not_above_ambient"),
+        ("ground_temperature", 70.0, "process_temperature_not_above_ground"),
+    ],
 )
 def test_boundary_temperature_validation(field: str, value: float, code: str):
     data = {field: value}
     if field == "ground_temperature":
-        data.update(placement="underground", tank_buried_height=1.0, ground_conductivity=1.5,
-                    insulation_temperature_basis="channel", process_temperature=70.0)
+        data.update(
+            placement="underground",
+            tank_buried_height=1.0,
+            ground_conductivity=1.5,
+            insulation_temperature_basis="channel",
+            process_temperature=70.0,
+        )
     elif field == "ambient_temperature":
         data["process_temperature"] = 70.0
     with pytest.raises(ValueError, match=code):
@@ -93,13 +117,16 @@ def test_q_additional_is_after_safety_factor():
 
 
 def test_multiple_layers_and_wall_pair_are_supported():
-    result = calc_tank_heat_loss(_cyl(
-        wall_thickness=0.008, wall_lambda=50.0,
-        insulation_layers=[
-            InsulationLayer(thickness=0.04, material="mineral_wool_boards_120"),
-            InsulationLayer(thickness=0.02, material="mineral_wool_boards_120"),
-        ],
-    ))
+    result = calc_tank_heat_loss(
+        _cyl(
+            wall_thickness=0.008,
+            wall_lambda=50.0,
+            insulation_layers=[
+                InsulationLayer(thickness=0.04, material="mineral_wool_boards_120"),
+                InsulationLayer(thickness=0.02, material="mineral_wool_boards_120"),
+            ],
+        )
+    )
     assert len(result.insulation_layers_applied) == 2
     assert result.wall_resistance_areal_bare == pytest.approx(0.008 / 50.0)
 

@@ -195,7 +195,7 @@ class TestGuestIsolation:
         client: AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         sid_a = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         project_a = (await client.get("/api/v1/projects", headers={"X-Session-Id": sid_a})).json()[
             0
@@ -408,7 +408,7 @@ class TestEmployeeCannotEditOthersProjects:
         admin_token: str,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         employee_headers = {"Authorization": f"Bearer {employee_token}"}
         project = (
@@ -418,6 +418,22 @@ class TestEmployeeCannotEditOthersProjects:
                 headers=admin_headers,
             )
         ).json()
+        ready_object = await client.post(
+            f"/api/v1/projects/{project['id']}/objects",
+            json={
+                "object_type": "pipe",
+                "sort_order": 0,
+                "params": canonical_pipe_params(),
+            },
+            headers=admin_headers,
+        )
+        assert ready_object.status_code in (200, 201), ready_object.text
+        initialized = await client.post(
+            f"/api/v1/projects/{project['id']}/electrical-variants/initialize",
+            headers=admin_headers,
+        )
+        assert initialized.status_code == 200, initialized.text
+        electrical_variant_id = initialized.json()["variant"]["id"]
 
         heat_resp = await client.post(
             "/api/v1/calc/heat-loss/batch/jobs",
@@ -426,12 +442,15 @@ class TestEmployeeCannotEditOthersProjects:
         )
         electrical_resp = await client.post(
             "/api/v1/calc/electrical/batch/jobs",
-            json={"project_id": project["id"]},
+            json={
+                "project_id": project["id"],
+                "electrical_variant_id": electrical_variant_id,
+            },
             headers=employee_headers,
         )
         report_resp = await client.post(
             f"/api/v1/reports/{project['id']}/export/pdf/jobs",
-            params={"variant_number": 1},
+            params={"electrical_variant_id": electrical_variant_id},
             headers=employee_headers,
         )
 
@@ -446,7 +465,7 @@ class TestEmployeeCannotEditOthersProjects:
         admin_token: str,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         employee_headers = {"Authorization": f"Bearer {employee_token}"}
         project = (
@@ -492,7 +511,7 @@ class TestEmployeeCannotEditOthersProjects:
         admin_token: str,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         employee_headers = {"Authorization": f"Bearer {employee_token}"}
         admin_headers = {"Authorization": f"Bearer {admin_token}"}
         project = (

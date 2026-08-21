@@ -101,7 +101,9 @@ class TestMetamorphicPipe:
         """
         r1 = calc_pipe_heat_loss(_p(safety_factor=1.1))
         r2 = calc_pipe_heat_loss(_p(safety_factor=1.65))
-        assert r2.total_heat_loss_design == pytest.approx((1.65 / 1.1) * r1.total_heat_loss_design, rel=1e-3)
+        assert r2.total_heat_loss_design == pytest.approx(
+            (1.65 / 1.1) * r1.total_heat_loss_design, rel=1e-3
+        )
         assert r2.heat_loss_per_meter_base == pytest.approx(
             r1.heat_loss_per_meter_base, rel=1e-6
         ), "safety_factor не должен менять q_linear — только Q_total"
@@ -160,11 +162,7 @@ class TestMetamorphicPipe:
         """MR9: ↓λ_из → ↓q (ППУ лучше минваты при тех же условиях)."""
         q_mw = calc_pipe_heat_loss(_p()).heat_loss_per_meter_base
         q_pu = calc_pipe_heat_loss(
-            _p(
-                insulation_layers=[
-                    InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)
-                ]
-            )
+            _p(insulation_layers=[InsulationLayer(thickness=0.05, material=LOW_LAMBDA_INSULATION)])
         ).heat_loss_per_meter_base
         assert q_pu < q_mw
 
@@ -181,7 +179,9 @@ class TestMetamorphicPipe:
         )
         r_single = calc_pipe_heat_loss(params_single)
         r_multi = calc_pipe_heat_loss(params_multi)
-        assert r_multi.heat_loss_per_meter_base == pytest.approx(r_single.heat_loss_per_meter_base, rel=1e-3)
+        assert r_multi.heat_loss_per_meter_base == pytest.approx(
+            r_single.heat_loss_per_meter_base, rel=1e-3
+        )
 
     def test_multi_layer_order_independent_for_same_material(self):
         """MR11: Перестановка слоёв того же материала не меняет R."""
@@ -266,7 +266,9 @@ class TestGoldenFromFormulesMd:
         # Rвнеш=1/(2π×0.104×11.6)≈0.131926; RΣ≈2.085320 м·К/Вт.
         assert r.thermal_resistance > 0
         # Q=q×50×1.1×1.0≈2637.485 Вт.
-        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 50 * 1.1, rel=1e-3)
+        assert r.total_heat_loss_design == pytest.approx(
+            r.heat_loss_per_meter_base * 50 * 1.1, rel=1e-3
+        )
 
     def test_alpha_formula_vnesh_exact(self):
         """α_внеш = 11.6 + 7·√v  (SNiP 41-03-2003)."""
@@ -288,9 +290,9 @@ class TestGoldenFromFormulesMd:
     def test_alpha_indoor_is_9(self):
         """В помещении α = 9.0 Вт/(м²·К)."""
         assert resolve_external_alpha(placement="indoor", wind_speed_m_s=None) == 9.0
-        assert resolve_external_alpha(placement="indoor", wind_speed_m_s=10) == 9.0, (
-            "В помещении ветер не учитывается"
-        )
+        assert (
+            resolve_external_alpha(placement="indoor", wind_speed_m_s=10) == 9.0
+        ), "В помещении ветер не учитывается"
 
     def test_alpha_lower_cap_11_6(self):
         """Минимум α_внеш = 11.6 (штиль)."""
@@ -356,17 +358,19 @@ class TestBuriedPipe:
         """H < r_из — труба физически не помещается в грунт."""
         with pytest.raises(ValueError, match="pipe_centerline_depth"):
             _underground(
-                    outer_diameter=0.5,
-                    insulation_layers=[
-                        InsulationLayer(thickness=0.1, material=MINERAL_WOOL)
-                    ],
-                    pipe_centerline_depth=0.2,
+                outer_diameter=0.5,
+                insulation_layers=[InsulationLayer(thickness=0.1, material=MINERAL_WOOL)],
+                pipe_centerline_depth=0.2,
             )
 
     def test_higher_ground_conductivity_increases_loss(self):
         """↑λ_grunt → ↓R_grunt → ↑q. Водонасыщенный грунт хуже сухого."""
-        r_dry = calc_pipe_heat_loss(_underground(pipe_centerline_depth=2.0, ground_conductivity=0.8))
-        r_wet = calc_pipe_heat_loss(_underground(pipe_centerline_depth=2.0, ground_conductivity=3.0))
+        r_dry = calc_pipe_heat_loss(
+            _underground(pipe_centerline_depth=2.0, ground_conductivity=0.8)
+        )
+        r_wet = calc_pipe_heat_loss(
+            _underground(pipe_centerline_depth=2.0, ground_conductivity=3.0)
+        )
         assert r_wet.heat_loss_per_meter_base > r_dry.heat_loss_per_meter_base
 
     def test_buried_result_omits_wind_trace(self):

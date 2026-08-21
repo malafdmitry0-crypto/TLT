@@ -40,8 +40,7 @@ def build_pipe_preparation(params: PipeHeatLossParams) -> PipePreparationInput:
         pipe_lambda=params.pipe_lambda,
         has_pipe_material=params.pipe_material is not None,
         layers=tuple(
-            _preparation_layer(layer, index)
-            for index, layer in enumerate(params.insulation_layers)
+            _preparation_layer(layer, index) for index, layer in enumerate(params.insulation_layers)
         ),
         ambient_temperature=params.ambient_temperature,
         process_temperature=params.process_temperature,

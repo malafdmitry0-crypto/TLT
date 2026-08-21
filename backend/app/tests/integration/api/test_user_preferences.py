@@ -278,9 +278,7 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["value"]["columns"]["power_per_meter"] == {"widthPct": 10}
-        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {
-            "widthPct": 10
-        }
+        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {"widthPct": 10}
 
     async def test_electrical_table_columns_accepts_engineering_traceability_keys(
         self,
@@ -448,9 +446,7 @@ class TestUserPreferencesApi:
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["value"]["columns"]["power_per_meter"] == {"widthPct": 10}
-        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {
-            "widthPct": 12
-        }
+        assert resp.json()["value"]["columns"]["installed_power_per_meter"] == {"widthPct": 12}
 
     async def test_electrical_candidate_table_columns_rejects_unknown_key(
         self,
@@ -599,9 +595,7 @@ class TestUserPreferencesApi:
         client: AsyncClient,
         employee_token: str,
     ):
-        legacy_value = heatcalc_table_view_value(
-            form_section_weights=[1.095, 1.35, 1.2, 0.56]
-        )
+        legacy_value = heatcalc_table_view_value(form_section_weights=[1.095, 1.35, 1.2, 0.56])
 
         resp = await client.put(
             f"/api/v1/preferences/{HEATCALC_TABLE_VIEW_PREF_KEY}",

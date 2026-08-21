@@ -121,9 +121,7 @@ ELECTRICAL_VERSIONED_PREF_PREFIXES = (
     "electrical.tableView.",
     "electrical.candidateTableColumns.",
 )
-HEATCALC_VERSIONED_PREF_PREFIXES = (
-    "heatcalc.tableView.",
-)
+HEATCALC_VERSIONED_PREF_PREFIXES = ("heatcalc.tableView.",)
 
 PreferenceKey = Annotated[
     str,
@@ -268,9 +266,7 @@ def _validate_electrical_candidate_table_columns(value: dict[str, object]) -> No
         _preference_validation_error(
             "Electrical candidate table columns visibleOrder contains unknown key"
         )
-    if missing_required := ELECTRICAL_CANDIDATE_TABLE_COLUMN_REQUIRED_KEYS - set(
-        visible_order
-    ):
+    if missing_required := ELECTRICAL_CANDIDATE_TABLE_COLUMN_REQUIRED_KEYS - set(visible_order):
         _preference_validation_error(
             "Electrical candidate table columns visibleOrder missing required key: "
             + ", ".join(sorted(missing_required))
@@ -278,9 +274,7 @@ def _validate_electrical_candidate_table_columns(value: dict[str, object]) -> No
 
     columns = value.get("columns")
     if not isinstance(columns, dict):
-        _preference_validation_error(
-            "Electrical candidate table columns payload requires columns"
-        )
+        _preference_validation_error("Electrical candidate table columns payload requires columns")
     if any(
         not isinstance(key, str) or key not in ELECTRICAL_CANDIDATE_TABLE_COLUMN_KEYS
         for key in columns

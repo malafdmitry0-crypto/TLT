@@ -232,9 +232,7 @@ class ReportService:
         }
 
     @classmethod
-    def _build_electrical_context(
-        cls, objects: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _build_electrical_context(cls, objects: list[dict[str, Any]]) -> dict[str, Any]:
         valid: list[dict[str, Any]] = []
         failed: list[dict[str, Any]] = []
         unsupported: list[dict[str, Any]] = []

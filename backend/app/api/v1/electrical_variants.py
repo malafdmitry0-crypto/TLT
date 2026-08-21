@@ -33,11 +33,9 @@ from app.schemas.electrical_variant import (
     ElectricalVariantResponse,
 )
 from app.services.audit_service import AuditService
-from app.services.calculation_service import (
-    CalculationError,
-    CalculationService,
-    ElectricalCalcConcurrencyError,
-)
+from app.services.calculation.container import CalculationContainer
+from app.services.calculation.errors import ElectricalCalcConcurrencyError
+from app.services.calculation_errors import CalculationError
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
 from app.services.electrical_variant_service import (
@@ -215,14 +213,16 @@ async def select_assignment_cable(
         )
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
-        service = CalculationService(db)
-        calc, assignment, obj = await service.select_cable_for_assignment(
+        services = CalculationContainer(db)
+        calc, assignment, obj = await services.electrical_single.select_cable_for_assignment(
             project_id=project_id,
             electrical_variant_id=variant_id,
             object_id=object_id,
             data=data,
         )
-        calculation = (await service.electrical_calc_summaries([calc], data.cable_source))[0]
+        calculation = (
+            await services.electrical_summary.electrical_calc_summaries([calc], data.cable_source)
+        )[0]
         assignment_response = ElectricalAssignmentService.response_for(assignment, obj)
         await AuditService(db).try_record(
             event_type="calculation.electrical.cable_selected",

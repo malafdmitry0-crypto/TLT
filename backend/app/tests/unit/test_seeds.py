@@ -231,9 +231,7 @@ def test_project_seed_plan_objects_pass_the_write_contract():
             # seed_case остаётся только у канонических объектов — по нему их
             # отличает scripts/heat-seed-audit.sql
             assert "seed_case" not in config["params"]
-            params = prepare_project_object_params(
-                config["object_type"], dict(config["params"])
-            )
+            params = prepare_project_object_params(config["object_type"], dict(config["params"]))
             assert params["min_switch_temperature"] == -20.0
             forbidden = (
                 PIPE_FORBIDDEN_HEAT_PARAM_KEYS

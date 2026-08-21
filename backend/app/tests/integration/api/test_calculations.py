@@ -458,6 +458,7 @@ class TestElectricalCalculation:
         assert resp.status_code == 409, resp.text
         assert resp.json()["detail"]["code"] == "ELECTRICAL_SYSTEM_UNSUPPORTED"
 
+
 class TestElectricalCandidateDedupe:
     async def _count_candidates(
         self,
@@ -533,6 +534,7 @@ class TestElectricalCandidateDedupe:
             assert response.status_code == 409, response.text
             assert response.json()["detail"]["code"] == "ELECTRICAL_SYSTEM_UNSUPPORTED"
         assert await self._count_candidates(db_session, obj["id"], 1) == 0
+
 
 class TestElectricalCalculationContinued:
     async def test_legacy_sync_batch_prepares_only_er1_and_requested_er4(
@@ -1308,7 +1310,15 @@ class TestVariantIsolation:
         ).json()
         assert len(all_calcs) == 2
 
-        # С фильтром variant_number=2 — только СО2
+        # Каждый фильтр возвращает собственную запись; номер варианта больше
+        # не дублируется в UUID-only response DTO.
+        only_v1 = (
+            await client.get(
+                "/api/v1/calc/electrical",
+                params={"project_id": project["id"], "variant_number": 1},
+                headers={"X-Session-Id": guest_session},
+            )
+        ).json()
         only_v2 = (
             await client.get(
                 "/api/v1/calc/electrical",
@@ -1316,5 +1326,9 @@ class TestVariantIsolation:
                 headers={"X-Session-Id": guest_session},
             )
         ).json()
+        assert len(only_v1) == 1
         assert len(only_v2) == 1
-        assert only_v2[0]["variant_number"] == 2
+        assert only_v1[0]["id"] != only_v2[0]["id"]
+        assert {only_v1[0]["id"], only_v2[0]["id"]} == {
+            calculation["id"] for calculation in all_calcs
+        }

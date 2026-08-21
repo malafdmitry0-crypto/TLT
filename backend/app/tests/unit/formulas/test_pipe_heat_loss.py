@@ -34,9 +34,7 @@ def _params(**overrides) -> PipeHeatLossParams:
         outer_diameter=0.108,  # DN100
         wall_thickness=0.004,
         pipe_material="carbon_steel",
-        insulation_layers=[
-            InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
-        ],
+        insulation_layers=[InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")],
         insulation_temperature_basis="outdoor_winter",
         ambient_temperature=-30.0,
         process_temperature=150.0,
@@ -68,7 +66,9 @@ class TestBasicProperties:
         k = 1.2
         params = _params(pipe_length=100.0, safety_factor=k)
         r = calc_pipe_heat_loss(params)
-        assert r.total_heat_loss_design == pytest.approx(r.heat_loss_per_meter_base * 100.0 * k, rel=1e-3)
+        assert r.total_heat_loss_design == pytest.approx(
+            r.heat_loss_per_meter_base * 100.0 * k, rel=1e-3
+        )
         assert r.heat_loss_per_meter_design == pytest.approx(
             r.heat_loss_per_meter_base * k,
             rel=1e-3,
@@ -102,10 +102,18 @@ class TestBasicProperties:
 
     def test_thicker_insulation_reduces_loss(self):
         thin = calc_pipe_heat_loss(
-            _params(insulation_layers=[InsulationLayer(thickness=0.02, material="mineral_wool_boards_120")])
+            _params(
+                insulation_layers=[
+                    InsulationLayer(thickness=0.02, material="mineral_wool_boards_120")
+                ]
+            )
         )
         thick = calc_pipe_heat_loss(
-            _params(insulation_layers=[InsulationLayer(thickness=0.10, material="mineral_wool_boards_120")])
+            _params(
+                insulation_layers=[
+                    InsulationLayer(thickness=0.10, material="mineral_wool_boards_120")
+                ]
+            )
         )
         assert thick.heat_loss_per_meter_base < thin.heat_loss_per_meter_base
 
@@ -355,9 +363,7 @@ class TestPipeWall:
         base = dict(
             outer_diameter=0.0108,
             wall_thickness=0.004,
-            insulation_layers=[
-                InsulationLayer(thickness=0.03, material="mineral_wool_boards_120")
-            ],
+            insulation_layers=[InsulationLayer(thickness=0.03, material="mineral_wool_boards_120")],
             insulation_temperature_basis="outdoor_winter",
             ambient_temperature=-30,
             process_temperature=150,
@@ -516,8 +522,12 @@ class TestLegacyFactorsIgnored:
             pipe_params_with_effective_safety_factor(params, {"location_indoor": 0.9})
         )
 
-        assert adjusted.heat_loss_per_meter_base == pytest.approx(base.heat_loss_per_meter_base, rel=1e-6)
-        assert adjusted.total_heat_loss_design == pytest.approx(base.total_heat_loss_design, rel=1e-6)
+        assert adjusted.heat_loss_per_meter_base == pytest.approx(
+            base.heat_loss_per_meter_base, rel=1e-6
+        )
+        assert adjusted.total_heat_loss_design == pytest.approx(
+            base.total_heat_loss_design, rel=1e-6
+        )
         assert "location_factor" not in adjusted.model_dump()
 
     def test_legacy_wind_factor_does_not_change_alpha_or_total(self):
@@ -535,9 +545,7 @@ class TestTnpGoldenFormula:
         """Число вычислено напрямую по формуле P-PIPE, не production-функцией."""
         params = _params(
             outer_diameter=0.1,
-            insulation_layers=[
-                InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")
-            ],
+            insulation_layers=[InsulationLayer(thickness=0.05, material="mineral_wool_boards_120")],
             ambient_temperature=-20.0,
             process_temperature=80.0,
             pipe_length=10.0,
@@ -676,9 +684,7 @@ class TestSchemaValidation:
     def test_unknown_insulation_raises(self):
         with pytest.raises(ValueError, match="Неизвестный материал"):
             calc_pipe_heat_loss(
-                _params(
-                    insulation_layers=[InsulationLayer(thickness=0.05, material="unobtanium")]
-                )
+                _params(insulation_layers=[InsulationLayer(thickness=0.05, material="unobtanium")])
             )
 
 

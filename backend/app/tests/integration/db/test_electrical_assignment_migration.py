@@ -159,18 +159,22 @@ def test_migration_0029_projection_and_revision_contract():
     assert migration._phase3_assignment_projection(
         "self_regulating", None, {"category": "calculation_error"}
     ) == ("self_regulating", "error")
-    assert migration._phase3_assignment_projection(
-        "three_core", "R-3", {"category": "stale"}
-    ) == ("resistive", "stale")
-    assert migration._phase3_assignment_projection(
-        "mineral", None, None
-    ) == ("mineral", "unsupported")
-    assert migration._phase3_assignment_projection(
-        "self_regulating_tt", "TLT-TT", {}
-    ) == ("self_regulating", "ready")
-    assert migration._phase3_assignment_projection(
-        "self_regulating", "TLT-25", None
-    ) == ("self_regulating", "error")
+    assert migration._phase3_assignment_projection("three_core", "R-3", {"category": "stale"}) == (
+        "resistive",
+        "stale",
+    )
+    assert migration._phase3_assignment_projection("mineral", None, None) == (
+        "mineral",
+        "unsupported",
+    )
+    assert migration._phase3_assignment_projection("self_regulating_tt", "TLT-TT", {}) == (
+        "self_regulating",
+        "ready",
+    )
+    assert migration._phase3_assignment_projection("self_regulating", "TLT-25", None) == (
+        "self_regulating",
+        "error",
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -234,8 +238,7 @@ async def test_alembic_0029_reconciles_exact_uuid_assignments_and_downgrades():
                 ("self_regulating", "ready", "self_regulating_tt", 10, 1),
             ]
             assert all(
-                json.loads(row["diagnostics"])["migration_revision"] == "0029"
-                for row in rows
+                json.loads(row["diagnostics"])["migration_revision"] == "0029" for row in rows
             )
             assert (
                 await connection.fetchval(

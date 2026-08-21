@@ -27,7 +27,9 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
-from app.services.calculation_service import CalculationService
+from app.services.calculation.electrical_candidates import ElectricalCandidateService
+from app.services.calculation.electrical_single import ElectricalSingleCalculationService
+from app.services.calculation.heat_calculation import HeatCalculationService
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.excel_import_service import _commit_object_batch
 
@@ -444,16 +446,20 @@ class TestElectricalReadinessAndInitialization:
         initialized = await _initialize(client, project["id"], headers)
         variant_id = UUID(initialized["variant"]["id"])
         assignments = (
-            await db_session.execute(
-                select(ElectricalVariantObject).where(
-                    ElectricalVariantObject.electrical_variant_id == variant_id
+            (
+                await db_session.execute(
+                    select(ElectricalVariantObject).where(
+                        ElectricalVariantObject.electrical_variant_id == variant_id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         calculations_count = await db_session.scalar(
-            select(func.count()).select_from(ElectricalCalculation).where(
-                ElectricalCalculation.electrical_variant_id == variant_id
-            )
+            select(func.count())
+            .select_from(ElectricalCalculation)
+            .where(ElectricalCalculation.electrical_variant_id == variant_id)
         )
         assert len(assignments) == 1
         assert assignments[0].object_id == UUID(obj["id"])
@@ -484,9 +490,10 @@ class TestElectricalReadinessAndInitialization:
 
         initialized = await _initialize(client, project["id"], headers)
         assignments_count = await db_session.scalar(
-            select(func.count()).select_from(ElectricalVariantObject).where(
-                ElectricalVariantObject.electrical_variant_id
-                == UUID(initialized["variant"]["id"])
+            select(func.count())
+            .select_from(ElectricalVariantObject)
+            .where(
+                ElectricalVariantObject.electrical_variant_id == UUID(initialized["variant"]["id"])
             )
         )
         assert assignments_count == 2
@@ -621,9 +628,7 @@ class TestElectricalVariantLifecycle:
             headers=headers,
         )
         after = next(
-            item
-            for item in assignments_after.json()["items"]
-            if item["object_id"] == obj["id"]
+            item for item in assignments_after.json()["items"] if item["object_id"] == obj["id"]
         )
         assert after["version"] == body["assignment"]["version"]
         assert after["electrical_overrides"] == body["assignment"]["electrical_overrides"]
@@ -1058,9 +1063,7 @@ class TestElectricalVariantConcurrency:
         assert stale_read.status_code == 404, stale_read.text
         assert stale_read.json()["detail"]["code"] == "ELECTRICAL_VARIANT_NOT_FOUND"
         assert stale_specification_read.status_code == 404, stale_specification_read.text
-        assert stale_specification_read.json()["detail"]["code"] == (
-            "ELECTRICAL_VARIANT_NOT_FOUND"
-        )
+        assert stale_specification_read.json()["detail"]["code"] == ("ELECTRICAL_VARIANT_NOT_FOUND")
         for response in (
             stale_report_read,
             stale_write,
@@ -1193,14 +1196,14 @@ class TestElectricalVariantConcurrency:
         test_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", _FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", _FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         headers = {
             "X-Session-Id": guest_session,
             "Idempotency-Key": "concurrent-legacy-four",
         }
         obj = await _add_ready_pipe(client, project["id"], headers)
-        await _prepare_and_assign_legacy_variant(
+        variant = await _prepare_and_assign_legacy_variant(
             client,
             project["id"],
             obj["id"],
@@ -1212,12 +1215,18 @@ class TestElectricalVariantConcurrency:
             responses = await asyncio.gather(
                 concurrent_client.post(
                     "/api/v1/calc/electrical/batch/jobs",
-                    json={"project_id": project["id"], "variant_number": 4},
+                    json={
+                        "project_id": project["id"],
+                        "electrical_variant_id": variant["id"],
+                    },
                     headers=headers,
                 ),
                 concurrent_client.post(
                     "/api/v1/calc/electrical/batch/jobs",
-                    json={"project_id": project["id"], "variant_number": 4},
+                    json={
+                        "project_id": project["id"],
+                        "electrical_variant_id": variant["id"],
+                    },
                     headers=headers,
                 ),
             )
@@ -1245,7 +1254,7 @@ class TestElectricalVariantConcurrency:
         test_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", _FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", _FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
@@ -1282,7 +1291,10 @@ class TestElectricalVariantConcurrency:
             )
 
         outcomes = (enqueue_response.status_code, delete_response.status_code)
-        assert outcomes in ((202, 409), (404, 200)), (
+        # Enqueue may win before either the variant-level guard (409) or the
+        # project-wide mutation guard (423) observes the active task. Both
+        # reject deletion and preserve the task's exact ER identity.
+        assert outcomes in ((202, 409), (202, 423), (404, 200)), (
             enqueue_response.text,
             delete_response.text,
         )
@@ -1329,7 +1341,7 @@ class TestElectricalVariantConcurrency:
         allow_delete = asyncio.Event()
         apply_read_candidate = asyncio.Event()
         original_delete = ElectricalVariantService._delete_variant
-        original_get_candidate = CalculationService.get_electrical_candidate
+        original_get_candidate = ElectricalCandidateService.get_electrical_candidate
 
         async def delayed_delete(service, locked_project_id, variant_id, principal):
             await service._guard_and_lock_project(locked_project_id, principal)
@@ -1344,7 +1356,7 @@ class TestElectricalVariantConcurrency:
 
         monkeypatch.setattr(ElectricalVariantService, "_delete_variant", delayed_delete)
         monkeypatch.setattr(
-            CalculationService,
+            ElectricalCandidateService,
             "get_electrical_candidate",
             observed_get_candidate,
         )
@@ -1453,14 +1465,18 @@ class TestElectricalVariantConcurrency:
 
         apply_reached_selection = asyncio.Event()
         allow_apply = asyncio.Event()
-        original_select = CalculationService.select_cable_manual
+        original_select = ElectricalSingleCalculationService.select_cable_manual
 
         async def delayed_select(service, *args, **kwargs):
             apply_reached_selection.set()
             await allow_apply.wait()
             return await original_select(service, *args, **kwargs)
 
-        monkeypatch.setattr(CalculationService, "select_cable_manual", delayed_select)
+        monkeypatch.setattr(
+            ElectricalSingleCalculationService,
+            "select_cable_manual",
+            delayed_select,
+        )
 
         async with _client_with_request_scoped_sessions(test_engine) as concurrent_client:
             apply_task = asyncio.create_task(
@@ -1529,7 +1545,7 @@ class TestElectricalVariantConcurrency:
 
         object_flushed = asyncio.Event()
         allow_object_commit = asyncio.Event()
-        original_recalculate = CalculationService.recalculate_object
+        original_recalculate = HeatCalculationService.recalculate
 
         async def delayed_recalculate(service, obj):
             object_flushed.set()
@@ -1537,8 +1553,8 @@ class TestElectricalVariantConcurrency:
             return await original_recalculate(service, obj)
 
         monkeypatch.setattr(
-            CalculationService,
-            "recalculate_object",
+            HeatCalculationService,
+            "recalculate",
             delayed_recalculate,
         )
 

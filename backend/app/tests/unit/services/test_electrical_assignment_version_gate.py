@@ -23,13 +23,13 @@ async def test_assignment_version_mismatch_raises_409():
     obj = SimpleNamespace(id=obj_id, project_id=project_id)
 
     service = CalculationService(AsyncMock())
-    service._tt_assignment_cache[(project_id, variant_id, obj_id)] = SimpleNamespace(
+    service._tt_context._tt_assignment_cache[(project_id, variant_id, obj_id)] = SimpleNamespace(
         version=7,
         system_type="self_regulating",
     )
 
     with pytest.raises(ElectricalCalcConcurrencyError) as exc:
-        await service._assert_expected_assignment_version(
+        await service._tt_context._assert_expected_assignment_version(
             obj,
             electrical_variant_id=variant_id,
             expected_assignment_version=3,
@@ -45,11 +45,11 @@ async def test_matching_assignment_version_passes():
     variant_id = uuid4()
     obj = SimpleNamespace(id=obj_id, project_id=project_id)
     service = CalculationService(AsyncMock())
-    service._tt_assignment_cache[(project_id, variant_id, obj_id)] = SimpleNamespace(
+    service._tt_context._tt_assignment_cache[(project_id, variant_id, obj_id)] = SimpleNamespace(
         version=3,
         system_type="self_regulating",
     )
-    await service._assert_expected_assignment_version(
+    await service._tt_context._assert_expected_assignment_version(
         obj,
         electrical_variant_id=variant_id,
         expected_assignment_version=3,

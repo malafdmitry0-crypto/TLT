@@ -68,7 +68,7 @@ class TestAdminUsers:
             },
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 201, resp.text
         assert resp.json()["email"] == "new@test.com"
 
     async def test_duplicate_user_rejected(self, client: AsyncClient, admin_token: str):

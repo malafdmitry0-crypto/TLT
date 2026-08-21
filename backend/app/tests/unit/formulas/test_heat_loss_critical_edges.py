@@ -116,7 +116,9 @@ class TestPipeTemperatureExtremes:
 
     def test_arctic_extreme_rejects_material_below_cold_boundary(self):
         """Среда допустима, но поверхность выбранной минваты холоднее её минимума."""
-        with pytest.raises(HeatLossPreparationError, match="Температура холодной стороны") as caught:
+        with pytest.raises(
+            HeatLossPreparationError, match="Температура холодной стороны"
+        ) as caught:
             calc_pipe_heat_loss(
                 _pipe(
                     ambient_temperature=-70,

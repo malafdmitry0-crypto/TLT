@@ -41,8 +41,7 @@ def build_tank_preparation(params: TankHeatLossParams) -> TankPreparationInput:
         length=params.length,
         width=params.width,
         layers=tuple(
-            _preparation_layer(layer, index)
-            for index, layer in enumerate(params.insulation_layers)
+            _preparation_layer(layer, index) for index, layer in enumerate(params.insulation_layers)
         ),
         ambient_temperature=params.ambient_temperature,
         ground_temperature=params.ground_temperature,

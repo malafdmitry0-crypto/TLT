@@ -314,16 +314,19 @@ async def test_invalid_pipe_formula_persists_api_validation_state(monkeypatch, o
         update_object=AsyncMock(return_value=obj),
     )
 
-    class FakeCalculationService:
-        def __init__(self, _db):
-            pass
-
-        async def recalculate_object(self, target):
+    class FakeHeatCalculationService:
+        async def recalculate(self, target):
             target.is_valid = False
             target.validation_errors = {"message": "formula-time invalid"}
 
-        async def mark_electrical_calculations_stale(self, *_args, **_kwargs):
+    class FakeElectricalStalenessService:
+        async def mark_for_objects(self, *_args, **_kwargs):
             return 0
+
+    class FakeCalculationContainer:
+        def __init__(self, _db):
+            self.heat = FakeHeatCalculationService()
+            self.electrical_staleness = FakeElectricalStalenessService()
 
     class FakeAuditService:
         def __init__(self, _db):
@@ -333,7 +336,7 @@ async def test_invalid_pipe_formula_persists_api_validation_state(monkeypatch, o
             return None
 
     monkeypatch.setattr(objects_api, "ProjectService", lambda _db: project_service)
-    monkeypatch.setattr(objects_api, "CalculationService", FakeCalculationService)
+    monkeypatch.setattr(objects_api, "CalculationContainer", FakeCalculationContainer)
     monkeypatch.setattr(objects_api, "AuditService", FakeAuditService)
     db = SimpleNamespace(commit=AsyncMock(), refresh=AsyncMock(), rollback=AsyncMock())
 

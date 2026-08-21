@@ -31,7 +31,7 @@ from app.schemas.project import (
     ReorderRequest,
 )
 from app.services.audit_service import AuditService
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.excel_import_service import build_objects_xlsx
 from app.services.object_query_service import ObjectQueryService, ObjectQueryValidationError
 from app.services.project_service import (
@@ -163,8 +163,8 @@ async def add_object(
     try:
         project_service = ProjectService(db)
         obj = await project_service.add_object(project_id, data, principal)
-        calc_service = CalculationService(db)
-        await calc_service.recalculate_object(obj)
+        calculations = CalculationContainer(db)
+        await calculations.heat.recalculate(obj)
         # New object is not yet assigned to any ER → no specification is affected.
         # Precise per-ER staling happens on assignment / heat / calculation mutations.
         # Аудит кладём в ту же транзакцию (stage до commit) — один round-trip
@@ -253,9 +253,9 @@ async def duplicate_objects_batch(
     try:
         service = ProjectService(db)
         copies = await service.duplicate_objects(project_id, data.object_ids, principal)
-        calc_service = CalculationService(db)
+        calculations = CalculationContainer(db)
         for obj in copies:
-            await calc_service.recalculate_object(obj)
+            await calculations.heat.recalculate(obj)
         created_ids = [obj.id for obj in copies]
         # Duplicates are unassigned; independent ERs stay current until assign.
         await AuditService(db).stage(
@@ -305,12 +305,12 @@ async def group_update_objects(
         objects = await service.group_update_objects(
             project_id, data.object_ids, data.param, data.value, principal
         )
-        calc_service = CalculationService(db)
+        calculations = CalculationContainer(db)
         for obj in objects:
-            await calc_service.recalculate_object(obj)
+            await calculations.heat.recalculate(obj)
         changed_ids = [obj.id for obj in objects]
         # Per-ER via assignments inside mark_electrical_calculations_stale.
-        await calc_service.mark_electrical_calculations_stale(
+        await calculations.electrical_staleness.mark_for_objects(
             project_id,
             changed_ids,
             reason="object_params_updated",
@@ -530,11 +530,11 @@ async def update_object(
         project_service = ProjectService(db)
         params_changed = "params" in data.model_fields_set
         obj = await project_service.update_object(project_id, object_id, data, principal)
-        calc_service = CalculationService(db)
-        await calc_service.recalculate_object(obj)
+        calculations = CalculationContainer(db)
+        await calculations.heat.recalculate(obj)
         if params_changed:
             # Marks electrical results + only specs of ERs that assign this object.
-            await calc_service.mark_electrical_calculations_stale(
+            await calculations.electrical_staleness.mark_for_objects(
                 project_id,
                 [object_id],
                 reason="object_params_updated",

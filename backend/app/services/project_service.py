@@ -445,9 +445,7 @@ class ProjectService:
                 else normalize_project_object_params(data.object_type, incoming_params)
             )
         except LegacySpecificationObjectParamsError as exc:
-            raise ProjectValidationError(
-                str(exc), code=exc.code, fields=exc.fields
-            ) from exc
+            raise ProjectValidationError(str(exc), code=exc.code, fields=exc.fields) from exc
         except ProjectObjectParamsError as exc:
             raise ProjectValidationError(str(exc), code=exc.code, fields=exc.fields) from exc
         obj = ProjectObject(
@@ -491,14 +489,10 @@ class ProjectService:
             try:
                 reject_legacy_specification_object_params(incoming_params)
             except LegacySpecificationObjectParamsError as exc:
-                raise ProjectValidationError(
-                    str(exc), code=exc.code, fields=exc.fields
-                ) from exc
+                raise ProjectValidationError(str(exc), code=exc.code, fields=exc.fields) from exc
             if obj.object_type in ("pipe", "tank"):
                 incoming_params = {
-                    key: value
-                    for key, value in incoming_params.items()
-                    if key != "alpha_vnesh"
+                    key: value for key, value in incoming_params.items() if key != "alpha_vnesh"
                 }
                 forbidden_keys = (
                     PIPE_FORBIDDEN_HEAT_PARAM_KEYS
@@ -753,8 +747,7 @@ class ProjectService:
                             {
                                 "object_id": str(obj.id),
                                 "name": str(obj_name) if obj_name is not None else None,
-                                "error": outcome.error_message
-                                or "Проверьте параметры объекта",
+                                "error": outcome.error_message or "Проверьте параметры объекта",
                             }
                         )
                         continue

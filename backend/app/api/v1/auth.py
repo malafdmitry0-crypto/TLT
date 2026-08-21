@@ -102,10 +102,10 @@ async def _guest_project(db: AsyncSession, session_id: str) -> Project | None:
     return cast(
         Project | None,
         await db.scalar(
-        select(Project)
-        .where(Project.session_id == session_id)
-        .order_by(Project.created_at.asc())
-        .limit(1)
+            select(Project)
+            .where(Project.session_id == session_id)
+            .order_by(Project.created_at.asc())
+            .limit(1)
         ),
     )
 
@@ -173,9 +173,7 @@ async def resolve_guest_session(
         request.cookies.get(settings.GUEST_COOKIE_NAME),
     ]
     for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
-        session = await db.scalar(
-            select(GuestSession).where(GuestSession.session_id == session_id)
-        )
+        session = await db.scalar(select(GuestSession).where(GuestSession.session_id == session_id))
         if session is not None:
             break
 
@@ -232,9 +230,7 @@ async def current_guest_session(
         request.cookies.get(settings.GUEST_COOKIE_NAME),
     ]
     for session_id in dict.fromkeys(candidate for candidate in candidates if candidate):
-        session = await db.scalar(
-            select(GuestSession).where(GuestSession.session_id == session_id)
-        )
+        session = await db.scalar(select(GuestSession).where(GuestSession.session_id == session_id))
         if session is None:
             continue
         project = await _guest_project(db, session.session_id)

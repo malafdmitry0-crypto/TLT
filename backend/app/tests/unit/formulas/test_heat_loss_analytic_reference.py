@@ -215,7 +215,11 @@ class TestPipeAnalyticReference:
         [
             pytest.param({}, id="outdoor"),
             pytest.param(
-                {"placement": "indoor", "wind_speed": None, "insulation_temperature_basis": "indoor"},
+                {
+                    "placement": "indoor",
+                    "wind_speed": None,
+                    "insulation_temperature_basis": "indoor",
+                },
                 id="indoor",
             ),
             pytest.param(
@@ -256,7 +260,8 @@ class TestPipeAnalyticReference:
             delta_t / result.thermal_resistance, **POWER
         )
         assert result.effective_length == pytest.approx(
-            params.pipe_length + params.num_local_elements * (params.local_element_equiv_length or 0.0)
+            params.pipe_length
+            + params.num_local_elements * (params.local_element_equiv_length or 0.0)
         )
         assert result.total_heat_loss_base == pytest.approx(
             result.heat_loss_per_meter_base * result.effective_length, **POWER

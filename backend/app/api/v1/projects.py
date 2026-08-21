@@ -21,7 +21,7 @@ from app.schemas.project import (
     ProjectUpdate,
 )
 from app.services.audit_service import AuditService
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.electrical_variant_service import (
     ElectricalVariantService,
     ElectricalVariantServiceError,
@@ -260,8 +260,8 @@ async def duplicate_project(
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
 
     duplicated_project_id = new_project.id
-    calc_service = CalculationService(db)
-    await calc_service.batch_recalculate(duplicated_project_id)
+    calculations = CalculationContainer(db)
+    await calculations.heat_batch.recalculate(duplicated_project_id)
     variant_service = ElectricalVariantService(db)
     electrical_readiness = await variant_service.get_readiness(duplicated_project_id, principal)
     electrical_variant = None

@@ -778,9 +778,7 @@ class TestDuplicateProjectKeepsSettings:
         await db_session.commit()
 
         es = (
-            await client.get(
-                f"/api/v1/projects/{pid}/electrical-settings", headers=headers
-            )
+            await client.get(f"/api/v1/projects/{pid}/electrical-settings", headers=headers)
         ).json()
         patch = await client.patch(
             f"/api/v1/projects/{pid}/electrical-settings",
@@ -789,9 +787,7 @@ class TestDuplicateProjectKeepsSettings:
         )
         assert patch.status_code == 200, patch.text
 
-        duplicate = await client.post(
-            f"/api/v1/projects/{pid}/duplicate", headers=headers
-        )
+        duplicate = await client.post(f"/api/v1/projects/{pid}/duplicate", headers=headers)
         assert duplicate.status_code == 201, duplicate.text
         copy_id = duplicate.json()["id"]
 
@@ -803,8 +799,6 @@ class TestDuplicateProjectKeepsSettings:
         assert copied.specification_settings_version == 3
 
         copied_es = (
-            await client.get(
-                f"/api/v1/projects/{copy_id}/electrical-settings", headers=headers
-            )
+            await client.get(f"/api/v1/projects/{copy_id}/electrical-settings", headers=headers)
         ).json()
         assert float(copied_es["max_section_start_current_a"]) == 25.0

@@ -715,9 +715,7 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             "Глубина, м" if object_type == "pipe" else "Высота заглубления, м",
             (object_type,),
             "number",
-            _param(
-                "pipe_centerline_depth" if object_type == "pipe" else "tank_buried_height"
-            ),
+            _param("pipe_centerline_depth" if object_type == "pipe" else "tank_buried_height"),
             unit="m",
             filter_ops=("range",),
             sortable=True,
@@ -1257,10 +1255,14 @@ class ObjectQueryService:
                     sort_order=last_object.sort_order,
                     id=last_object.id,
                     key=data.sort.key if data.sort else "sort_order",
-                    value=self._cursor_value(self._field(data.object_type, data.sort.key).value(last_object))
+                    value=self._cursor_value(
+                        self._field(data.object_type, data.sort.key).value(last_object)
+                    )
                     if data.sort
                     else last_object.sort_order,
-                    value_is_null=_is_empty(self._field(data.object_type, data.sort.key).value(last_object))
+                    value_is_null=_is_empty(
+                        self._field(data.object_type, data.sort.key).value(last_object)
+                    )
                     if data.sort
                     else False,
                 )
@@ -1653,14 +1655,14 @@ class ObjectQueryService:
     def _has_keyset_cursor(self, data: ProjectObjectsQueryRequest) -> bool:
         return data.after_sort_order is not None and data.after_id is not None
 
-    def _sql_keyset_clause(self, spec: SqlOrderSpec, data: ProjectObjectsQueryRequest) -> Any | None:
+    def _sql_keyset_clause(
+        self, spec: SqlOrderSpec, data: ProjectObjectsQueryRequest
+    ) -> Any | None:
         if not self._has_keyset_cursor(data):
             return None
         cursor_key = data.after_key or "sort_order"
         if cursor_key != spec.key:
-            raise ObjectQueryValidationError(
-                "Курсор не соответствует текущей сортировке таблицы"
-            )
+            raise ObjectQueryValidationError("Курсор не соответствует текущей сортировке таблицы")
         if spec.key == "sort_order":
             return or_(
                 ProjectObject.sort_order > data.after_sort_order,

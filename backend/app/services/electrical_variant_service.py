@@ -1068,11 +1068,7 @@ class ElectricalVariantService:
     ) -> ElectricalVariant:
         """Reject a stale UUID -> numeric-slot assumption without falling back."""
         by_number = next(
-            (
-                item
-                for item in variants
-                if item.legacy_variant_number == legacy_variant_number
-            ),
+            (item for item in variants if item.legacy_variant_number == legacy_variant_number),
             None,
         )
         if by_number is None or by_number.id != expected_electrical_variant_id:

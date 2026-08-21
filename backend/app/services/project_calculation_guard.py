@@ -65,8 +65,7 @@ class ProjectCalculationGuard:
             if dialect_name == "postgresql" and settings.DB_CALCULATION_LOCK_TIMEOUT_MS > 0:
                 await self.db.execute(
                     text(
-                        "SET LOCAL lock_timeout = "
-                        f"'{settings.DB_CALCULATION_LOCK_TIMEOUT_MS}ms'"
+                        "SET LOCAL lock_timeout = " f"'{settings.DB_CALCULATION_LOCK_TIMEOUT_MS}ms'"
                     )
                 )
             await self.db.execute(

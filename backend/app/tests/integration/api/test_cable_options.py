@@ -122,10 +122,7 @@ async def test_electrical_query_filter_stale_status(
     )
     assert caps.status_code == 200, caps.text
     fields = {item["key"]: item for item in caps.json()["fields"]}
-    status_values = {
-        opt["value"]
-        for opt in fields["electrical_status"]["options"]["items"]
-    }
+    status_values = {opt["value"] for opt in fields["electrical_status"]["options"]["items"]}
     assert "stale" in status_values
 
     # Without any calc the row is not_calculated — stale filter empty.

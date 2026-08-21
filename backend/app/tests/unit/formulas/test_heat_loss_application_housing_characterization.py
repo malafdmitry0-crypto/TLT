@@ -105,9 +105,7 @@ def test_application_applies_admin_safety_factor_when_user_k_absent() -> None:
         }
     )
 
-    result = calc_pipe_heat_loss(
-        pipe_params_with_effective_safety_factor(params, coefficients)
-    )
+    result = calc_pipe_heat_loss(pipe_params_with_effective_safety_factor(params, coefficients))
 
     assert result.safety_factor_applied == 1.4
     assert set(coefficients.read_keys) == {"safety_factor"}
@@ -172,9 +170,7 @@ def test_calculation_error_is_shared_without_importing_the_service() -> None:
         NeutralError,
     )
 
-    tree = ast.parse(
-        Path(heat_loss_application_module.__file__).read_text(encoding="utf-8")
-    )
+    tree = ast.parse(Path(heat_loss_application_module.__file__).read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "app.services.calculation_service":
             raise AssertionError("heat_loss_application imports calculation_service")

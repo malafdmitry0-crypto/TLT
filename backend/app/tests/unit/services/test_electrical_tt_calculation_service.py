@@ -9,6 +9,8 @@ import pytest
 
 from app.electrical_domain import ElectricalFormulaError
 from app.schemas.calculation import ElectricalRequest
+from app.services.calculation.electrical_tt_context import ElectricalTTContext
+from app.services.calculation.electrical_tt_inputs import ElectricalInputMapper
 from app.services.calculation_service import CalculationService
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
@@ -64,18 +66,20 @@ def _tank(shape: str = "cylindrical") -> SimpleNamespace:
 def _service(obj: SimpleNamespace, *, overrides: dict | None = None):
     service = CalculationService(AsyncMock())
     variant_id = uuid4()
-    service._tt_project_settings_cache[obj.project_id] = SimpleNamespace(
+    service._tt_context._tt_project_settings_cache[obj.project_id] = SimpleNamespace(
         nominal_voltage_v=230,
         max_section_start_current_a=13.065,
         version=3,
     )
-    service._tt_assignment_cache[(obj.project_id, variant_id, obj.id)] = SimpleNamespace(
-        id=uuid4(),
-        max_section_start_current_a=None,
-        electrical_overrides=dict(overrides or {}),
-        version=5,
+    service._tt_context._tt_assignment_cache[(obj.project_id, variant_id, obj.id)] = (
+        SimpleNamespace(
+            id=uuid4(),
+            max_section_start_current_a=None,
+            electrical_overrides=dict(overrides or {}),
+            version=5,
+        )
     )
-    service._tt_calculation_catalogs_cache = {
+    service._tt_context._tt_calculation_catalogs_cache = {
         kind: ElectricalCatalogService._static_calculation_fallback(kind)
         for kind in ("power", "section", "bom")
     }
@@ -115,12 +119,12 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request, prepared)
+    _mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
 
     assert "_tt_pipeline_result" not in request.data
     assert result["resolved_inputs"]["nominal_voltage_v"] == "380"
@@ -132,19 +136,21 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
 async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)
-    service._tt_project_settings_cache[obj.project_id].max_section_start_current_a = None
+    service._tt_context._tt_project_settings_cache[
+        obj.project_id
+    ].max_section_start_current_a = None
     request = ElectricalRequest(
         object_id=obj.id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request, prepared)
+    _mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
 
     assert result["section_plan"]["max_start_current_a"] == 28.997
     assert result["section_plan"]["max_start_current_source"] == "section_catalog_derived"
@@ -155,20 +161,20 @@ async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation
 async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)
-    service._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
+    service._tt_context._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
     request = ElectricalRequest(
         object_id=obj.id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request, prepared)
-    snapshot = service._build_cable_snapshot_for_result(
+    cable_mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
+    snapshot = service._electrical_snapshots.build_for_result(
         request=request,
         cable_mark=cable_mark,
         result_dict=result,
@@ -192,13 +198,13 @@ async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> No
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request, prepared)
-    snapshot = service._build_cable_snapshot_for_result(
+    cable_mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
+    snapshot = service._electrical_snapshots.build_for_result(
         request=request,
         cable_mark=cable_mark,
         result_dict=result,
@@ -213,29 +219,29 @@ async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> No
 async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)
-    service._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
+    service._tt_context._tt_calculation_catalogs_cache = _database_catalogs_with_custom_power(26)
     request = ElectricalRequest(
         object_id=obj.id,
         cable_type="self_regulating_tt",
         data={"_tt_explicit_overrides": {"selection_policy": "technical_minimum"}},
     )
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    cable_mark, result = service._calculate_electrical_result(request, prepared)
-    snapshot = service._build_cable_snapshot_for_result(
+    cable_mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
+    snapshot = service._electrical_snapshots.build_for_result(
         request=request,
         cable_mark=cable_mark,
         result_dict=result,
     )
     assert snapshot is not None
 
-    current = deepcopy(service._tt_calculation_catalogs_cache)
+    current = deepcopy(service._tt_context._tt_calculation_catalogs_cache)
     current["power"]["version"] = "custom-power-v2"
     current["power"]["payload_checksum"] = "sha256:" + "3" * 64
-    service._tt_calculation_catalogs_cache = current
+    service._tt_context._tt_calculation_catalogs_cache = current
     calc_id = uuid4()
 
     statuses = await service.cable_snapshot_statuses(
@@ -282,7 +288,7 @@ def test_tt_snapshot_is_not_partially_built_without_resolved_catalog_row() -> No
         data={"cable_mark_source": "manual"},
     )
 
-    snapshot = service._build_cable_snapshot_for_result(
+    snapshot = service._electrical_snapshots.build_for_result(
         request=request,
         cable_mark="25ТТН2-СР",
         result_dict=None,
@@ -305,12 +311,12 @@ async def test_explicit_voltage_is_reflected_in_effective_assignment_provenance(
         },
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request, prepared)
+    _mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
 
     assert result["input_sources"]["nominal_voltage_v"] == "explicit_request"
     assert result["provenance"]["assignment_version"] == 6
@@ -323,7 +329,7 @@ def test_object_adapter_keeps_ambient_and_cold_start_as_distinct_case1_inputs() 
     obj = _pipe()
     service = CalculationService(AsyncMock())
 
-    values = service._tt_object_heat_inputs(obj, {})
+    values = service._electrical_inputs._tt_object_heat_inputs(obj, {})
 
     assert values["ambient_temperature_c"] == -15
     assert values["cold_start_temperature_c"] == -30
@@ -350,7 +356,7 @@ async def test_temperature_selection_error_keeps_resolved_diagnostics_and_climat
     )
 
     with pytest.raises(ElectricalFormulaError) as raised:
-        await service._prepare_self_regulating_tt_request(
+        await service._tt_preparation._prepare_self_regulating_tt_request(
             request,
             obj,
             electrical_variant_id=variant_id,
@@ -378,12 +384,12 @@ async def test_tank_uses_same_selector_after_geometry_and_forces_direct_layout()
         },
     )
 
-    prepared = await service._prepare_self_regulating_tt_request(
+    prepared = await service._tt_preparation._prepare_self_regulating_tt_request(
         request,
         obj,
         electrical_variant_id=variant_id,
     )
-    _mark, result = service._calculate_electrical_result(request, prepared)
+    _mark, result = service._electrical_inputs._calculate_electrical_result(request, prepared)
 
     assert result["input_sources"]["ambient_temperature_c"] == "object_heat"
     assert result["resolved_inputs"]["ambient_temperature_c"] == "-30.0"
@@ -411,7 +417,7 @@ async def test_tank_rejects_explicit_pipe_winding_instead_of_silently_ignoring_i
     )
 
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        await service._prepare_self_regulating_tt_request(
+        await service._tt_preparation._prepare_self_regulating_tt_request(
             request,
             obj,
             electrical_variant_id=variant_id,
@@ -439,7 +445,7 @@ async def test_tank_rejects_saved_pipe_winding_instead_of_silently_ignoring_it(
     )
 
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        await service._prepare_self_regulating_tt_request(
+        await service._tt_preparation._prepare_self_regulating_tt_request(
             request,
             obj,
             electrical_variant_id=variant_id,
@@ -452,13 +458,13 @@ async def test_tank_rejects_saved_pipe_winding_instead_of_silently_ignoring_it(
 
 def test_unsupported_tank_shape_is_typed_and_never_falls_back_to_pipe() -> None:
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        CalculationService(AsyncMock())._tt_object_heat_inputs(_tank("hexagonal"), {})
+        ElectricalInputMapper()._tt_object_heat_inputs(_tank("hexagonal"), {})
 
     assert raised.value.code == "ELECTRICAL_TANK_SHAPE_UNSUPPORTED"
 
 
 def test_failed_tt_provenance_never_invents_hidden_230_voltage() -> None:
-    payload = CalculationService._tt_error_provenance_payload(
+    payload = ElectricalTTContext._tt_error_provenance_payload(
         {kind: {"kind": kind, "version": "test"} for kind in ("power", "section", "bom")}
     )
 
@@ -482,7 +488,7 @@ async def test_generic_electrical_request_rejects_retired_tt_input() -> None:
     )
 
     with pytest.raises(ElectricalInputResolutionError) as raised:
-        await service._prepare_self_regulating_tt_request(
+        await service._tt_preparation._prepare_self_regulating_tt_request(
             request,
             obj,
             electrical_variant_id=variant_id,

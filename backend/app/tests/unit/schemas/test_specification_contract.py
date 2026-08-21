@@ -59,9 +59,7 @@ class TestCanonicalGenerationRequest:
     def test_rejects_duplicate_or_more_than_four_variants(self):
         variant_id = uuid4()
         with pytest.raises(ValidationError, match="must be unique"):
-            SpecificationGenerationRequest.model_validate(
-                {"variant_ids": [variant_id, variant_id]}
-            )
+            SpecificationGenerationRequest.model_validate({"variant_ids": [variant_id, variant_id]})
         with pytest.raises(ValidationError):
             SpecificationGenerationRequest.model_validate(
                 {"variant_ids": [uuid4() for _ in range(5)]}
@@ -83,10 +81,7 @@ class TestCanonicalGenerationRequest:
         assert request.options.k1i is False
         assert request.options.k2i is False
         assert request.options.kiu is False
-        assert (
-            request.options.grouping_mode
-            is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
-        )
+        assert request.options.grouping_mode is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
         assert request.options.l_k2i_m is None
         assert request.options.r_gr is None
         with pytest.raises(SpecificationOptionsValidationError) as exc_info:
@@ -108,10 +103,7 @@ class TestCanonicalGenerationRequest:
         request = SpecificationGenerationRequest.model_validate(
             {"variant_ids": [uuid4()], "options": {"grouping_mode": None}}
         )
-        assert (
-            request.options.grouping_mode
-            is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
-        )
+        assert request.options.grouping_mode is SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
         with pytest.raises(ValidationError):
             SpecificationGenerationRequest.model_validate(
                 {"variant_ids": [uuid4()], "options": {"grouping_mode": ""}}

@@ -175,9 +175,7 @@ class TestCoefficients:
         db = _mock_db(scalar=existing)
         monkeypatch.setattr("app.core.cache.cache.ainvalidate", AsyncMock())
 
-        await AdminService(db).update_coefficient(
-            "k", CoefficientUpdate(value=3.0), uuid.uuid4()
-        )
+        await AdminService(db).update_coefficient("k", CoefficientUpdate(value=3.0), uuid.uuid4())
 
         assert existing.description == "keep_me"
 

@@ -569,11 +569,33 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
         db_session.add_all(objects)
         await db_session.flush()
 
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name=f"ЭР {project_index}",
+            name_normalized=f"эр {project_index}",
+            sort_order=0,
+            legacy_variant_number=1,
+        )
+        db_session.add(variant)
+        await db_session.flush()
+        db_session.add_all(
+            ElectricalVariantObject(
+                project_id=project.id,
+                electrical_variant_id=variant.id,
+                object_id=obj.id,
+                system_type="self_regulating",
+                assignment_state="ready",
+                object_version_snapshot=obj.version,
+            )
+            for obj in objects
+        )
+        await db_session.flush()
         db_session.add_all(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=obj.id,
                 variant_number=1,
+                electrical_variant_id=variant.id,
                 cable_type="self_regulating",
                 cable_mark="ТЛТ-30",
                 params={},
@@ -581,14 +603,6 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
             )
             for obj in objects
         )
-        variant = ElectricalVariant(
-            project_id=project.id,
-            name=f"ЭР {project_index}",
-            name_normalized=f"эр {project_index}",
-            sort_order=0,
-        )
-        db_session.add(variant)
-        await db_session.flush()
         db_session.add(
             Specification(
                 project_id=project.id,

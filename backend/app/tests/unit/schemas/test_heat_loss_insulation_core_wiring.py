@@ -54,9 +54,7 @@ def test_parent_reuses_prebuilt_layer_and_calls_each_public_contract_once(
     layer = InsulationLayer(thickness=0.05, material=MINERAL_WOOL)
     insulation_contract_spy = MagicMock(wraps=heat_loss_schemas.validate_insulation_contract)
     pipe_contract_spy = MagicMock(wraps=heat_loss_schemas.validate_pipe_contract)
-    monkeypatch.setattr(
-        heat_loss_schemas, "validate_insulation_contract", insulation_contract_spy
-    )
+    monkeypatch.setattr(heat_loss_schemas, "validate_insulation_contract", insulation_contract_spy)
     monkeypatch.setattr(heat_loss_schemas, "validate_pipe_contract", pipe_contract_spy)
 
     params = PipeHeatLossParams.model_validate(_pipe(layer))

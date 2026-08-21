@@ -92,9 +92,7 @@ def test_generation_http_status_uses_per_er_precedence() -> None:
     )
     assert _generation_http_status(response(SpecificationGenerationStatus.BLOCKED)) == 422
     assert (
-        _generation_http_status(
-            response(SpecificationGenerationStatus.SELECTION_REQUIRED)
-        )
+        _generation_http_status(response(SpecificationGenerationStatus.SELECTION_REQUIRED))
         == status.HTTP_409_CONFLICT
     )
 
@@ -110,9 +108,9 @@ def test_uuid_read_and_manual_routes_are_primary_data_plane() -> None:
     assert "/api/v1/specifications/{project_id}" not in paths
     assert "/api/v1/specifications/{project_id}/items" not in paths
     uuid_get = paths["/api/v1/specifications/{project_id}/variants/{electrical_variant_id}"]["get"]
-    uuid_put = paths[
-        "/api/v1/specifications/{project_id}/variants/{electrical_variant_id}/items"
-    ]["put"]
+    uuid_put = paths["/api/v1/specifications/{project_id}/variants/{electrical_variant_id}/items"][
+        "put"
+    ]
     assert "variant" not in {p["name"] for p in uuid_get.get("parameters", [])}
     assert "variant" not in {p["name"] for p in uuid_put.get("parameters", [])}
 

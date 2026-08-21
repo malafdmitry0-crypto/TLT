@@ -305,9 +305,7 @@ def test_tank_requires_all_downstream_inputs_before_heat_formula():
                 "shape": "cylindrical",
                 "diameter": 2,
                 "height": 3,
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -20,
                 "process_temperature": 80,

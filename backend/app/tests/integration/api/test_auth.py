@@ -50,9 +50,7 @@ class TestGuestAuth:
         assert resolved.json()["session_id"] == original["session_id"]
         assert resolved.json()["project"]["id"] == original["project"]["id"]
 
-    async def test_resolve_migrates_legacy_header_to_cookie(
-        self, client: AsyncClient
-    ):
+    async def test_resolve_migrates_legacy_header_to_cookie(self, client: AsyncClient):
         created = await client.post("/api/v1/auth/guest")
         original = created.json()
         client.cookies.clear()
@@ -78,9 +76,7 @@ class TestGuestAuth:
         assert current.json()["session_id"] == original["session_id"]
         assert current.json()["project"]["id"] == original["project"]["id"]
 
-    async def test_explicit_guest_header_overrides_stale_guest_cookie(
-        self, client: AsyncClient
-    ):
+    async def test_explicit_guest_header_overrides_stale_guest_cookie(self, client: AsyncClient):
         original = (await client.post("/api/v1/auth/guest")).json()
         replacement = (await client.post("/api/v1/auth/guest")).json()
         assert client.cookies[settings.GUEST_COOKIE_NAME] == replacement["session_id"]

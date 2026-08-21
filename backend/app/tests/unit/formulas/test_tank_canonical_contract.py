@@ -42,7 +42,9 @@ def test_additional_load_is_added_after_safety_factor():
     without_additional = calc_tank_heat_loss(_tank(q_additional=0.0))
     with_additional = calc_tank_heat_loss(_tank(q_additional=17.0))
 
-    assert with_additional.total_heat_loss_base == pytest.approx(without_additional.total_heat_loss_base)
+    assert with_additional.total_heat_loss_base == pytest.approx(
+        without_additional.total_heat_loss_base
+    )
     assert with_additional.total_heat_loss_design == pytest.approx(
         without_additional.total_heat_loss_design + 17.0
     )
@@ -62,8 +64,6 @@ def test_additional_load_is_added_after_safety_factor():
         ({"tank_buried_height": 3.1}, "tank_buried_height"),
     ],
 )
-def test_partly_buried_tank_validates_each_boundary(
-    overrides: dict[str, float], error: str
-):
+def test_partly_buried_tank_validates_each_boundary(overrides: dict[str, float], error: str):
     with pytest.raises(ValueError, match=error):
         _tank(**overrides)

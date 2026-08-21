@@ -55,9 +55,7 @@ def current_tt_result_sql_predicate() -> ColumnElement[bool]:
     ]
     current_tt = and_(
         func.upper(func.coalesce(mark, "")).not_like("ТЛТ-%"),
-        voltage.op("~")(
-            r"^(?:[0-9]*[1-9][0-9]*(?:\.[0-9]+)?|0*\.[0-9]*[1-9][0-9]*)$"
-        ),
+        voltage.op("~")(r"^(?:[0-9]*[1-9][0-9]*(?:\.[0-9]+)?|0*\.[0-9]*[1-9][0-9]*)$"),
         results["provenance"]["formula_version"].astext == ELECTRICAL_TT_FORMULA_VERSION,
         results["provenance"]["formula_fingerprint"].astext == ELECTRICAL_TT_FORMULA_FINGERPRINT,
         current_limit.is_not(None),

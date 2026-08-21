@@ -23,7 +23,7 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.calculation import ElectricalRequest
 from app.schemas.electrical_assignment import ElectricalAssignmentMutationItem
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.electrical_assignment_service import (
     ElectricalAssignmentService,
     ElectricalAssignmentServiceError,
@@ -697,7 +697,11 @@ class TestElectricalAssignmentApi:
                 project_id=UUID(project["id"]),
                 electrical_variant_id=UUID(variant["id"]),
                 session_id=guest_session,
-                request_payload={"payload_version": 2, "object_ids": [str(uuid4())]},
+                request_payload={
+                    "project_id": project["id"],
+                    "electrical_variant_id": variant["id"],
+                    "object_ids": [str(uuid4())],
+                },
                 progress_current=0,
                 cancel_requested=True,
                 attempts=0,
@@ -1435,12 +1439,15 @@ class TestElectricalAssignmentApi:
                 await updater_db.commit()
                 await asyncio.wait_for(waiting_for_project, timeout=3)
 
-                service = CalculationService(stale_db)
+                service = CalculationContainer(stale_db)
                 if loader == "candidate":
-                    refreshed = await service._load_candidate_object(project_id, object_id)
+                    refreshed = await service.electrical_candidates._load_candidate_object(
+                        project_id,
+                        object_id,
+                    )
                     observed = refreshed.params["process_temperature"]
                 elif loader == "selectable":
-                    refreshed = await service._load_selectable_object(object_id)
+                    refreshed = await service.electrical_single._load_selectable_object(object_id)
                     observed = refreshed.params["process_temperature"]
                 else:
                     request = ElectricalRequest(
@@ -1459,7 +1466,7 @@ class TestElectricalAssignmentApi:
                             "safety_factor": 1.1,
                         },
                     )
-                    await service.calc_electrical(
+                    await service.electrical_single.calculate(
                         request,
                         commit=False,
                         electrical_variant_id=variant_id,
@@ -1672,7 +1679,7 @@ class TestElectricalAssignmentCalculationSync:
         await db_session.commit()
         obj = await db_session.get(ProjectObject, object_id, populate_existing=True)
         assert obj is not None
-        await CalculationService(db_session)._upsert_failed_electrical(
+        await CalculationContainer(db_session).electrical_failures.upsert(
             obj,
             "CalculationError: first only",
             1,
@@ -1761,7 +1768,7 @@ class TestElectricalAssignmentCalculationSync:
         obj = await db_session.get(ProjectObject, UUID(obj_payload["id"]), populate_existing=True)
         assert obj is not None
 
-        calc = await CalculationService(db_session)._upsert_failed_electrical(
+        calc = await CalculationContainer(db_session).electrical_failures.upsert(
             obj,
             "CalculationError: test failure",
             1,
@@ -1784,7 +1791,7 @@ class TestElectricalAssignmentCalculationSync:
         assert assignment.version == 2
 
         with pytest.raises(ElectricalAssignmentServiceError) as mismatch:
-            await CalculationService(db_session)._bulk_upsert_electrical_calculations(
+            await CalculationContainer(db_session).electrical_repository.bulk_upsert(
                 [
                     {
                         "project_id": UUID(project["id"]),

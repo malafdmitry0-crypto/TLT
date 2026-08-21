@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.audit_event import AuditEvent
 from app.services.audit_service import AuditService
-from app.services.calculation_service import CalculationService
+from app.services.calculation.electrical_staleness import ElectricalStalenessService
 from app.tests.heat_fixtures import canonical_pipe_params, canonical_tank_params
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -131,9 +131,7 @@ class TestDuplicateBatch:
         assert [c["sort_order"] for c in copies] == [2, 3]
 
         # Исходные объекты не изменились, всего объектов стало 4.
-        listing = await client.get(
-            f"/api/v1/projects/{project['id']}/objects", headers=headers
-        )
+        listing = await client.get(f"/api/v1/projects/{project['id']}/objects", headers=headers)
         objects = listing.json()
         assert len(objects) == 4
         by_id = {o["id"]: o for o in objects}
@@ -273,7 +271,7 @@ class TestGroupUpdate:
         audit_count_before = await _group_update_audit_count(db_session, project["id"])
         stale_spy = AsyncMock()
         audit_spy = AsyncMock()
-        monkeypatch.setattr(CalculationService, "mark_electrical_calculations_stale", stale_spy)
+        monkeypatch.setattr(ElectricalStalenessService, "mark_for_objects", stale_spy)
         monkeypatch.setattr(AuditService, "stage", audit_spy)
 
         resp = await client.post(
@@ -377,9 +375,7 @@ class TestGroupUpdate:
         headers = _headers(guest_session)
         project = await _guest_project(client, guest_session)
         obj = await _add_object(client, project["id"], headers, name="Дата")
-        before = datetime.fromisoformat(
-            (await _guest_project(client, guest_session))["updated_at"]
-        )
+        before = datetime.fromisoformat((await _guest_project(client, guest_session))["updated_at"])
 
         resp = await client.post(
             f"/api/v1/projects/{project['id']}/objects/group-update",
@@ -387,7 +383,5 @@ class TestGroupUpdate:
             headers=headers,
         )
         assert resp.status_code == 200, resp.text
-        after = datetime.fromisoformat(
-            (await _guest_project(client, guest_session))["updated_at"]
-        )
+        after = datetime.fromisoformat((await _guest_project(client, guest_session))["updated_at"])
         assert after > before

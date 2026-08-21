@@ -30,11 +30,16 @@ MANUAL_HIGH_TEMP_LAYER = InsulationLayer(
 
 def _canonical_tank(**overrides: object) -> TankHeatLossParams:
     data: dict[str, object] = {
-        "shape": "cylindrical", "diameter": 2.0, "height": 3.0,
-        "placement": "outdoor", "ambient_temperature": -20.0,
-        "process_temperature": 80.0, "wind_speed": 0.0, "safety_factor": 1.1,
+        "shape": "cylindrical",
+        "diameter": 2.0,
+        "height": 3.0,
+        "placement": "outdoor",
+        "ambient_temperature": -20.0,
+        "process_temperature": 80.0,
+        "wind_speed": 0.0,
+        "safety_factor": 1.1,
         "insulation_temperature_basis": "outdoor_winter",
-        "insulation_layers": [InsulationLayer(thickness=.1, material=MINERAL_WOOL)],
+        "insulation_layers": [InsulationLayer(thickness=0.1, material=MINERAL_WOOL)],
     }
     data.update(overrides)
     return TankHeatLossParams(**data)
@@ -43,7 +48,10 @@ def _canonical_tank(**overrides: object) -> TankHeatLossParams:
 class TestCanonicalTankHeatLossParams:
     def test_cylindrical_and_rectangular_inputs(self):
         assert _canonical_tank().shape == "cylindrical"
-        assert _canonical_tank(shape="rectangular", diameter=None, length=4.0, width=2.0).shape == "rectangular"
+        assert (
+            _canonical_tank(shape="rectangular", diameter=None, length=4.0, width=2.0).shape
+            == "rectangular"
+        )
 
     @pytest.mark.parametrize(
         "legacy_field", ["location", "burial_depth", "insulation_thickness", "insulation_material"]
@@ -54,21 +62,29 @@ class TestCanonicalTankHeatLossParams:
 
     def test_underground_requires_separate_ground_contract(self):
         tank = _canonical_tank(
-            placement="underground", ground_temperature=0.0, ground_conductivity=1.5,
-            tank_buried_height=1.0, wind_speed=2.0, insulation_temperature_basis="channel",
+            placement="underground",
+            ground_temperature=0.0,
+            ground_conductivity=1.5,
+            tank_buried_height=1.0,
+            wind_speed=2.0,
+            insulation_temperature_basis="channel",
         )
         assert tank.tank_buried_height == 1.0
         with pytest.raises(ValidationError, match="process_temperature_not_above_ground"):
             _canonical_tank(
-                placement="underground", ground_temperature=70.0, ground_conductivity=1.5,
-                tank_buried_height=1.0, process_temperature=70.0, insulation_temperature_basis="channel",
+                placement="underground",
+                ground_temperature=70.0,
+                ground_conductivity=1.5,
+                tank_buried_height=1.0,
+                process_temperature=70.0,
+                insulation_temperature_basis="channel",
             )
 
     def test_shape_specific_geometry_and_wall_pair_are_strict(self):
         with pytest.raises(ValidationError):
             _canonical_tank(length=1.0)
         with pytest.raises(ValidationError):
-            _canonical_tank(wall_thickness=.01)
+            _canonical_tank(wall_thickness=0.01)
         with pytest.raises(ValidationError):
             _canonical_tank(shape="rectangular", diameter=2.0, length=2.0, width=2.0)
 
@@ -122,9 +138,7 @@ class TestPipeHeatLossParams:
 
     def test_zero_thickness_rejected(self):
         with pytest.raises(ValidationError):
-            _outdoor_pipe(
-                insulation_layers=[InsulationLayer(thickness=0, material=MINERAL_WOOL)]
-            )
+            _outdoor_pipe(insulation_layers=[InsulationLayer(thickness=0, material=MINERAL_WOOL)])
 
     def test_srs_pipe_limits(self):
         p = _underground_pipe(

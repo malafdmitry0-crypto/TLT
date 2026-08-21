@@ -24,8 +24,7 @@ def _ready_result(*, voltage: int, source: str, assignment_version: int) -> dict
             "max_section_start_current_a": 13.065,
         },
         "catalogs": {
-            kind: {"source_checksum": f"sha256:{kind}"}
-            for kind in ("power", "section", "bom")
+            kind: {"source_checksum": f"sha256:{kind}"} for kind in ("power", "section", "bom")
         },
         "provenance": {
             "formula_version": ELECTRICAL_TT_FORMULA_VERSION,

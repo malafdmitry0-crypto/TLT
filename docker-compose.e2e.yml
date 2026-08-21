@@ -1,4 +1,13 @@
 services:
+  # The E2E overlay reuses the base worker service with the isolated test
+  # database and worker-e2e consumer. The base frontend is not exercised by
+  # Playwright, so its production readiness probe must not depend on the dev
+  # backend expecting the worker-dev consumer. frontend-test below owns the
+  # actual E2E backend/worker readiness contract.
+  frontend:
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ || exit 1"]
+
   db-test:
     image: postgres:16-alpine
     environment:
