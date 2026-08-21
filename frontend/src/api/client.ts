@@ -1,7 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { useProjectStore } from '@/store/projectStore';
-import type { GuestSessionResponse } from '@/types/auth';
 
 export const apiBaseURL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 const apiClient = axios.create({
@@ -39,21 +38,12 @@ export function extractApiErrorMessage(
 
 type RetryableConfig = NonNullable<AxiosError['config']> & {
   _authRetry?: boolean;
-  _guestRetry?: boolean;
   _networkRetry?: number;
 };
 
 const NETWORK_RETRY_DELAYS_MS = [200, 500, 1200];
 
-let guestRecoveryPromise: Promise<GuestSessionResponse> | null = null;
 let employeeRefreshPromise: Promise<string> | null = null;
-
-function hasGuestContext(config?: RetryableConfig): boolean {
-  const role = localStorage.getItem('role');
-  const sessionId = localStorage.getItem('session_id');
-  const requestSessionId = config?.headers?.['X-Session-Id'];
-  return role === 'guest' || !!sessionId || !!requestSessionId;
-}
 
 function isAuthRoute(url: string): boolean {
   return url.includes('/auth/');
@@ -131,22 +121,6 @@ export function withIdempotencyKey(config: AxiosRequestConfig = {}): AxiosReques
   };
 }
 
-async function recoverGuestSession() {
-  const { data } = await axios.post<GuestSessionResponse>(`${apiBaseURL}/auth/guest`, undefined, {
-    withCredentials: true,
-  });
-  useAuthStore.getState().setGuest(data.session_id);
-  useProjectStore.getState().setCurrentProject(data.project);
-  return data;
-}
-
-async function recoverGuestSessionOnce() {
-  guestRecoveryPromise ??= recoverGuestSession().finally(() => {
-    guestRecoveryPromise = null;
-  });
-  return guestRecoveryPromise;
-}
-
 async function refreshEmployeeSession() {
   const token = csrfToken();
   const { data } = await axios.post<{ access_token: string }>(
@@ -215,22 +189,11 @@ apiClient.interceptors.response.use(
         }
       }
 
-      if (
-        originalConfig &&
-        !originalConfig._guestRetry &&
-        !isAuthRoute(url) &&
-        hasGuestContext(originalConfig)
-      ) {
-        originalConfig._guestRetry = true;
-        try {
-          const guest = await recoverGuestSessionOnce();
-          originalConfig.headers = originalConfig.headers ?? {};
-          originalConfig.headers['X-Session-Id'] = guest.session_id;
-          return apiClient(originalConfig);
-        } catch {
-          localStorage.removeItem('session_id');
-          localStorage.removeItem('role');
-          localStorage.removeItem('tlt-current-project');
+      if (useAuthStore.getState().role === 'guest' && !isAuthRoute(url)) {
+        useAuthStore.getState().logout();
+        useProjectStore.getState().setCurrentProject(null);
+        if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+          window.location.href = '/';
         }
       }
     }
