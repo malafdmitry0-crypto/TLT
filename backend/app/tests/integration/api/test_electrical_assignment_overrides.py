@@ -146,7 +146,6 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
     calculation = ElectricalCalculation(
         project_id=UUID(project_id),
         object_id=UUID(target["id"]),
-        variant_number=first["legacy_variant_number"],
         electrical_variant_id=UUID(first["id"]),
         cable_type="self_regulating_tt",
         cable_type_source="manual",
@@ -158,7 +157,6 @@ async def test_override_patch_is_exact_sparse_optimistic_and_marks_dependents_st
     candidate = ElectricalCandidate(
         project_id=UUID(project_id),
         object_id=UUID(target["id"]),
-        variant_number=first["legacy_variant_number"],
         electrical_variant_id=UUID(first["id"]),
         cable_type="self_regulating_tt",
         cable_source="builtin",
