@@ -65,7 +65,6 @@ async def _seed_context(
         name="ЭР 1",
         name_normalized="эр 1",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     obj = ProjectObject(

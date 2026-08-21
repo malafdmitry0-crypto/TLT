@@ -250,7 +250,6 @@ class TestProjectDuplicate:
         assert len(variants) == 1
         variant = variants[0]
         assert variant.name == "ЭР1"
-        assert variant.legacy_variant_number == 1
         assert variant.is_active is True
 
         calculations = list(
@@ -338,7 +337,7 @@ class TestProjectDuplicate:
         assert duplicate_audit is not None
         assert duplicate_audit.details["electrical_status"] == "initialized_unassigned"
         assert duplicate_audit.details["electrical_variant_id"] == str(variant.id)
-        assert duplicate_audit.details["legacy_variant_number"] == 1
+        assert "legacy_variant_number" not in duplicate_audit.details
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == []
 
     async def test_duplicate_response_serializes_after_project_timestamp_update(
@@ -541,7 +540,7 @@ class TestProjectDuplicate:
         assert duplicate_audit.details["electrical_readiness_issue_codes"] == [
             "ELECTRICAL_OBJECT_NOT_READY"
         ]
-        assert duplicate_audit.details["legacy_variant_number"] == 1
+        assert "legacy_variant_number" not in duplicate_audit.details
 
     async def test_duplicate_nonexistent_returns_404(
         self, client: AsyncClient, employee_token: str
