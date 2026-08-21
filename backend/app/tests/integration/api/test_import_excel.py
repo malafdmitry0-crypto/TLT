@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.services.excel_import_service import build_template_csv, build_template_xlsx
+from app.services.object_spreadsheet.templates import build_template_csv, build_template_xlsx
 from app.services.spreadsheet_schema import CSV_HEADERS
 from app.services.task_service import TaskService
 

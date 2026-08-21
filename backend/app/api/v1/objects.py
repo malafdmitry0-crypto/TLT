@@ -32,8 +32,9 @@ from app.schemas.project import (
 )
 from app.services.audit_service import AuditService
 from app.services.calculation.container import CalculationContainer
-from app.services.excel_import_service import build_objects_xlsx
 from app.services.object_query_service import ObjectQueryService, ObjectQueryValidationError
+from app.services.object_spreadsheet.export import build_objects_xlsx
+from app.services.object_spreadsheet.templates import build_template_csv, build_template_xlsx
 from app.services.project_service import (
     ProjectAccessError,
     ProjectConflictError,
@@ -356,8 +357,6 @@ async def import_template(
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    from app.services.excel_import_service import build_template_csv, build_template_xlsx
-
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
     except ProjectNotFoundError as exc:

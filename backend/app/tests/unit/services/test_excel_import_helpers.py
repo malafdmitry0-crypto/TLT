@@ -31,13 +31,12 @@ from app.services.excel_import_service import (
     _resolve_shape,
     _to_float,
     _validate_xlsx_archive,
-    build_objects_xlsx,
-    build_template_csv,
-    build_template_xlsx,
     import_objects_from_csv,
     import_objects_from_excel,
 )
 from app.services.heat_loss_application import apply_climate_policy
+from app.services.object_spreadsheet.export import build_objects_xlsx
+from app.services.object_spreadsheet.templates import build_template_csv, build_template_xlsx
 
 
 class TestNorm:
