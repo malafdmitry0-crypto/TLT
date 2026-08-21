@@ -94,7 +94,6 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
         name="ЭР ready",
         name_normalized="эр ready",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     legacy_only_variant = ElectricalVariant(
@@ -103,7 +102,6 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
         name="ЭР legacy only",
         name_normalized="эр legacy only",
         sort_order=1,
-        legacy_variant_number=2,
         is_active=False,
     )
     ready_object = ProjectObject(
@@ -175,7 +173,6 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
         id=uuid.uuid4(),
         project_id=project.id,
         object_id=ready_object.id,
-        variant_number=1,
         electrical_variant_id=ready_variant.id,
         cable_type="self_regulating_tt",
         cable_mark="30ТТВ2-СР",
@@ -263,7 +260,6 @@ async def _seed_ready_project(
         name="ЭР 1",
         name_normalized="эр 1",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     obj = ProjectObject(
@@ -303,7 +299,6 @@ async def _seed_ready_project(
         id=uuid.uuid4(),
         project_id=project.id,
         object_id=obj.id,
-        variant_number=1,
         electrical_variant_id=variant.id,
         cable_type="self_regulating_tt",
         cable_mark="30ТТВ2-СР",

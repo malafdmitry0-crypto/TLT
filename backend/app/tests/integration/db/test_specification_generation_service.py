@@ -117,7 +117,6 @@ async def _seed_ready_project(
         name="ЭР ready",
         name_normalized="эр ready",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     variants = [ready_variant]
@@ -129,7 +128,6 @@ async def _seed_ready_project(
             name="ЭР blocked",
             name_normalized="эр blocked",
             sort_order=1,
-            legacy_variant_number=2,
             is_active=False,
         )
         variants.append(blocked_variant)
@@ -179,7 +177,6 @@ async def _seed_ready_project(
         id=uuid.uuid4(),
         project_id=project.id,
         object_id=obj.id,
-        variant_number=1,
         electrical_variant_id=ready_variant.id,
         cable_type="self_regulating_tt",
         cable_mark="30ТТВ2-СР",
@@ -371,7 +368,6 @@ async def test_unexpected_exception_rolls_back_whole_request_and_bubbles(
         name="ЭР 2",
         name_normalized="эр 2",
         sort_order=1,
-        legacy_variant_number=2,
         is_active=False,
     )
     db_session.add(second)
@@ -412,7 +408,6 @@ async def test_unexpected_exception_rolls_back_whole_request_and_bubbles(
             id=uuid.uuid4(),
             project_id=project.id,
             object_id=obj.id,
-            variant_number=2,
             electrical_variant_id=second.id,
             cable_type="self_regulating_tt",
             cable_mark="30ТТВ2-СР",
