@@ -14,12 +14,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.models.project_object import ProjectObject
 from app.services.excel_import_service import (
-    _commit_object_batch,
-    _commit_object_batch_row_by_row,
     import_objects_from_csv,
     import_objects_from_excel,
 )
 from app.services.heat_loss_application import apply_climate_policy
+from app.services.object_spreadsheet import persistence, preparation
 from app.services.object_spreadsheet.export import build_objects_xlsx
 from app.services.object_spreadsheet.mapping import (
     GENERIC_MATERIAL_ALIASES,
@@ -37,6 +36,10 @@ from app.services.object_spreadsheet.parsing import (
     _parse_csv,
     _parse_excel_workbook,
     _validate_xlsx_archive,
+)
+from app.services.object_spreadsheet.persistence import (
+    _commit_object_batch,
+    _commit_object_batch_row_by_row,
 )
 from app.services.object_spreadsheet.pipe_mapping import _build_pipe_params
 from app.services.object_spreadsheet.tank_mapping import _build_tank_params
@@ -1428,8 +1431,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-        from app.services.excel_import_service import _add_rows
+        from app.services.object_spreadsheet.persistence import _add_rows
 
         rows = [
             {
@@ -1471,7 +1473,7 @@ class TestAddRowsHelper:
             committed_rows.extend(row["_row"] for _obj, row in batch)
             return len(batch), [uuid4() for _obj, _row in batch], []
 
-        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+        monkeypatch.setattr(persistence, "_commit_object_batch", fake_commit)
         dedupe_keys: set[str] = set()
 
         (
@@ -1519,8 +1521,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-        from app.services.excel_import_service import _add_rows
+        from app.services.object_spreadsheet.persistence import _add_rows
 
         rows = [
             {
@@ -1548,7 +1549,7 @@ class TestAddRowsHelper:
             stored_params.extend(obj.params for obj, _row in batch)
             return len(batch), [uuid4() for _obj, _row in batch], []
 
-        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+        monkeypatch.setattr(persistence, "_commit_object_batch", fake_commit)
         db = AsyncMock()
 
         (
@@ -1602,8 +1603,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-        from app.services.excel_import_service import _add_rows, _dedupe_key
+        from app.services.object_spreadsheet.persistence import _add_rows, _dedupe_key
         from app.services.project_object_params import prepare_project_object_params
 
         row = {
@@ -1631,7 +1631,7 @@ class TestAddRowsHelper:
         async def fake_commit(db, batch, sheet_label):
             return len(batch), ["should-not-create"] if batch else [], []
 
-        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+        monkeypatch.setattr(persistence, "_commit_object_batch", fake_commit)
 
         (
             created,
@@ -1709,14 +1709,12 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock, Mock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-
         async def fake_row_by_row(db, batch, sheet_label, batch_error):
             assert sheet_label == "Pipes"
             assert isinstance(batch_error, SQLAlchemyError)
             return 1, [uuid4()], [{"sheet": sheet_label, "row": 3, "message": "bad row"}]
 
-        monkeypatch.setattr(mod, "_commit_object_batch_row_by_row", fake_row_by_row)
+        monkeypatch.setattr(persistence, "_commit_object_batch_row_by_row", fake_row_by_row)
 
         db = AsyncMock()
         db.add_all = Mock()
@@ -1962,8 +1960,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-        from app.services.excel_import_service import _add_rows
+        from app.services.object_spreadsheet.persistence import _add_rows
 
         rows = [
             {"_row": 2, "shape": "куб"},
@@ -1986,7 +1983,7 @@ class TestAddRowsHelper:
         async def fake_commit(db, batch, sheet_label):
             return len(batch), ["oid"], []
 
-        monkeypatch.setattr(mod, "_commit_object_batch", fake_commit)
+        monkeypatch.setattr(persistence, "_commit_object_batch", fake_commit)
         db = AsyncMock()
         (
             created,
@@ -2021,7 +2018,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services.excel_import_service import _add_rows
+        from app.services.object_spreadsheet.persistence import _add_rows
 
         rows = [
             {
@@ -2091,8 +2088,7 @@ class TestAddRowsHelper:
         from unittest.mock import AsyncMock
         from uuid import uuid4
 
-        from app.services import excel_import_service as mod
-        from app.services.excel_import_service import _add_rows
+        from app.services.object_spreadsheet.persistence import _add_rows
 
         rows = [
             {
@@ -2109,7 +2105,11 @@ class TestAddRowsHelper:
         def boom_prepare(*args, **kwargs):
             raise RuntimeError("bad prepare")
 
-        monkeypatch.setattr(mod, "validate_and_canonicalize_project_object_params", boom_prepare)
+        monkeypatch.setattr(
+            preparation,
+            "validate_and_canonicalize_project_object_params",
+            boom_prepare,
+        )
         db = AsyncMock()
         (
             created,

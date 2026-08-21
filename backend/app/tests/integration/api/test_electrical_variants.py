@@ -31,7 +31,7 @@ from app.services.calculation.electrical_candidates import ElectricalCandidateSe
 from app.services.calculation.electrical_single import ElectricalSingleCalculationService
 from app.services.calculation.heat_calculation import HeatCalculationService
 from app.services.electrical_variant_service import ElectricalVariantService
-from app.services.excel_import_service import _commit_object_batch
+from app.services.object_spreadsheet.persistence import _commit_object_batch
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
