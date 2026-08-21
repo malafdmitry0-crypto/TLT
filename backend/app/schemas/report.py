@@ -3,7 +3,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReportChapterMeta(BaseModel):
@@ -24,6 +24,8 @@ ReportFormat = Literal["pdf", "docx", "xlsx"]
 
 
 class ReportExportJobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     project_id: UUID
     format: ReportFormat
     sections: list[str] | None = Field(default=None)
