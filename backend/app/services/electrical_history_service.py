@@ -34,14 +34,18 @@ class ElectricalHistoryService:
         page_size = min(max(page_size, 1), 200)
         project_id = await self.db.scalar(
             select(ElectricalCalculationRevision.project_id)
-            .where(ElectricalCalculationRevision.electrical_calculation_id == calculation_id)
+            .where(
+                ElectricalCalculationRevision.electrical_calculation_id == calculation_id,
+                ElectricalCalculationRevision.electrical_variant_id.is_not(None),
+            )
             .order_by(ElectricalCalculationRevision.revision_number.desc())
             .limit(1)
         )
         if project_id is None:
             project_id = await self.db.scalar(
                 select(ElectricalCalculation.project_id).where(
-                    ElectricalCalculation.id == calculation_id
+                    ElectricalCalculation.id == calculation_id,
+                    ElectricalCalculation.electrical_variant_id.is_not(None),
                 )
             )
         if project_id is None:
@@ -55,12 +59,16 @@ class ElectricalHistoryService:
                 select(func.count())
                 .select_from(ElectricalCalculationRevision)
                 .where(ElectricalCalculationRevision.electrical_calculation_id == calculation_id)
+                .where(ElectricalCalculationRevision.electrical_variant_id.is_not(None))
             )
             or 0
         )
         revisions = await self.db.scalars(
             select(ElectricalCalculationRevision)
-            .where(ElectricalCalculationRevision.electrical_calculation_id == calculation_id)
+            .where(
+                ElectricalCalculationRevision.electrical_calculation_id == calculation_id,
+                ElectricalCalculationRevision.electrical_variant_id.is_not(None),
+            )
             .order_by(
                 ElectricalCalculationRevision.revision_number.desc(),
                 ElectricalCalculationRevision.id.desc(),

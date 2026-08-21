@@ -3,7 +3,7 @@
 import inspect
 
 from app.api.v1 import calculations
-from app.schemas import calculation
+from app.schemas import calculation, electrical_history
 from app.services.calculation import (
     electrical_batch,
     electrical_candidate_apply,
@@ -62,3 +62,10 @@ def test_execution_paths_do_not_require_numeric_variant_identity() -> None:
     assert "ELECTRICAL_VARIANT_LEGACY_SLOT_REQUIRED" not in sources
     assert "ElectricalVariant.legacy_variant_number ==" not in sources
     assert "require_clean" not in sources
+
+
+def test_history_public_contract_is_uuid_only() -> None:
+    fields = electrical_history.ElectricalCalculationRevisionResponse.model_fields
+
+    assert "variant_number" not in fields
+    assert fields["electrical_variant_id"].is_required()

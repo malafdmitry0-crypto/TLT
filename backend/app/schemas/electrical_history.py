@@ -18,8 +18,7 @@ class ElectricalCalculationRevisionResponse(BaseModel):
     supersedes_result_id: UUID | None
     project_id: UUID
     object_id: UUID
-    variant_number: int
-    electrical_variant_id: UUID | None
+    electrical_variant_id: UUID
     cable_type: str
     cable_type_source: str
     cable_mark: str | None
