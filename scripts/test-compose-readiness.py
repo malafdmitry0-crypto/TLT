@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic assertions for worker readiness wiring in Compose variants."""
+"""Deterministic assertions for backend runtime wiring in Compose variants."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import json
 import os
 import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,6 +45,22 @@ def assert_common(config: dict, *, frontend_name: str = "frontend") -> None:
     assert "container_name" not in worker
 
 
+def assert_database_pool_contract(config: dict) -> None:
+    services = config["services"]
+    backend_env = services["backend"]["environment"]
+    worker_env = services["worker"]["environment"]
+
+    assert backend_env["DB_POOL_SIZE"] == "5"
+    assert backend_env["DB_MAX_OVERFLOW"] == "2"
+    assert backend_env["DB_POOL_TIMEOUT_SECONDS"] == "10"
+    assert backend_env["DB_APPLICATION_NAME"] == "heatcalc-api"
+
+    assert worker_env["DB_POOL_SIZE"] == "1"
+    assert worker_env["DB_MAX_OVERFLOW"] == "1"
+    assert worker_env["DB_POOL_TIMEOUT_SECONDS"] == "10"
+    assert worker_env["DB_APPLICATION_NAME"] == "heatcalc-worker"
+
+
 def main() -> None:
     base = compose_config("docker-compose.yml")
     dev = compose_config("docker-compose.yml", "docker-compose.dev.yml")
@@ -65,12 +80,13 @@ def main() -> None:
         assert_common(config)
     assert_common(e2e, frontend_name="frontend-test")
 
+    for config in (base, dev, prod):
+        assert_database_pool_contract(config)
+
     prod_services = prod["services"]
     assert prod_services["worker"]["image"] == prod_services["backend"]["image"]
     assert prod_services["worker"]["restart"] == "always"
-    assert "/health/ready" in " ".join(
-        prod_services["caddy"]["healthcheck"]["test"]
-    )
+    assert "/health/ready" in " ".join(prod_services["caddy"]["healthcheck"]["test"])
 
     e2e_services = e2e["services"]
     assert set(e2e_services["worker"]["depends_on"]) == {
@@ -81,7 +97,7 @@ def main() -> None:
     assert e2e_services["db"]["ports"][0]["published"] == "5433"
     assert e2e_services["db-test"]["ports"][0]["published"] == "5434"
 
-    print("Compose worker readiness contract: PASS")
+    print("Compose runtime contract: PASS")
 
 
 if __name__ == "__main__":

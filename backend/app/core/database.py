@@ -4,30 +4,41 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
-    pool_pre_ping=True,
-    connect_args={
-        "server_settings": {
-            "statement_timeout": str(settings.DB_STATEMENT_TIMEOUT_MS),
-            "idle_in_transaction_session_timeout": str(settings.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS),
-        }
-    }
-    if settings.DB_STATEMENT_TIMEOUT_MS > 0
-    else {},
-    future=True,
-)
+
+def _database_server_settings(config: Settings) -> dict[str, str]:
+    server_settings = {"application_name": config.DB_APPLICATION_NAME}
+    if config.DB_STATEMENT_TIMEOUT_MS > 0:
+        server_settings["statement_timeout"] = str(config.DB_STATEMENT_TIMEOUT_MS)
+    if config.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS > 0:
+        server_settings["idle_in_transaction_session_timeout"] = str(
+            config.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS
+        )
+    return server_settings
+
+
+def _create_database_engine(config: Settings) -> AsyncEngine:
+    return create_async_engine(
+        config.DATABASE_URL,
+        echo=config.DEBUG,
+        pool_size=config.DB_POOL_SIZE,
+        max_overflow=config.DB_MAX_OVERFLOW,
+        pool_timeout=config.DB_POOL_TIMEOUT_SECONDS,
+        pool_recycle=config.DB_POOL_RECYCLE_SECONDS,
+        pool_pre_ping=True,
+        connect_args={"server_settings": _database_server_settings(config)},
+        future=True,
+    )
+
+
+engine = _create_database_engine(settings)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

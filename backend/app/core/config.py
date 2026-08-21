@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,8 +18,12 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db"
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 5
+    # pool_size=0 and max_overflow=-1 mean "unlimited" in SQLAlchemy, so both
+    # unsafe forms are rejected at configuration load time.
+    DB_POOL_SIZE: int = Field(default=5, ge=1)
+    DB_MAX_OVERFLOW: int = Field(default=2, ge=0)
+    DB_POOL_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0)
+    DB_APPLICATION_NAME: str = Field(default="heatcalc-api", min_length=1)
     DB_POOL_RECYCLE_SECONDS: int = 3600
     DB_STATEMENT_TIMEOUT_MS: int = 30_000
     DB_CALCULATION_LOCK_TIMEOUT_MS: int = 2_000
