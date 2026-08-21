@@ -469,10 +469,18 @@ class TestReports:
 
     async def test_guest_cannot_export(self, client: AsyncClient, guest_session: str):
         pid = await _project_with_object(client, guest_session)
+        headers = {"X-Session-Id": guest_session}
+        initialized = await client.post(
+            f"/api/v1/projects/{pid}/electrical-variants/initialize",
+            headers=headers,
+        )
+        assert initialized.status_code == 200, initialized.text
         resp = await client.get(
             f"/api/v1/reports/{pid}/export/xlsx",
-            params={"variant_number": 1},
-            headers={"X-Session-Id": guest_session},
+            params={
+                "electrical_variant_id": initialized.json()["variant"]["id"],
+            },
+            headers=headers,
         )
         assert resp.status_code == 403
 
