@@ -8,13 +8,13 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
+from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 from app.schemas.specification import (
     SpecificationCandidateGroup,
     SpecificationDiagnosticCode,
     SpecificationGroupingMode,
     SpecificationResolvedOptions,
 )
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 from app.services.specification_bom_builder import (
     BomBuildFailure,
     BomBuildSuccess,
@@ -310,9 +310,7 @@ class TestBomBuilderGoldens:
             "formula_fingerprint": "specification-calculators/cable@v1",
         }
         assert bom.snapshot["settings_revision"] == 7
-        assert bom.snapshot["preflight_fingerprint_schema"] == (
-            "specification-preflight/v1"
-        )
+        assert bom.snapshot["preflight_fingerprint_schema"] == ("specification-preflight/v1")
         assert bom.snapshot["normalized_inputs"]["objects"] == [
             {
                 "object_id": object_id,
@@ -413,9 +411,7 @@ class TestBomBuilderGoldens:
         assert len(cable_rows) == 2
         sections = {item.params.get("object_type_section") for item in cable_rows}
         assert sections == {"pipe", "tank"}
-        qty_by_section = {
-            item.params["object_type_section"]: item.quantity for item in cable_rows
-        }
+        qty_by_section = {item.params["object_type_section"]: item.quantity for item in cable_rows}
         assert qty_by_section["pipe"] == Decimal("100.0")
         assert qty_by_section["tank"] == Decimal("50.0")
         for item in cable_rows:
@@ -601,17 +597,13 @@ class TestBomBuilderGoldens:
             preflight_fingerprint=f"sha256:{'1' * 64}",
         )
         assert isinstance(bom, BomBuildSuccess)
-        by_cat = {
-            item.category: item.params.get("object_type_section") for item in bom.items
-        }
+        by_cat = {item.category: item.params.get("object_type_section") for item in bom.items}
         assert by_cat["connection_kit"] == "common"
         assert by_cat["repair_kit"] == "common"
         assert by_cat["sealant"] == "common"
         assert by_cat["aluminium_tape"] == "common"
         assert by_cat["box"] == "pipe"
         cable_sections = {
-            item.params.get("object_type_section")
-            for item in bom.items
-            if item.category == "cable"
+            item.params.get("object_type_section") for item in bom.items if item.category == "cable"
         }
         assert cable_sections == {"pipe", "tank"}

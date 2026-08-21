@@ -152,11 +152,7 @@ class SpecificationSelectionService:
             )
 
         normalized = _normalize_selection_rows(selections)
-        next_version = (
-            1
-            if not current.selections
-            else current.collection_version + 1
-        )
+        next_version = 1 if not current.selections else current.collection_version + 1
 
         # Validate FKs exist and item belongs to catalog version.
         for row in normalized:
@@ -232,13 +228,10 @@ class SpecificationSelectionService:
             source = getattr(group, "selection_source", None)
             if selected is None or len(candidates) <= 1:
                 continue
-            if source not in {None, "explicit"}:
-                # auto_single or none — do not invent persisted rows
-                if source == "auto_single":
-                    continue
-            fingerprint = candidate_set_fingerprint(
-                [item.catalog_item_id for item in candidates]
-            )
+            if source not in {None, "explicit"} and source == "auto_single":
+                # auto_single — do not invent persisted rows
+                continue
+            fingerprint = candidate_set_fingerprint([item.catalog_item_id for item in candidates])
             rows.append(
                 {
                     "candidate_group_key": group.group_key,

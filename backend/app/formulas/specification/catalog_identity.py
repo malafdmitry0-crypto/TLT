@@ -9,6 +9,10 @@ from __future__ import annotations
 from typing import Any
 
 
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def accessory_identity(rule: dict[str, Any]) -> dict[str, Any] | None:
     """Return explicit identity fields or None if incomplete (PDL-ER-33)."""
     mark = rule.get("mark") or rule.get("article")
@@ -43,12 +47,10 @@ def resolve_accessory_rule(rule_key: str) -> tuple[dict[str, Any] | None, str | 
 
 def temperature_group_from_result(result: dict[str, Any]) -> str | None:
     """Return only an explicit typed temperature group from the saved result."""
-    snapshot = (
-        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
-    )
-    technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
-    selection = snapshot.get("selection") if isinstance(snapshot.get("selection"), dict) else {}
-    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    snapshot = _dict_value(result.get("cable_snapshot"))
+    technical = _dict_value(snapshot.get("technical"))
+    selection = _dict_value(snapshot.get("selection"))
+    cable = _dict_value(result.get("cable"))
 
     for source in (result, cable, snapshot, technical, selection):
         if not isinstance(source, dict):
@@ -67,12 +69,12 @@ def temperature_group_from_result(result: dict[str, Any]) -> str | None:
 
 def tt_catalog_issue_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     """Validate saved TT catalogs and their exact immutable BOM row."""
-    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    cable = _dict_value(result.get("cable"))
     mark = result.get("cable_mark") or cable.get("mark") or cable.get("full_mark")
     if not isinstance(mark, str) or not mark.strip():
         return None
     provenance = result.get("provenance")
-    provenance = provenance if isinstance(provenance, dict) else {}
+    provenance = _dict_value(provenance)
     catalogs = result.get("catalogs")
     if not isinstance(catalogs, dict):
         catalogs = provenance.get("catalogs")
@@ -116,10 +118,8 @@ def tt_catalog_issue_from_result(result: dict[str, Any]) -> dict[str, Any] | Non
 
 def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     """Build cable catalog identity from explicit snapshot/result fields."""
-    snapshot = (
-        result.get("cable_snapshot") if isinstance(result.get("cable_snapshot"), dict) else {}
-    )
-    cable = result.get("cable") if isinstance(result.get("cable"), dict) else {}
+    snapshot = _dict_value(result.get("cable_snapshot"))
+    cable = _dict_value(result.get("cable"))
     mark = (
         result.get("cable_mark")
         or cable.get("mark")
@@ -129,13 +129,13 @@ def cable_identity_from_result(result: dict[str, Any]) -> dict[str, Any] | None:
     )
     if not mark:
         return None
-    technical = snapshot.get("technical") if isinstance(snapshot.get("technical"), dict) else {}
+    technical = _dict_value(snapshot.get("technical"))
     cable_type = result.get("cable_type") or cable.get("type")
     if cable_type == "self_regulating_tt":
         if tt_catalog_issue_from_result(result) is not None:
             return None
         provenance = result.get("provenance")
-        provenance = provenance if isinstance(provenance, dict) else {}
+        provenance = _dict_value(provenance)
         catalogs = result.get("catalogs")
         if not isinstance(catalogs, dict):
             catalogs = provenance.get("catalogs")

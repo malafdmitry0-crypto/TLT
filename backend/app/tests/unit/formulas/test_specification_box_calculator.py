@@ -77,7 +77,7 @@ def _open_conditions(**overrides: object) -> BoxRowConditions:
     for key, value in overrides.items():
         if isinstance(value, bool):
             base[key] = match_condition(value=value)
-        elif isinstance(value, (int, float, str, Decimal)) and key == "R_gr":
+        elif isinstance(value, int | float | str | Decimal) and key == "R_gr":
             base[key] = match_condition(operator="eq", value=str(value))
         else:
             base[key] = value
@@ -179,7 +179,7 @@ class TestGoldenBoxQuantity:
 
 def test_all_box_golden_ids_present() -> None:
     present = set(_cases_by_id())
-    assert BOX_GOLDEN_IDS <= present
+    assert present >= BOX_GOLDEN_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -577,6 +577,6 @@ class TestPureLayerImports:
                 continue
             for name in names:
                 for prefix in forbidden:
-                    assert not (name == prefix or name.startswith(prefix + ".")), (
-                        f"boxes.py imports forbidden module {name!r}"
-                    )
+                    assert not (
+                        name == prefix or name.startswith(prefix + ".")
+                    ), f"boxes.py imports forbidden module {name!r}"

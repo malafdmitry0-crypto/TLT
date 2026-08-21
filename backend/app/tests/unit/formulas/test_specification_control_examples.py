@@ -15,7 +15,6 @@ import pytest
 from app.formulas.specification.calculators import (
     FIBERGLASS_RESERVE,
     PI,
-    AluminiumObjectInput,
     BoxMatrixInput,
     BoxPipeInput,
     BoxRowConditions,
@@ -167,7 +166,7 @@ class TestControlGoldenIntegrity:
             assert target in cases, f"{ctrl_id} → {target} missing"
 
     def test_required_new_cases_present(self, cases: dict[str, dict]) -> None:
-        assert REQUIRED_NEW_CASE_IDS <= set(cases)
+        assert set(cases) >= REQUIRED_NEW_CASE_IDS
 
     def test_authority_is_fixture_only(self) -> None:
         payload = _load_payload()
@@ -251,7 +250,9 @@ class TestSpecCtrlCableMultiMark:
             # Order lengths unused for this actual-only golden; pass zeros-safe placeholders
             # equal to actuals so mark aggregator still runs.
             group_actuals = [
-                calculate_group_actual(g.section_length_m, g.section_count).actual_installed_length_m
+                calculate_group_actual(
+                    g.section_length_m, g.section_count
+                ).actual_installed_length_m
                 for g in groups
             ]
             mark = calculate_cable_mark(
