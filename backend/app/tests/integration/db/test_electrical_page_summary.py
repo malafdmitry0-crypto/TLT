@@ -8,7 +8,7 @@ from app.models.electrical_variant import ElectricalVariant, ElectricalVariantOb
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.user import User
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -137,7 +137,7 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
     )
     await db_session.commit()
 
-    service = CalculationService(db_session)
+    service = CalculationContainer(db_session).electrical_summary
     _, _, first_summary, _ = await service.electrical_project_page(
         project.id, electrical_variant_id=variant.id, page=1, page_size=1
     )

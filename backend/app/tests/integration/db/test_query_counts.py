@@ -21,7 +21,7 @@ from app.schemas.project_display_settings import (
     ProjectDisplaySettingsPayload,
     ProjectDisplaySettingsUpdateRequest,
 )
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
 from app.services.project_display_settings_service import ProjectDisplaySettingsService
@@ -240,9 +240,9 @@ async def test_batch_electrical_uses_constant_select_count(
     project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
 
     with count_sql(test_engine) as statements:
-        calculated, skipped, heat_loss_failed, errors, calcs = await CalculationService(
+        calculated, skipped, heat_loss_failed, errors, calcs = await CalculationContainer(
             db_session
-        ).batch_calc_electrical(
+        ).electrical_batch.calculate(
             project.id,
             electrical_params={"selection_policy": "technical_minimum"},
         )
@@ -264,15 +264,15 @@ async def test_batch_electrical_recalculation_uses_single_bulk_write(
     test_engine: AsyncEngine,
 ):
     project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
-    await CalculationService(db_session).batch_calc_electrical(
+    await CalculationContainer(db_session).electrical_batch.calculate(
         project.id,
         electrical_params={"selection_policy": "technical_minimum"},
     )
 
     with count_sql(test_engine) as statements:
-        calculated, skipped, heat_loss_failed, errors, calcs = await CalculationService(
+        calculated, skipped, heat_loss_failed, errors, calcs = await CalculationContainer(
             db_session
-        ).batch_calc_electrical(
+        ).electrical_batch.calculate(
             project.id,
             electrical_params={"selection_policy": "technical_minimum"},
         )
@@ -341,9 +341,9 @@ async def test_electrical_project_page_is_constant_query_count_with_many_objects
     )
 
     with count_sql(test_engine) as statements:
-        objects, calculations, summary, page_info = await CalculationService(
+        objects, calculations, summary, page_info = await CalculationContainer(
             db_session
-        ).electrical_project_page(project.id, page=1, page_size=50)
+        ).electrical_summary.electrical_project_page(project.id, page=1, page_size=50)
 
     assert len(objects) == 50
     assert len(calculations) == 50

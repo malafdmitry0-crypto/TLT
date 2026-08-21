@@ -20,7 +20,7 @@ from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.schemas.calculation import ElectricalRequest
 from app.schemas.specification import SpecificationItem
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.specification_service import SpecificationService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -164,7 +164,7 @@ class TestAtomicUpsertRaceConditions:
 
         async def calc(mark: str) -> None:
             async with session_factory() as session:
-                await CalculationService(session).calc_electrical(
+                await CalculationContainer(session).electrical_single.calculate(
                     ElectricalRequest(
                         object_id=obj.id,
                         cable_type="self_regulating_tt",
@@ -212,7 +212,7 @@ class TestAtomicUpsertRaceConditions:
 
         async def batch() -> tuple[int, int, int, list[dict], list[ElectricalCalculation]]:
             async with session_factory() as session:
-                return await CalculationService(session).batch_calc_electrical(
+                return await CalculationContainer(session).electrical_batch.calculate(
                     project.id,
                     variant_number=1,
                     return_calcs=False,

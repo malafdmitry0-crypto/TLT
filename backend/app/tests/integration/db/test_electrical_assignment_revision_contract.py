@@ -21,7 +21,7 @@ from app.schemas.specification import (
     SpecificationPreflightStatus,
 )
 from app.seeds import seed_electrical_catalogs
-from app.services.calculation_service import CalculationService
+from app.services.calculation.container import CalculationContainer
 from app.services.specification_preflight_service import SpecificationPreflightService
 from app.tests.specification_catalog_fixtures import (
     import_and_activate_complete_specification_catalog,
@@ -146,7 +146,7 @@ async def _calculate(
     db_session: AsyncSession,
     context: _RevisionContext,
 ):
-    return await CalculationService(db_session).calc_electrical(
+    return await CalculationContainer(db_session).electrical_single.calculate(
         ElectricalRequest(
             object_id=context.obj.id,
             cable_type="self_regulating_tt",
