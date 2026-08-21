@@ -71,7 +71,6 @@ async def _initialize_electrical_variants(
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["project_id"] == project_id
-    assert body["variant"]["legacy_variant_number"] == 1
     return body["variant"]
 
 
@@ -109,78 +108,7 @@ async def _assign_electrical_objects(
 
 
 class TestCalcJobs:
-    async def test_first_legacy_numeric_one_enqueue_initializes_er1_then_requires_assignment(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
-        project = await _guest_project(client, guest_session)
-        await _create_pipe(client, project["id"], guest_session)
-
-        response = await client.post(
-            "/api/v1/calc/electrical/batch/jobs",
-            json={"project_id": project["id"], "variant_number": 1},
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert response.status_code == 409, response.text
-        assert response.json()["detail"]["code"] == "ELECTRICAL_ASSIGNMENT_REQUIRED"
-        variants = await client.get(
-            f"/api/v1/projects/{project['id']}/electrical-variants",
-            headers={"X-Session-Id": guest_session},
-        )
-        assert variants.status_code == 200, variants.text
-        assert [item["legacy_variant_number"] for item in variants.json()] == [1]
-        assert variants.json()[0]["is_active"] is True
-
-    async def test_first_legacy_numeric_four_enqueue_creates_sparse_er_then_requires_assignment(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
-        project = await _guest_project(client, guest_session)
-        await _create_pipe(client, project["id"], guest_session)
-
-        response = await client.post(
-            "/api/v1/calc/electrical/batch/jobs",
-            json={"project_id": project["id"], "variant_number": 4},
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert response.status_code == 409, response.text
-        assert response.json()["detail"]["code"] == "ELECTRICAL_ASSIGNMENT_REQUIRED"
-        variants = await client.get(
-            f"/api/v1/projects/{project['id']}/electrical-variants",
-            headers={"X-Session-Id": guest_session},
-        )
-        assert variants.status_code == 200, variants.text
-        body = variants.json()
-        assert [item["legacy_variant_number"] for item in body] == [1, 4]
-
-    async def test_first_legacy_numeric_enqueue_returns_structured_readiness_error(
-        self,
-        client: AsyncClient,
-        guest_session: str,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
-        project = await _guest_project(client, guest_session)
-
-        response = await client.post(
-            "/api/v1/calc/electrical/batch/jobs",
-            json={"project_id": project["id"], "variant_number": 1},
-            headers={"X-Session-Id": guest_session},
-        )
-
-        assert response.status_code == 409, response.text
-        assert response.json()["detail"]["code"] == "ELECTRICAL_READINESS_FAILED"
-        assert response.json()["detail"]["issues"]
-
-    async def test_enqueue_rejects_ambiguous_uuid_and_legacy_number(
+    async def test_enqueue_rejects_removed_numeric_selector(
         self,
         client: AsyncClient,
         guest_session: str,
@@ -198,7 +126,7 @@ class TestCalcJobs:
         )
 
         assert response.status_code == 422, response.text
-        assert "ELECTRICAL_VARIANT_SELECTOR_CONFLICT" in response.text
+        assert "Extra inputs are not permitted" in response.text
 
     async def test_enqueue_rejects_explicit_null_variant_selector(
         self,
@@ -209,12 +137,12 @@ class TestCalcJobs:
 
         response = await client.post(
             "/api/v1/calc/electrical/batch/jobs",
-            json={"project_id": project["id"], "variant_number": None},
+            json={"project_id": project["id"]},
             headers={"X-Session-Id": guest_session},
         )
 
         assert response.status_code == 422, response.text
-        assert "ELECTRICAL_VARIANT_SELECTOR_REQUIRED" in response.text
+        assert "electrical_variant_id" in response.text
         variants = await client.get(
             f"/api/v1/projects/{project['id']}/electrical-variants",
             headers={"X-Session-Id": guest_session},
@@ -229,7 +157,7 @@ class TestCalcJobs:
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         obj = await _create_pipe(client, project["id"], guest_session)
         variant = await _initialize_electrical_variants(client, project["id"], guest_session)
@@ -240,7 +168,10 @@ class TestCalcJobs:
             variant,
             [obj["id"]],
         )
-        payload = {"project_id": project["id"], "variant_number": 1}
+        payload = {
+            "project_id": project["id"],
+            "electrical_variant_id": variant["id"],
+        }
         headers = {"X-Session-Id": guest_session, "Idempotency-Key": "same-click"}
 
         first = await client.post(
@@ -299,7 +230,7 @@ class TestCalcJobs:
         guest_session: str,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         obj = await _create_pipe(client, project["id"], guest_session)
         first_variant = await _initialize_electrical_variants(
@@ -368,7 +299,7 @@ class TestCalcJobs:
     async def test_cancel_enqueued_task(
         self, client: AsyncClient, guest_session: str, monkeypatch: pytest.MonkeyPatch
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         obj = await _create_pipe(client, project["id"], guest_session)
         variant = await _initialize_electrical_variants(client, project["id"], guest_session)
@@ -382,7 +313,10 @@ class TestCalcJobs:
         job = (
             await client.post(
                 "/api/v1/calc/electrical/batch/jobs",
-                json={"project_id": project["id"]},
+                json={
+                    "project_id": project["id"],
+                    "electrical_variant_id": variant["id"],
+                },
                 headers={"X-Session-Id": guest_session},
             )
         ).json()
@@ -403,7 +337,7 @@ class TestCalcJobs:
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         obj = await _create_pipe(client, project["id"], guest_session)
         payload = {"project_id": project["id"], "include_errors": False}
@@ -551,7 +485,7 @@ class TestCalcJobs:
         test_engine,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         project = await _guest_project(client, guest_session)
         await _create_pipe(client, project["id"], guest_session)
         job_resp = await client.post(

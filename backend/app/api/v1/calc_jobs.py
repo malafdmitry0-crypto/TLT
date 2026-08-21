@@ -11,9 +11,9 @@ from app.core.dependencies import CurrentPrincipal, require_any
 from app.core.rate_limit import enforce_principal_rate_limit, job_enqueue_limiter
 from app.core.worker_dependency import require_worker_ready
 from app.schemas.calculation import (
-    BatchElectricalResponse,
     CalculationTaskResponse,
     ElectricalBatchJobRequest,
+    TaskBatchElectricalResponse,
 )
 from app.schemas.heat_loss import BatchCalcResponse, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportTaskResult
@@ -186,14 +186,14 @@ async def get_calc_task(
 
 @router.get(
     "/jobs/{task_id}/result",
-    response_model=BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult,
+    response_model=TaskBatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult,
     summary="Результат завершённой фоновой задачи",
 )
 async def get_calc_task_result(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-) -> BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None:
+) -> TaskBatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None:
     try:
         task = await TaskService(db).get_task_for_principal(task_id, principal)
     except Exception as exc:

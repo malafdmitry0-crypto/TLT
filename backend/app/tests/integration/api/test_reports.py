@@ -96,7 +96,6 @@ async def _initialize_and_create_second_variant(
         headers=headers,
     )
     assert initialized.status_code == 200, initialized.text
-    assert initialized.json()["variant"]["legacy_variant_number"] == 1
 
     created = await client.post(
         f"/api/v1/projects/{project_id}/electrical-variants",
@@ -106,42 +105,30 @@ async def _initialize_and_create_second_variant(
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["project_id"] == project_id
-    assert body["legacy_variant_number"] == 2
     return body
 
 
 class TestReports:
-    async def test_report_job_rejects_ambiguous_uuid_and_legacy_number(
+    async def test_report_job_requires_electrical_variant_uuid(
         self,
         client: AsyncClient,
         employee_token: str,
     ):
         pid = await _employee_project_with_object(client, employee_token)
-        variant = await _initialize_and_create_second_variant(
-            client,
-            pid,
-            employee_token,
-        )
-
         response = await client.post(
             f"/api/v1/reports/{pid}/export/xlsx/jobs",
-            params={
-                "electrical_variant_id": variant["id"],
-                "variant_number": 2,
-            },
+            params={"variant_number": 2},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
 
         assert response.status_code == 422, response.text
-        assert response.json()["detail"]["code"] == "ELECTRICAL_VARIANT_SELECTOR_CONFLICT"
+        assert "electrical_variant_id" in response.text
 
-    async def test_fresh_project_numeric_report_prepares_only_er1_and_er4(
+    async def test_report_job_does_not_create_variants_for_removed_numeric_selector(
         self,
         client: AsyncClient,
         employee_token: str,
-        monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
         pid = await _employee_project_with_object(client, employee_token)
         headers = {"Authorization": f"Bearer {employee_token}"}
 
@@ -151,15 +138,13 @@ class TestReports:
             headers=headers,
         )
 
-        assert response.status_code == 202, response.text
+        assert response.status_code == 422, response.text
         variants = await client.get(
             f"/api/v1/projects/{pid}/electrical-variants",
             headers=headers,
         )
         assert variants.status_code == 200, variants.text
-        body = variants.json()
-        assert [item["legacy_variant_number"] for item in body] == [1, 4]
-        assert response.json()["electrical_variant_id"] == body[1]["id"]
+        assert variants.json() == []
 
     async def test_preview_multi_er_independent_chapters(
         self, client: AsyncClient, employee_token: str
@@ -496,7 +481,7 @@ class TestReports:
         variant = await _initialize_and_create_second_variant(client, pid, employee_token)
         resp = await client.post(
             f"/api/v1/reports/{pid}/export/xlsx/jobs",
-            params={"variant_number": 2},
+            params={"electrical_variant_id": variant["id"]},
             headers={"Authorization": f"Bearer {employee_token}"},
         )
         assert resp.status_code == 202
@@ -530,7 +515,7 @@ class TestReports:
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        monkeypatch.setattr("app.services.task_service.TaskQueue", FakeTaskQueue)
+        monkeypatch.setattr("app.services.tasks.creation.TaskQueue", FakeTaskQueue)
         pid = await _employee_project_with_object(client, employee_token)
         second_variant = await _initialize_and_create_second_variant(
             client,
@@ -634,13 +619,13 @@ class TestReports:
             request_payload={
                 "project_id": pid,
                 "format": "xlsx",
-                "variant_number": 1,
+                "electrical_variant_id": str(variant_id),
                 "sections": None,
             },
             result_payload={
                 "project_id": pid,
                 "format": "xlsx",
-                "variant_number": 1,
+                "electrical_variant_id": str(variant_id),
                 "filename": "report.xlsx",
                 "media_type": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
                 "download_url": f"/api/v1/reports/jobs/{task_id}/download",
@@ -688,7 +673,7 @@ class TestReports:
             user_id=employee_user.id,
             request_payload={
                 "project_id": pid,
-                "variant_number": 1,
+                "electrical_variant_id": str(variant_id),
                 "format": "xlsx",
                 "sections": None,
             },

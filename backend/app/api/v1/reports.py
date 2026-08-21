@@ -263,13 +263,7 @@ async def enqueue_export_job(
     format: str,
     request: Request,
     sections: list[str] | None = Query(default=None),
-    electrical_variant_id: UUID | None = Query(default=None),
-    variant_number: int | None = Query(
-        default=None,
-        ge=1,
-        le=MAX_ELECTRICAL_VARIANTS,
-        deprecated=True,
-    ),
+    electrical_variant_id: UUID = Query(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
@@ -285,25 +279,11 @@ async def enqueue_export_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Неподдерживаемый формат: {format}",
         )
-    if electrical_variant_id is None and variant_number is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="electrical_variant_id or deprecated variant_number is required",
-        )
-    if electrical_variant_id is not None and variant_number is not None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "code": "ELECTRICAL_VARIANT_SELECTOR_CONFLICT",
-                "message": "Передайте только electrical_variant_id или variant_number",
-            },
-        )
     job_request = ReportExportJobRequest(
         project_id=project_id,
         format=format,
         sections=sections,
         electrical_variant_id=electrical_variant_id,
-        variant_number=variant_number,
     )
     try:
         task = await TaskService(db).create_report_export_task(

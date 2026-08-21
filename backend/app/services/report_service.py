@@ -451,6 +451,23 @@ class ReportService:
             electrical_variant_name=electrical_variant_name,
         )
 
+    async def export_trusted_for_electrical_variant(
+        self,
+        project_id: UUID,
+        fmt: str,
+        electrical_variant_id: UUID,
+        sections: list[str] | None = None,
+    ) -> bytes:
+        """Export a worker report through the canonical UUID-only task boundary."""
+        return await self._export(
+            project_id,
+            fmt,
+            sections,
+            principal=None,
+            variant_number=None,
+            electrical_variant_id=electrical_variant_id,
+        )
+
     async def _export(
         self,
         project_id: UUID,

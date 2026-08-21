@@ -552,8 +552,8 @@ class CableOptionOut(BaseModel):
     catalog: CableOptionCatalogMeta | None = None
 
 
-class ElectricalCalcSummary(BaseModel):
-    """Краткая информация об электрорасчёте объекта."""
+class TaskElectricalCalcSummary(BaseModel):
+    """UUID-only calculation item returned by a background task."""
 
     id: UUID
     object_id: UUID
@@ -563,9 +563,14 @@ class ElectricalCalcSummary(BaseModel):
     cable_mark_source: str = "auto"
     cable_snapshot: dict[str, Any] | None = None
     cable_snapshot_status: dict[str, Any] | None = None
-    variant_number: int
     params: dict[str, Any] | None = None
     results: dict[str, Any] | None
+
+
+class ElectricalCalcSummary(TaskElectricalCalcSummary):
+    """Краткая информация синхронного электрорасчёта объекта."""
+
+    variant_number: int
 
 
 ElectricalCableSelectionMode = Literal["auto", "manual"]
@@ -862,6 +867,20 @@ class BatchElectricalResponse(BaseModel):
     results: list[ElectricalCalcSummary] = Field(default_factory=list)
 
 
+class TaskBatchElectricalResponse(BaseModel):
+    """UUID-only result of an asynchronous electrical batch calculation."""
+
+    calculated: int
+    skipped: int
+    scope: Literal["all", "selected"] = "all"
+    heat_loss_failed: int = Field(
+        default=0,
+        description="Количество объектов с ошибками теплопотерь, исключённых из расчёта",
+    )
+    errors: list[dict[str, Any]] = Field(default_factory=list)
+    results: list[TaskElectricalCalcSummary] = Field(default_factory=list)
+
+
 TaskStatus = Literal[
     "queued",
     "enqueued",
@@ -889,13 +908,7 @@ class ElectricalBatchJobRequest(BaseModel):
     project_id: UUID
     object_ids: list[UUID] | None = Field(default=None, min_length=1)
     cable_source: str = "builtin"
-    electrical_variant_id: UUID | None = None
-    variant_number: int | None = Field(
-        default=1,
-        ge=1,
-        le=MAX_ELECTRICAL_VARIANTS,
-        deprecated=True,
-    )
+    electrical_variant_id: UUID
     cable_type: ElectricalCableType = "self_regulating_tt"
     selection_policy: SelectionPolicy = "technical_minimum"
     object_overrides: list[ElectricalObjectBatchOverride] | None = None
@@ -909,18 +922,6 @@ class ElectricalBatchJobRequest(BaseModel):
     skip_manual: bool = True
     include_results: bool = False
     include_errors: bool = True
-
-    @model_validator(mode="after")
-    def normalize_electrical_variant_selector(self) -> "ElectricalBatchJobRequest":
-        """Keep omitted legacy requests on slot 1, but never accept two selectors."""
-        if self.electrical_variant_id is not None:
-            if "variant_number" not in self.model_fields_set:
-                self.variant_number = None
-            elif self.variant_number is not None:
-                raise ValueError("ELECTRICAL_VARIANT_SELECTOR_CONFLICT")
-        elif self.variant_number is None:
-            raise ValueError("ELECTRICAL_VARIANT_SELECTOR_REQUIRED")
-        return self
 
     def electrical_params(self) -> dict[str, Any]:
         values = {
@@ -961,7 +962,7 @@ class CalculationTaskResponse(BaseModel):
     project_id: UUID | None = None
     electrical_variant_id: UUID | None = None
     progress: CalculationTaskProgress
-    result: BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None = None
+    result: TaskBatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None = None
     error_message: str | None = None
     cancel_requested: bool = False
     created_at: datetime

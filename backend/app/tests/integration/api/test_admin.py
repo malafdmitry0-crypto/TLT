@@ -382,7 +382,7 @@ class TestAdminDeadLetter:
             user_id=admin_user.id,
             request_payload={
                 "project_id": project["id"],
-                "variant_number": 2,
+                "electrical_variant_id": variant["id"],
             },
             error_message="RuntimeError: boom",
             progress_current=3,
@@ -476,7 +476,7 @@ class TestAdminDeadLetter:
         assert body["task"]["status"] == "enqueued"
         assert task.status == "enqueued"
         assert task.error_message is None
-        assert task.request_payload["payload_version"] == 3
+        assert "payload_version" not in task.request_payload
         assert task.request_payload["electrical_variant_id"] == str(task.electrical_variant_id)
         assert "variant_number" not in task.request_payload
         assert FakeDeadLetterQueue.deleted == ["9-0"]

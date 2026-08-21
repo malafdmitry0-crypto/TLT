@@ -438,6 +438,31 @@ class TestExport:
             electrical_variant_name=None,
         )
 
+    async def test_worker_export_uses_uuid_only_context(self, monkeypatch):
+        project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
+        service = ReportService(AsyncMock())
+        service._load_context = AsyncMock(return_value={"sections": ["summary"]})
+        monkeypatch.setattr("app.services.report_service.generate_pdf", lambda ctx: b"pdf")
+
+        assert (
+            await service.export_trusted_for_electrical_variant(
+                project_id,
+                "pdf",
+                variant_id,
+                ["summary"],
+            )
+            == b"pdf"
+        )
+        service._load_context.assert_awaited_once_with(
+            project_id,
+            ["summary"],
+            principal=None,
+            variant_number=None,
+            electrical_variant_id=variant_id,
+            electrical_variant_name=None,
+        )
+
 
 class TestReportRendering:
     def test_pipe_table_reads_only_canonical_insulation_layers(self):

@@ -14,11 +14,13 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.background_task import BackgroundTask
 from app.schemas.calculation import ElectricalBatchJobRequest, HeatLossBatchJobRequest
 from app.schemas.report import ReportExportJobRequest
-from app.services.calculation_service import BatchProgress, CalculationService
+from app.services.calculation.contracts import BatchProgress
+from app.services.calculation.electrical_repository import ElectricalCalculationRepository
+from app.services.calculation.errors import BatchCancelledError
+from app.services.calculation.heat_batch import HeatBatchCalculationService
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.task_service import (
-    ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE,
     ELECTRICAL_VARIANT_NOT_FOUND,
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,
@@ -93,18 +95,13 @@ def _allow_electrical_variant(
     project_id: uuid.UUID,
     *,
     electrical_variant_id: uuid.UUID | None = None,
-    legacy_variant_number: int | None = 1,
 ) -> SimpleNamespace:
     variant = SimpleNamespace(
         id=electrical_variant_id or uuid.uuid4(),
         project_id=project_id,
-        legacy_variant_number=legacy_variant_number,
     )
     service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
     service._resolve_electrical_variant = AsyncMock(return_value=variant)  # type: ignore[method-assign]
-    service._prepare_legacy_variant_for_enqueue = AsyncMock(  # type: ignore[method-assign]
-        return_value=variant
-    )
     return variant
 
 
@@ -158,8 +155,8 @@ def explicit_electrical_assignment_scope(monkeypatch: pytest.MonkeyPatch) -> uui
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        CalculationService,
-        "_load_existing_electrical_by_object_id",
+        ElectricalCalculationRepository,
+        "load_existing_for_variant",
         AsyncMock(return_value={}),
     )
     return object_id
@@ -290,7 +287,7 @@ class TestWorkerFailureRecording:
             locked_by="worker-a",
         )
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
-        monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
+        monkeypatch.setattr("app.services.tasks.lifecycle.settings.WORKER_MAX_ATTEMPTS", 3)
 
         action = await TaskService(mock_db).record_worker_exception(
             task.id,
@@ -321,7 +318,7 @@ class TestWorkerFailureRecording:
             locked_by="worker-a",
         )
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
-        monkeypatch.setattr("app.services.task_service.settings.WORKER_MAX_ATTEMPTS", 3)
+        monkeypatch.setattr("app.services.tasks.lifecycle.settings.WORKER_MAX_ATTEMPTS", 3)
 
         action = await TaskService(mock_db).record_worker_exception(
             task.id,
@@ -411,7 +408,7 @@ class TestDeadLetterReplay:
         assert queue.deleted == ["9-0"]
         assert mock_db.commit.await_count == 2
 
-    async def test_replay_dead_letter_upgrades_exact_v2_variant_to_v3(self, mock_db):
+    async def test_replay_dead_letter_validates_current_uuid_scope(self, mock_db):
         project_id = uuid.uuid4()
         variant_id = uuid.uuid4()
         task = BackgroundTask(
@@ -423,20 +420,16 @@ class TestDeadLetterReplay:
             session_id="sid",
             request_payload={
                 "project_id": str(project_id),
-                "variant_number": 4,
+                "electrical_variant_id": str(variant_id),
                 "include_errors": True,
             },
             progress_current=0,
         )
         mock_db.get = AsyncMock(return_value=task)
         service = TaskService(mock_db)
-        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+        service._lock_project_for_task = AsyncMock()  # type: ignore[method-assign]
         service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
-            return_value=SimpleNamespace(
-                id=variant_id,
-                project_id=project_id,
-                legacy_variant_number=4,
-            )
+            return_value=SimpleNamespace(id=variant_id, project_id=project_id)
         )
         queue = DeadLetterQueueOk(task.id)
 
@@ -444,16 +437,14 @@ class TestDeadLetterReplay:
 
         assert removed is True
         assert replayed.request_payload == {
-            "payload_version": 3,
             "project_id": str(project_id),
             "electrical_variant_id": str(variant_id),
             "include_errors": True,
         }
-        service._lock_project_for_electrical_task.assert_awaited_once_with(project_id)  # type: ignore[attr-defined]
+        service._lock_project_for_task.assert_awaited_once_with(project_id)  # type: ignore[attr-defined]
         service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
             project_id,
-            electrical_variant_id=variant_id,
-            legacy_variant_number=None,
+            variant_id,
         )
 
     async def test_replay_dead_letter_refuses_deleted_exact_variant(self, mock_db):
@@ -467,7 +458,6 @@ class TestDeadLetterReplay:
             electrical_variant_id=variant_id,
             session_id="sid",
             request_payload={
-                "payload_version": 3,
                 "project_id": str(project_id),
                 "electrical_variant_id": str(variant_id),
                 "format": "pdf",
@@ -476,7 +466,7 @@ class TestDeadLetterReplay:
         )
         mock_db.get = AsyncMock(return_value=task)
         service = TaskService(mock_db)
-        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
+        service._lock_project_for_task = AsyncMock()  # type: ignore[method-assign]
         service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
             side_effect=TaskNotFoundError(ELECTRICAL_VARIANT_NOT_FOUND)
         )
@@ -530,41 +520,31 @@ class TestTaskCreation:
 
         assert TaskService.audit_result_for_task(task) == audit_result
 
-    def test_electrical_request_keeps_omitted_legacy_one_but_rejects_dual_selector(
-        self,
-    ):
+    def test_electrical_request_requires_uuid_and_rejects_legacy_selector(self):
         project_id = uuid.uuid4()
         variant_id = uuid.uuid4()
 
-        assert ElectricalBatchJobRequest(project_id=project_id).variant_number == 1
-        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_REQUIRED"):
-            ElectricalBatchJobRequest(project_id=project_id, variant_number=None)
+        with pytest.raises(ValueError, match="electrical_variant_id"):
+            ElectricalBatchJobRequest(project_id=project_id)
         uuid_request = ElectricalBatchJobRequest(
             project_id=project_id,
             electrical_variant_id=variant_id,
         )
-        assert uuid_request.variant_number is None
-        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
-            ElectricalBatchJobRequest(
-                project_id=project_id,
-                electrical_variant_id=variant_id,
-                variant_number=4,
-            )
+        assert uuid_request.electrical_variant_id == variant_id
 
-    def test_report_request_rejects_dual_selector(self):
-        with pytest.raises(ValueError, match="electrical_variant_id or deprecated"):
+    def test_report_request_requires_uuid_selector(self):
+        with pytest.raises(ValueError, match="electrical_variant_id"):
             ReportExportJobRequest(
                 project_id=uuid.uuid4(),
                 format="pdf",
-                variant_number=None,
             )
-        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
-            ReportExportJobRequest(
-                project_id=uuid.uuid4(),
-                format="pdf",
-                electrical_variant_id=uuid.uuid4(),
-                variant_number=1,
-            )
+        variant_id = uuid.uuid4()
+        request = ReportExportJobRequest(
+            project_id=uuid.uuid4(),
+            format="pdf",
+            electrical_variant_id=variant_id,
+        )
+        assert request.electrical_variant_id == variant_id
 
     @pytest.mark.parametrize(
         ("project_error", "task_error"),
@@ -599,37 +579,22 @@ class TestTaskCreation:
         with pytest.raises(TaskNotFoundError, match=ELECTRICAL_VARIANT_NOT_FOUND):
             await TaskService(mock_db)._resolve_electrical_variant(
                 uuid.uuid4(),
-                electrical_variant_id=uuid.uuid4(),
-                legacy_variant_number=None,
-            )
-
-    async def test_resolve_variant_rejects_ambiguous_internal_selectors(self, mock_db):
-        with pytest.raises(ValueError, match="ELECTRICAL_VARIANT_SELECTOR_CONFLICT"):
-            await TaskService(mock_db)._resolve_electrical_variant(
                 uuid.uuid4(),
-                electrical_variant_id=uuid.uuid4(),
-                legacy_variant_number=1,
             )
 
-        mock_db.execute.assert_not_awaited()
-
-    async def test_resolve_fifth_variant_fails_without_inventing_legacy_slot(self, mock_db):
+    async def test_resolve_variant_accepts_uuid_without_numeric_slot(self, mock_db):
         variant = SimpleNamespace(
             id=uuid.uuid4(),
             project_id=uuid.uuid4(),
-            legacy_variant_number=None,
         )
         mock_db.execute = AsyncMock(return_value=ResultRows([variant]))
 
-        with pytest.raises(
-            ValueError,
-            match=ELECTRICAL_VARIANT_LEGACY_ADAPTER_UNAVAILABLE,
-        ):
-            await TaskService(mock_db)._resolve_electrical_variant(
-                variant.project_id,
-                electrical_variant_id=variant.id,
-                legacy_variant_number=None,
-            )
+        resolved = await TaskService(mock_db)._resolve_electrical_variant(
+            variant.project_id,
+            variant.id,
+        )
+
+        assert resolved is variant
 
     async def test_enqueue_locks_and_guards_project_before_variant_resolution(
         self,
@@ -662,7 +627,6 @@ class TestTaskCreation:
             return SimpleNamespace(
                 id=uuid.uuid4(),
                 project_id=project_id,
-                legacy_variant_number=1,
             )
 
         service._require_project_write = AsyncMock(side_effect=guard)  # type: ignore[method-assign]
@@ -680,7 +644,7 @@ class TestTaskCreation:
         )
 
         assert result is existing
-        assert events == ["lock", "guard", "lock", "resolve", "lock"]
+        assert events == ["lock", "resolve", "guard", "lock"]
 
     async def test_create_electrical_batch_task_enqueues_and_persists_payload(
         self,
@@ -698,7 +662,6 @@ class TestTaskCreation:
             service,
             project_id,
             electrical_variant_id=requested_variant_id,
-            legacy_variant_number=2,
         )
 
         task = await service.create_electrical_batch_task(
@@ -719,7 +682,6 @@ class TestTaskCreation:
         assert task.session_id == "sid"
         assert task.electrical_variant_id == variant.id
         assert task.request_payload["project_id"] == str(project_id)
-        assert task.request_payload["payload_version"] == 3
         assert task.request_payload["electrical_variant_id"] == str(requested_variant_id)
         assert "variant_number" not in task.request_payload
         assert task.request_payload["force_cable_type"] is True
@@ -731,10 +693,9 @@ class TestTaskCreation:
         assert task.arq_job_id is not None
         service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
             project_id,
-            electrical_variant_id=requested_variant_id,
-            legacy_variant_number=None,
+            requested_variant_id,
         )
-        assert service._lock_project_for_electrical_task.await_count == 3  # type: ignore[attr-defined]
+        assert service._lock_project_for_electrical_task.await_count == 2  # type: ignore[attr-defined]
         service._lock_project_for_electrical_task.assert_any_await(project_id)  # type: ignore[attr-defined]
         mock_db.add.assert_called_once()
 
@@ -754,6 +715,7 @@ class TestTaskCreation:
         task = await service.create_electrical_batch_task(
             ElectricalBatchJobRequest(
                 project_id=project_id,
+                electrical_variant_id=variant.id,
                 skip_manual=False,
             ),
             guest_principal,
@@ -763,10 +725,9 @@ class TestTaskCreation:
 
         assert task.request_payload["skip_manual"] is False
         assert task.request_payload["electrical_variant_id"] == str(variant.id)
-        service._prepare_legacy_variant_for_enqueue.assert_awaited_once_with(  # type: ignore[attr-defined]
+        service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
             project_id,
-            guest_principal,
-            1,
+            variant.id,
         )
         mock_db.add.assert_called_once()
 
@@ -788,10 +749,13 @@ class TestTaskCreation:
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=existing)  # type: ignore[method-assign]
         project_id = uuid.uuid4()
-        _allow_electrical_variant(service, project_id)
+        variant = _allow_electrical_variant(service, project_id)
 
         task = await service.create_electrical_batch_task(
-            ElectricalBatchJobRequest(project_id=project_id),
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant.id,
+            ),
             guest_principal,
             queue=QueueOk(),
         )
@@ -835,7 +799,6 @@ class TestTaskCreation:
             service,
             project_id,
             electrical_variant_id=second_variant_id,
-            legacy_variant_number=2,
         )
 
         with pytest.raises(TaskIdempotencyConflictError) as exc_info:
@@ -862,20 +825,23 @@ class TestTaskCreation:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 1)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 5)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 1)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 5)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_project_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
         service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         project_id = uuid.uuid4()
-        _allow_electrical_variant(service, project_id)
+        variant = _allow_electrical_variant(service, project_id)
 
         with pytest.raises(TaskLimitError, match="активных задач для проекта"):
             await service.create_electrical_batch_task(
-                ElectricalBatchJobRequest(project_id=project_id),
+                ElectricalBatchJobRequest(
+                    project_id=project_id,
+                    electrical_variant_id=variant.id,
+                ),
                 guest_principal,
                 queue=QueueOk(),
             )
@@ -889,9 +855,9 @@ class TestTaskCreation:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 3)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 1)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_GLOBAL", 200)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_PER_PROJECT", 3)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_PER_PRINCIPAL", 1)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         service._active_global_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
@@ -915,21 +881,21 @@ class TestTaskCreation:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
-        monkeypatch.setattr("app.services.task_service.settings.MAX_ACTIVE_TASKS_GLOBAL", 1)
+        monkeypatch.setattr("app.services.tasks.base.settings.MAX_ACTIVE_TASKS_GLOBAL", 1)
         service = TaskService(mock_db)
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         service._active_global_task_count = AsyncMock(return_value=1)  # type: ignore[method-assign]
         service._active_project_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         service._active_principal_task_count = AsyncMock(return_value=0)  # type: ignore[method-assign]
         project_id = uuid.uuid4()
-        _allow_electrical_variant(service, project_id)
+        variant = _allow_electrical_variant(service, project_id)
 
         with pytest.raises(TaskLimitError, match="Очередь задач перегружена"):
             await service.create_report_export_task(
                 ReportExportJobRequest(
                     project_id=project_id,
                     format="pdf",
-                    variant_number=1,
+                    electrical_variant_id=variant.id,
                 ),
                 employee_principal,
                 queue=QueueOk(),
@@ -1057,17 +1023,13 @@ class TestTaskCreation:
         service._find_active_by_dedupe = AsyncMock(return_value=None)  # type: ignore[method-assign]
         _allow_active_task_limits(service)
         project_id = uuid.uuid4()
-        variant = _allow_electrical_variant(
-            service,
-            project_id,
-            legacy_variant_number=2,
-        )
+        variant = _allow_electrical_variant(service, project_id)
 
         task = await service.create_report_export_task(
             ReportExportJobRequest(
                 project_id=project_id,
                 format="pdf",
-                variant_number=2,
+                electrical_variant_id=variant.id,
                 sections=["summary", "electrical"],
             ),
             employee_principal,
@@ -1081,19 +1043,16 @@ class TestTaskCreation:
         assert task.electrical_variant_id == variant.id
         assert task.progress_total == 3
         assert task.request_payload == {
-            "payload_version": 3,
             "project_id": str(project_id),
             "electrical_variant_id": str(variant.id),
             "format": "pdf",
             "sections": ["summary", "electrical"],
         }
-        service._prepare_legacy_variant_for_enqueue.assert_awaited_once_with(  # type: ignore[attr-defined]
+        service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
             project_id,
-            employee_principal,
-            2,
+            variant.id,
         )
-        service._lock_project_for_electrical_task.assert_not_awaited()  # type: ignore[attr-defined]
-        service._resolve_electrical_variant.assert_not_awaited()  # type: ignore[attr-defined]
+        assert service._lock_project_for_electrical_task.await_count == 2  # type: ignore[attr-defined]
         assert task.arq_job_id is not None
         mock_db.add.assert_called_once()
 
@@ -1107,7 +1066,7 @@ class TestTaskCreation:
                 ReportExportJobRequest(
                     project_id=uuid.uuid4(),
                     format="pdf",
-                    variant_number=1,
+                    electrical_variant_id=uuid.uuid4(),
                 ),
                 guest_principal,
                 queue=QueueOk(),
@@ -1120,17 +1079,23 @@ class TestTaskCreation:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(ProjectService, "get_project_for_write", _allow_project_write)
+        service = TaskService(mock_db)
+        service._lock_project_for_electrical_task = AsyncMock()  # type: ignore[method-assign]
 
         with pytest.raises(TaskAccessError):
-            await TaskService(mock_db).create_electrical_batch_task(
-                ElectricalBatchJobRequest(project_id=uuid.uuid4(), cable_source="extended"),
+            await service.create_electrical_batch_task(
+                ElectricalBatchJobRequest(
+                    project_id=uuid.uuid4(),
+                    electrical_variant_id=uuid.uuid4(),
+                    cable_source="extended",
+                ),
                 guest_principal,
                 queue=QueueOk(),
             )
 
 
 class TestTaskStateTransitions:
-    async def test_v3_worker_uses_uuid_and_ignores_numeric_payload_key(self, mock_db):
+    async def test_worker_resolves_current_uuid_payload(self, mock_db):
         project_id = uuid.uuid4()
         variant_id = uuid.uuid4()
         task = BackgroundTask(
@@ -1145,34 +1110,26 @@ class TestTaskStateTransitions:
         )
         service = TaskService(mock_db)
         service._resolve_electrical_variant = AsyncMock(  # type: ignore[method-assign]
-            return_value=SimpleNamespace(
-                id=variant_id,
-                project_id=project_id,
-                legacy_variant_number=2,
-            )
+            return_value=SimpleNamespace(id=variant_id, project_id=project_id)
         )
 
-        resolved = await service._resolve_worker_electrical_variant(
+        resolved = await service._current_task_variant_id(
             task,
             {
-                "payload_version": 3,
                 "project_id": str(project_id),
                 "electrical_variant_id": str(variant_id),
-                "variant_number": 4,
             },
             db=mock_db,
-            default_legacy_variant_number=1,
         )
 
-        assert resolved == (2, variant_id)
+        assert resolved == variant_id
         service._resolve_electrical_variant.assert_awaited_once_with(  # type: ignore[attr-defined]
             project_id,
-            electrical_variant_id=variant_id,
-            legacy_variant_number=None,
+            variant_id,
             db=mock_db,
         )
 
-    async def test_no_version_worker_payload_remains_v2_compatible(self, mock_db):
+    async def test_worker_rejects_payload_without_uuid_identity(self, mock_db):
         variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=uuid.uuid4(),
@@ -1187,14 +1144,12 @@ class TestTaskStateTransitions:
         service = TaskService(mock_db)
         service._resolve_electrical_variant = AsyncMock()  # type: ignore[method-assign]
 
-        resolved = await service._resolve_worker_electrical_variant(
-            task,
-            {"project_id": str(task.project_id), "variant_number": 3},
-            db=mock_db,
-            default_legacy_variant_number=1,
-        )
-
-        assert resolved == (3, variant_id)
+        with pytest.raises(ValueError, match="INVALID_ELECTRICAL_VARIANT_PAYLOAD"):
+            await service._current_task_variant_id(
+                task,
+                {"project_id": str(task.project_id)},
+                db=mock_db,
+            )
         service._resolve_electrical_variant.assert_not_awaited()  # type: ignore[attr-defined]
 
     async def test_run_task_cancel_requested_marks_cancelled(self, mock_db):
@@ -1322,11 +1277,13 @@ class TestTaskStateTransitions:
         monkeypatch: pytest.MonkeyPatch,
     ):
         project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=uuid.uuid4(),
             type=TASK_HEAT_LOSS_BATCH,
             status="running",
             project_id=project_id,
+            electrical_variant_id=variant_id,
             session_id="sid",
             request_payload={
                 "project_id": str(project_id),
@@ -1340,26 +1297,21 @@ class TestTaskStateTransitions:
         expected_object_ids = [uuid.UUID(value) for value in task.request_payload["object_ids"]]
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
-        class FakeCalculationService:
-            def __init__(self, db) -> None:
-                self.db = db
+        async def fake_recalculate(
+            _service,
+            project_id_arg,
+            progress_callback=None,
+            should_cancel=None,
+            object_ids=None,
+        ):
+            assert project_id_arg == project_id
+            assert should_cancel is not None
+            assert object_ids == expected_object_ids
+            if progress_callback is not None:
+                await progress_callback(BatchProgress(current=1, total=2, phase="calculate"))
+            return 1, 1, [{"object_id": "bad", "error": {"message": "missing"}}]
 
-            async def batch_recalculate(
-                self,
-                project_id_arg,
-                *,
-                progress_callback=None,
-                should_cancel=None,
-                object_ids=None,
-            ):
-                assert project_id_arg == project_id
-                assert should_cancel is not None
-                assert object_ids == expected_object_ids
-                if progress_callback is not None:
-                    await progress_callback(BatchProgress(current=1, total=2, phase="calculate"))
-                return 1, 1, [{"object_id": "bad", "error": {"message": "missing"}}]
-
-        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+        monkeypatch.setattr(HeatBatchCalculationService, "recalculate", fake_recalculate)
 
         service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
         service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
@@ -1382,11 +1334,13 @@ class TestTaskStateTransitions:
         monkeypatch: pytest.MonkeyPatch,
     ):
         project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=uuid.uuid4(),
             type=TASK_HEAT_LOSS_BATCH,
             status="running",
             project_id=project_id,
+            electrical_variant_id=variant_id,
             session_id="sid",
             request_payload={"project_id": str(project_id), "include_errors": False},
             progress_current=0,
@@ -1394,14 +1348,10 @@ class TestTaskStateTransitions:
         mock_db.get = AsyncMock(return_value=task)
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
-        class FakeCalculationService:
-            def __init__(self, db) -> None:
-                self.db = db
+        async def fake_recalculate(_service, *args, **kwargs):
+            return 0, 1, [{"object_id": "bad", "error": {"message": "hidden"}}]
 
-            async def batch_recalculate(self, *args, **kwargs):
-                return 0, 1, [{"object_id": "bad", "error": {"message": "hidden"}}]
-
-        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+        monkeypatch.setattr(HeatBatchCalculationService, "recalculate", fake_recalculate)
 
         service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
         service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
@@ -1430,16 +1380,10 @@ class TestTaskStateTransitions:
         mock_db.get = AsyncMock(return_value=task)
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
-        class FakeCalculationService:
-            def __init__(self, db) -> None:
-                self.db = db
+        async def fake_recalculate(_service, *args, **kwargs):
+            raise BatchCancelledError("cancelled")
 
-            async def batch_recalculate(self, *args, **kwargs):
-                from app.services.calculation_service import BatchCancelledError
-
-                raise BatchCancelledError("cancelled")
-
-        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+        monkeypatch.setattr(HeatBatchCalculationService, "recalculate", fake_recalculate)
 
         service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
         service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
@@ -1468,14 +1412,10 @@ class TestTaskStateTransitions:
         mock_db.get = AsyncMock(return_value=task)
         mock_db.execute = AsyncMock(return_value=ResultRows([task]))
 
-        class FakeCalculationService:
-            def __init__(self, db) -> None:
-                self.db = db
+        async def fake_recalculate(_service, *args, **kwargs):
+            raise RuntimeError("boom")
 
-            async def batch_recalculate(self, *args, **kwargs):
-                raise RuntimeError("boom")
-
-        monkeypatch.setattr("app.services.task_service.CalculationService", FakeCalculationService)
+        monkeypatch.setattr(HeatBatchCalculationService, "recalculate", fake_recalculate)
 
         service = TaskService(mock_db, session_factory=StaticSessionFactory(mock_db))
         service._task_for_terminal_transition = AsyncMock(  # type: ignore[method-assign]
@@ -1492,16 +1432,18 @@ class TestTaskStateTransitions:
         monkeypatch: pytest.MonkeyPatch,
     ):
         project_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         task = BackgroundTask(
             id=uuid.uuid4(),
             type=TASK_REPORT_EXPORT,
             status="running",
             project_id=project_id,
+            electrical_variant_id=variant_id,
             user_id=uuid.uuid4(),
             request_payload={
                 "project_id": str(project_id),
+                "electrical_variant_id": str(variant_id),
                 "format": "pdf",
-                "variant_number": 2,
                 "sections": ["summary"],
             },
             progress_current=0,
@@ -1514,24 +1456,24 @@ class TestTaskStateTransitions:
             def __init__(self, db) -> None:
                 self.db = db
 
-            async def export(self, project_id_arg, fmt, sections, *, variant_number=1):
+            async def export_trusted_for_electrical_variant(
+                self,
+                project_id_arg,
+                fmt,
+                electrical_variant_id,
+                sections,
+            ):
                 assert project_id_arg == project_id
                 assert fmt == "pdf"
                 assert sections == ["summary"]
-                assert variant_number == 2
+                assert electrical_variant_id == variant_id
                 return b"%PDF"
 
-            async def export_trusted(self, project_id_arg, fmt, sections, *, variant_number=1):
-                return await self.export(
-                    project_id_arg,
-                    fmt,
-                    sections,
-                    variant_number=variant_number,
-                )
-
-        monkeypatch.setattr("app.services.task_service.ReportService", FakeReportService)
         monkeypatch.setattr(
-            "app.services.task_service.write_report_artifact",
+            "app.services.tasks.runners.report_export.ReportService", FakeReportService
+        )
+        monkeypatch.setattr(
+            "app.services.tasks.runners.report_export.write_report_artifact",
             lambda task_id, fmt, data, *, attempt=None: {
                 "artifact_name": f"{task_id}.{fmt}",
                 "size_bytes": len(data),
@@ -1549,8 +1491,7 @@ class TestTaskStateTransitions:
         assert task.result_payload == {
             "project_id": str(project_id),
             "format": "pdf",
-            "electrical_variant_id": None,
-            "variant_number": 2,
+            "electrical_variant_id": str(variant_id),
             "filename": "report.pdf",
             "media_type": "application/pdf",
             "download_url": f"/api/v1/reports/jobs/{task.id}/download",
@@ -1786,7 +1727,6 @@ class TestTaskResponse:
                         "object_id": str(object_id),
                         "cable_type": "self_regulating",
                         "cable_mark": "ТЛТ-30",
-                        "variant_number": 1,
                         "results": {"selected_cable": "ТЛТ-30"},
                     }
                 ],
@@ -1849,7 +1789,6 @@ class TestTaskResponse:
                 "project_id": str(project_id),
                 "format": "pdf",
                 "electrical_variant_id": str(variant_id),
-                "variant_number": 1,
                 "filename": "report.pdf",
                 "media_type": "application/pdf",
                 "download_url": f"/api/v1/reports/jobs/{task_id}/download",

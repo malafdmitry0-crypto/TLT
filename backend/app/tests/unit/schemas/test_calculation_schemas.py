@@ -484,7 +484,10 @@ class LegacyTankHeatLossParams:
 
 class TestElectricalTankLayingStepLimits:
     def test_omitted_selection_policy_is_forwarded_for_batch_job(self):
-        request = ElectricalBatchJobRequest(project_id=uuid4())
+        request = ElectricalBatchJobRequest(
+            project_id=uuid4(),
+            electrical_variant_id=uuid4(),
+        )
 
         assert request.electrical_params() == {"selection_policy": "technical_minimum"}
 
@@ -510,6 +513,7 @@ class TestElectricalTankLayingStepLimits:
         with pytest.raises(ValidationError):
             ElectricalBatchJobRequest(
                 project_id=uuid4(),
+                electrical_variant_id=uuid4(),
                 aggressive_product=True,
             )
 
@@ -533,12 +537,35 @@ class TestElectricalTankLayingStepLimits:
     def test_electrical_request_laying_step_bounds_match_source_document(self):
         """Source: Блок теплопотери и выбор кабеля/переменные резервуар.xlsx, Лист1!A22:D22."""
         project_id = uuid4()
-        assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.1).laying_step == 0.1
-        assert ElectricalBatchJobRequest(project_id=project_id, laying_step=0.4).laying_step == 0.4
+        variant_id = uuid4()
+        assert (
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant_id,
+                laying_step=0.1,
+            ).laying_step
+            == 0.1
+        )
+        assert (
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant_id,
+                laying_step=0.4,
+            ).laying_step
+            == 0.4
+        )
         with pytest.raises(ValidationError):
-            ElectricalBatchJobRequest(project_id=project_id, laying_step=0.099)
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant_id,
+                laying_step=0.099,
+            )
         with pytest.raises(ValidationError):
-            ElectricalBatchJobRequest(project_id=project_id, laying_step=0.401)
+            ElectricalBatchJobRequest(
+                project_id=project_id,
+                electrical_variant_id=variant_id,
+                laying_step=0.401,
+            )
 
 
 class TestElectricalCableSelectionRequest:
