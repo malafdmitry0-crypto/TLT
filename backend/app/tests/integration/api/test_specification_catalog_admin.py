@@ -200,7 +200,6 @@ async def test_activation_retires_previous_and_stales_specifications(
         name="ЭР 1",
         name_normalized="эр 1",
         sort_order=0,
-        legacy_variant_number=1,
         is_active=True,
     )
     db_session.add(variant)
@@ -218,7 +217,6 @@ async def test_activation_retires_previous_and_stales_specifications(
         name="ЭР 2",
         name_normalized="эр 2",
         sort_order=1,
-        legacy_variant_number=2,
         is_active=False,
     )
     unrelated_spec = Specification(
