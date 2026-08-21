@@ -1,6 +1,7 @@
 """Architecture ratchet for the UUID-only electrical variant lifecycle."""
 
 import inspect
+from pathlib import Path
 
 from app.api.v1 import calculations
 from app.schemas import calculation, electrical_history
@@ -39,7 +40,7 @@ def test_new_variant_writes_leave_transitional_numeric_column_null() -> None:
     assert "legacy_variant_number=1" not in source
     assert "variant_number=legacy_number" not in source
     assert "legacy_variant_number=" not in source
-    assert source.count("\n                variant_number=None") == 3
+    assert "variant_number=None" not in source
 
 
 def test_calculation_boundary_has_no_numeric_binding_bridge() -> None:
@@ -96,3 +97,23 @@ def test_query_and_variant_response_do_not_publish_numeric_identity() -> None:
 
     assert "variant_number" not in query_source
     assert "legacy_variant_number" not in ElectricalVariantResponse.model_fields
+
+
+def test_production_runtime_has_no_numeric_electrical_identity() -> None:
+    app_root = Path(__file__).resolve().parents[3]
+    allowed: dict[str, dict[str, int]] = {}
+    observed: dict[str, dict[str, int]] = {}
+
+    for path in app_root.rglob("*.py"):
+        relative = path.relative_to(app_root)
+        if relative.parts[0] in {"models", "seeds", "tests"}:
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if "variant_number" not in stripped and "legacy_variant_number" not in stripped:
+                continue
+            relative_name = relative.as_posix()
+            counts = observed.setdefault(relative_name, {})
+            counts[stripped] = counts.get(stripped, 0) + 1
+
+    assert observed == allowed
