@@ -15,7 +15,7 @@ from app.services.task_queue import TaskQueue
 async def live_queue(monkeypatch: pytest.MonkeyPatch):
     redis_url = os.getenv("WORKER_LIVE_REDIS_URL")
     if not redis_url:
-        pytest.fail("WORKER_LIVE_REDIS_URL is required for the live Redis worker gate")
+        pytest.skip("WORKER_LIVE_REDIS_URL is required for the explicit live Redis worker gate")
 
     namespace = f"tlt:test:worker:{uuid.uuid4().hex}"
     monkeypatch.setattr(settings, "WORKER_QUEUE_STREAM", f"{namespace}:stream")
