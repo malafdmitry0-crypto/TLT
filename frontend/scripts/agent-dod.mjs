@@ -1,0 +1,428 @@
+#!/usr/bin/env node
+/**
+ * AF11-DOD-WALLTIME-01 — canonical frontend Definition of Done orchestrator.
+ *
+ * Sequence (invariant):
+ *   1. test:agent-gates (typecheck + lint + architecture/CSS) — sequential
+ *   2. test:unit + test:integration — concurrent after gates
+ *   3. build — only if both test suites exit 0
+ *
+ * Failure propagation:
+ *   If either concurrent child fails, the sibling is SIGTERM'd (then SIGKILL)
+ *   and the orchestrator exits non-zero. No tests are skipped or removed.
+ *
+ * Usage:
+ *   node scripts/agent-dod.mjs
+ *   node scripts/agent-dod.mjs --self-test   # failure-propagation proof only
+ */
+import { spawn } from 'node:child_process';
+import { performance } from 'node:perf_hooks';
+import process from 'node:process';
+
+const ROOT = new URL('..', import.meta.url).pathname;
+const SELF_TEST = process.argv.includes('--self-test');
+
+function nowMs() {
+  return performance.now();
+}
+
+function formatSec(ms) {
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function log(msg) {
+  process.stdout.write(`[agent-dod] ${msg}\n`);
+}
+
+/**
+ * Spawn `npm run <script>` with a process group so we can kill the whole tree.
+ * stdout/stderr are prefixed for concurrent readability.
+ */
+function spawnNpmScript(script, { prefix, extraArgs = [] } = {}) {
+  const npmArgs = ['run', script, ...extraArgs];
+  const child = spawn('npm', npmArgs, {
+    cwd: ROOT,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // New process group on POSIX so SIGTERM reaches vitest workers.
+    detached: process.platform !== 'win32',
+  });
+
+  const label = prefix ?? script;
+  const pipe = (stream, write) => {
+    let buf = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      buf += chunk;
+      let idx;
+      while ((idx = buf.indexOf('\n')) !== -1) {
+        const line = buf.slice(0, idx);
+        buf = buf.slice(idx + 1);
+        write(`[${label}] ${line}\n`);
+      }
+    });
+    stream.on('end', () => {
+      if (buf.length > 0) write(`[${label}] ${buf}\n`);
+    });
+  };
+
+  pipe(child.stdout, (s) => process.stdout.write(s));
+  pipe(child.stderr, (s) => process.stderr.write(s));
+
+  const done = new Promise((resolve) => {
+    child.on('error', (error) => {
+      resolve({ script, code: 1, signal: null, error });
+    });
+    child.on('exit', (code, signal) => {
+      resolve({
+        script,
+        code: code === null ? (signal ? 1 : 0) : code,
+        signal,
+        error: null,
+      });
+    });
+  });
+
+  return { child, done, script };
+}
+
+function killProcessTree(child) {
+  if (!child || child.killed || child.exitCode !== null) return;
+  const pid = child.pid;
+  if (!pid) return;
+
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
+      return;
+    }
+    // Negative PID = process group (requires detached: true).
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try {
+      child.kill('SIGTERM');
+    } catch {
+      /* already gone */
+    }
+  }
+
+  const killer = setTimeout(() => {
+    try {
+      if (process.platform !== 'win32') {
+        process.kill(-pid, 'SIGKILL');
+      } else {
+        child.kill('SIGKILL');
+      }
+    } catch {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 3000);
+  if (typeof killer.unref === 'function') killer.unref();
+}
+
+async function runSequential(script) {
+  const t0 = nowMs();
+  log(`start sequential: npm run ${script}`);
+  const { done } = spawnNpmScript(script, { prefix: script });
+  const result = await done;
+  const elapsed = nowMs() - t0;
+  log(`done sequential: ${script} exit=${result.code} wall=${formatSec(elapsed)}`);
+  return { ...result, elapsedMs: elapsed };
+}
+
+/**
+ * Suite scheduling:
+ * - Default **concurrent** unit||integration with workers=2.
+ * - Optional sequential: AGENT_DOD_SUITE_MODE=sequential.
+ * Dual-safe: concurrent + tuned workers/stagger (see package.json).
+ *
+ * Wall levers (safe after gates already ran typecheck + architecture):
+ * - AGENT_DOD_UNIT_STAGGER_MS (default 500)
+ * - AGENT_DOD_SKIP_ARCH_IN_UNIT=1 — skip unit architecture/ tree (already in gates)
+ * - AGENT_DOD_FAST_BUILD=1 — vite build only (typecheck already in gates)
+ *
+ * Live profile (2026-07-26): unit is often the long pole, not integration.
+ */
+const SUITE_MODE = process.env.AGENT_DOD_SUITE_MODE || 'concurrent';
+const DEFAULT_CONCURRENT_MAX_WORKERS = '2';
+const DEFAULT_SEQUENTIAL_UNIT_WORKERS = process.env.AGENT_DOD_UNIT_MAX_WORKERS || '6';
+const DEFAULT_SEQUENTIAL_INT_WORKERS = process.env.AGENT_DOD_INT_MAX_WORKERS || '4';
+const SKIP_ARCH_IN_UNIT = process.env.AGENT_DOD_SKIP_ARCH_IN_UNIT === '1';
+const FAST_BUILD = process.env.AGENT_DOD_FAST_BUILD === '1';
+
+function concurrentWorkerCount(kind) {
+  if (kind === 'unit') {
+    return process.env.AGENT_DOD_UNIT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
+  }
+  return process.env.AGENT_DOD_INT_MAX_WORKERS || DEFAULT_CONCURRENT_MAX_WORKERS;
+}
+
+/** Vitest CLI args after `--` for a suite. */
+function suiteVitestArgs(kind, workers) {
+  const args = [];
+  if (workers) args.push(`--maxWorkers=${workers}`);
+  if (kind === 'unit' && SKIP_ARCH_IN_UNIT) {
+    args.push('--exclude', '**/__tests__/unit/architecture/**');
+  }
+  return args.length ? ['--', ...args] : [];
+}
+
+async function runSequentialWithWorkers(script, workers, prefix, kind = 'unit') {
+  const t0 = nowMs();
+  const extraArgs = suiteVitestArgs(kind, workers);
+  log(
+    `start sequential: npm run ${script} maxWorkers=${workers || 'default'}${
+      kind === 'unit' && SKIP_ARCH_IN_UNIT ? ' skipArch=1' : ''
+    }`,
+  );
+  const { done } = spawnNpmScript(script, { prefix: prefix ?? script, extraArgs });
+  const result = await done;
+  const elapsed = nowMs() - t0;
+  log(`done sequential: ${script} exit=${result.code} wall=${formatSec(elapsed)}`);
+  return { ...result, elapsedMs: elapsed };
+}
+
+function concurrentWorkerArgs(kind) {
+  return suiteVitestArgs(kind, concurrentWorkerCount(kind));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run unit + integration concurrently. First non-zero exit kills the sibling.
+ * Integration starts first (optional stagger) so long elec suite is less starved
+ * when unit saturates all cores — full suites still run, no skip.
+ */
+async function runUnitAndIntegrationConcurrent() {
+  const t0 = nowMs();
+  // Light stagger reduces unit vs elec thrash.
+  const staggerMs = Number(process.env.AGENT_DOD_UNIT_STAGGER_MS ?? '500');
+  const unitWorkers = concurrentWorkerCount('unit');
+  const integrationWorkers = concurrentWorkerCount('integration');
+  log(
+    `start concurrent: test:integration first, test:unit after ${staggerMs}ms (unit maxWorkers=${unitWorkers}, int maxWorkers=${integrationWorkers}${
+      SKIP_ARCH_IN_UNIT ? ', skipArchInUnit' : ''
+    })`,
+  );
+
+  const integration = spawnNpmScript('test:integration', {
+    prefix: 'integration',
+    extraArgs: concurrentWorkerArgs('integration'),
+  });
+
+  if (staggerMs > 0) {
+    await sleep(staggerMs);
+  }
+
+  const unit = spawnNpmScript('test:unit', {
+    prefix: 'unit',
+    extraArgs: concurrentWorkerArgs('unit'),
+  });
+
+  const children = [unit, integration];
+  let settled = false;
+
+  const onFirstFailure = async (failed) => {
+    if (settled) return;
+    settled = true;
+    log(
+      `FAIL ${failed.script} exit=${failed.code}${failed.signal ? ` signal=${failed.signal}` : ''} — terminating sibling`,
+    );
+    for (const entry of children) {
+      if (entry.script !== failed.script) {
+        killProcessTree(entry.child);
+      }
+    }
+  };
+
+  // Watch each child; kill sibling on first failure without waiting for both.
+  const watched = children.map(async (entry) => {
+    const result = await entry.done;
+    if (result.code !== 0) {
+      await onFirstFailure(result);
+    }
+    return { ...result, elapsedMs: nowMs() - t0 };
+  });
+
+  const results = await Promise.all(watched);
+  const elapsed = nowMs() - t0;
+  const failed = results.filter((r) => r.code !== 0);
+  const ok = failed.length === 0;
+
+  for (const r of results) {
+    log(
+      `concurrent child ${r.script}: exit=${r.code} observed_wall=${formatSec(r.elapsedMs)}`,
+    );
+  }
+  log(
+    `done concurrent suites: ${ok ? 'PASS' : 'FAIL'} wall=${formatSec(elapsed)} (max of children)`,
+  );
+
+  return {
+    ok,
+    elapsedMs: elapsed,
+    results,
+    exitCode: ok ? 0 : failed[0]?.code || 1,
+  };
+}
+
+async function selfTest() {
+  log('self-test: failure propagation (failing child must kill long-running sibling)');
+  const t0 = nowMs();
+
+  // Long-running no-op vs immediate failure via node -e.
+  const long = spawn(
+    process.execPath,
+    ['-e', 'setInterval(() => {}, 1000); setTimeout(() => process.exit(0), 60000)'],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+    },
+  );
+  const fail = spawn(process.execPath, ['-e', 'process.exit(17)'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
+  });
+
+  const longDone = new Promise((resolve) => {
+    long.on('exit', (code, signal) => resolve({ name: 'long', code, signal }));
+    long.on('error', () => resolve({ name: 'long', code: 1, signal: null }));
+  });
+  const failDone = new Promise((resolve) => {
+    fail.on('exit', (code, signal) => resolve({ name: 'fail', code, signal }));
+    fail.on('error', () => resolve({ name: 'fail', code: 1, signal: null }));
+  });
+
+  const first = await Promise.race([
+    failDone.then((r) => ({ ...r, winner: true })),
+    longDone.then((r) => ({ ...r, winner: true })),
+  ]);
+
+  if (first.name !== 'fail' || first.code !== 17) {
+    log(`self-test FAIL: expected fail child first with 17, got ${JSON.stringify(first)}`);
+    killProcessTree(long);
+    killProcessTree(fail);
+    process.exit(1);
+  }
+
+  killProcessTree(long);
+  const longResult = await longDone;
+  const elapsed = nowMs() - t0;
+
+  const killedFast =
+    elapsed < 15_000 &&
+    longResult.code !== 0; /* SIGTERM/SIGKILL → non-zero or null+signal */
+
+  if (!killedFast && longResult.signal == null && longResult.code === 0) {
+    log(
+      `self-test FAIL: long child exited 0 after ${formatSec(elapsed)} — sibling was not killed`,
+    );
+    process.exit(1);
+  }
+
+  log(
+    `self-test PASS: fail exit=17, long terminated code=${longResult.code} signal=${longResult.signal} wall=${formatSec(elapsed)}`,
+  );
+  process.exit(0);
+}
+
+async function main() {
+  if (SELF_TEST) {
+    await selfTest();
+    return;
+  }
+
+  const totalT0 = nowMs();
+  const phases = [];
+
+  // 1. Gates (must stay before acceptance suites)
+  const gates = await runSequential('test:agent-gates');
+  phases.push({ name: 'test:agent-gates', ...gates });
+  if (gates.code !== 0) {
+    log(`STOP after gates exit=${gates.code} total=${formatSec(nowMs() - totalT0)}`);
+    process.exit(gates.code);
+  }
+
+  // 2. Unit + integration (sequential by default for wall ≤120s)
+  let suitesOk = true;
+  let suitesExit = 0;
+  let suitesElapsed = 0;
+  if (SUITE_MODE === 'concurrent') {
+    const suites = await runUnitAndIntegrationConcurrent();
+    suitesOk = suites.ok;
+    suitesExit = suites.exitCode;
+    suitesElapsed = suites.elapsedMs;
+    phases.push({
+      name: 'test:unit+integration(concurrent)',
+      code: suitesExit,
+      elapsedMs: suitesElapsed,
+    });
+  } else {
+    const unit = await runSequentialWithWorkers(
+      'test:unit',
+      DEFAULT_SEQUENTIAL_UNIT_WORKERS,
+      'unit',
+      'unit',
+    );
+    phases.push({ name: 'test:unit', ...unit });
+    if (unit.code !== 0) {
+      log(`STOP after unit exit=${unit.code} total=${formatSec(nowMs() - totalT0)}`);
+      process.exit(unit.code);
+    }
+    const integration = await runSequentialWithWorkers(
+      'test:integration',
+      DEFAULT_SEQUENTIAL_INT_WORKERS,
+      'integration',
+      'integration',
+    );
+    phases.push({ name: 'test:integration', ...integration });
+    suitesOk = integration.code === 0;
+    suitesExit = integration.code;
+    suitesElapsed = unit.elapsedMs + integration.elapsedMs;
+    if (!suitesOk) {
+      log(
+        `STOP after integration exit=${suitesExit} total=${formatSec(nowMs() - totalT0)}`,
+      );
+      process.exit(suitesExit);
+    }
+  }
+  if (!suitesOk) {
+    log(
+      `STOP after suites exit=${suitesExit} total=${formatSec(nowMs() - totalT0)}`,
+    );
+    process.exit(suitesExit);
+  }
+
+  // 3. Build only after green tests
+  // FAST_BUILD: vite-only — typecheck already ran in gates; full `tsc -b && vite build`
+  // remains `npm run build` for release/CI.
+  const buildScript = FAST_BUILD ? 'build:vite' : 'build';
+  if (FAST_BUILD) {
+    log('FAST_BUILD=1 → npm run build:vite (typecheck already covered by gates)');
+  }
+  const build = await runSequential(buildScript);
+  phases.push({ name: buildScript, ...build });
+  if (build.code !== 0) {
+    log(`STOP after ${buildScript} exit=${build.code} total=${formatSec(nowMs() - totalT0)}`);
+    process.exit(build.code);
+  }
+
+  const totalMs = nowMs() - totalT0;
+  log('--- phase summary ---');
+  for (const p of phases) {
+    log(`  ${p.name}: exit=${p.code} wall=${formatSec(p.elapsedMs)}`);
+  }
+  log(`PASS total wall=${formatSec(totalMs)}`);
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error('[agent-dod] unhandled', err);
+  process.exit(1);
+});

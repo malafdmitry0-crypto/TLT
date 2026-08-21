@@ -1,0 +1,87 @@
+/* OWNER: HomePage — static chrome moved from HomePage.tsx */
+
+.home-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+}
+
+.home-page-card {
+  width: 560px;
+}
+
+.home-page-card.tlt-ui-card--padding-none .tlt-ui-card__body {
+  padding: 40px;
+}
+
+.home-page-full-width {
+  width: 100%;
+}
+
+.home-page-stack {
+  width: 100%;
+}
+
+.home-page-title {
+  text-align: center;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.home-page-subtitle {
+  text-align: center;
+  color: var(--color-text-body-muted);
+  margin-bottom: 32px;
+}
+
+.home-page-role-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  background: var(--color-surface-muted);
+}
+
+.home-page-role-card--admin {
+  margin-top: 16px;
+}
+
+.home-page-role-header {
+  margin-bottom: 12px;
+}
+
+.home-page-role-icon {
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.home-page-role-icon--guest {
+  color: var(--color-primary-light);
+}
+
+.home-page-role-icon--employee {
+  color: var(--color-primary);
+}
+
+.home-page-role-icon--admin {
+  color: var(--color-role-admin);
+}
+
+.home-page-role-name {
+  font-size: 15px;
+}
+
+.home-page-role-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.home-page-help-link {
+  margin-top: 6px;
+  color: var(--color-primary);
+}
+
+.home-page-divider {
+  margin: 16px 0;
+}

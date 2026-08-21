@@ -1,0 +1,11 @@
+/* ============================================================================
+ * LEGACY styles.css — FREEZE
+ * ---------------------------------------------------------------------------
+ * Global layers (import order SoT: main.tsx):
+ *   styles/tokens.css → base.css → app-shell.css → vendor-overrides.css
+ * Shared chrome: calc-spreadsheet, actionbar-srs, app-header, table-chrome,
+ *   form-grid-srs, print
+ * tlt-form-controls.css: owned by components/form-controls (not global)
+ * Feature CSS: pages/* and components/wizard/* owners
+ * ===========================================================================
+ */

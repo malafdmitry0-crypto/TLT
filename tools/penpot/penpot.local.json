@@ -1,0 +1,13 @@
+{
+  "_comment": "Локальный Penpot. Всё на localhost, секретность не требуется (решение владельца 2026-08-04).",
+  "baseUrl": "http://localhost:9001",
+  "email": "malafdmitry0@gmail.com",
+  "password": "penpot123",
+  "mcpKey": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.6bdINe4Xo5Phfljyjx9RHVyvWL7zFtw_IATgRtxo4wWgtQX9QoFGAA.JD1QvbDdLiHYGJzg.9xX5MriQduwEqcqP3UCOyO44lhKy1DcDKa4PwAn4E27iMeeqazsqntiY6VXy0yaCExwny16i9fydRXyjcwk9qjk1gqxB4RQD1CSQn7oANNTdczQzpJAyQczY56Hh9xQFT9bQLRzu-gl6mqjsLttEB96K1QiEVG8RLHw7Pj51vpErdy3Lni3mzgu3GnAMXw_---ct9IGdiHsb.KguvGHlFvqGWDUbmxtKrTA",
+  "mcpUrl": "http://localhost:9001/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.6bdINe4Xo5Phfljyjx9RHVyvWL7zFtw_IATgRtxo4wWgtQX9QoFGAA.JD1QvbDdLiHYGJzg.9xX5MriQduwEqcqP3UCOyO44lhKy1DcDKa4PwAn4E27iMeeqazsqntiY6VXy0yaCExwny16i9fydRXyjcwk9qjk1gqxB4RQD1CSQn7oANNTdczQzpJAyQczY56Hh9xQFT9bQLRzu-gl6mqjsLttEB96K1QiEVG8RLHw7Pj51vpErdy3Lni3mzgu3GnAMXw_---ct9IGdiHsb.KguvGHlFvqGWDUbmxtKrTA",
+  "teamId": "ccbc4cfb-6e38-8034-8008-6c70016d62e4",
+  "projectId": "d9147cf4-631f-815b-8008-6c739630c5fb",
+  "fileId": "d9147cf4-631f-815b-8008-6c739ade69ad",
+  "pageId": "d9147cf4-631f-815b-8008-6c739ade69ae",
+  "fileName": "Формы TLT"
+}

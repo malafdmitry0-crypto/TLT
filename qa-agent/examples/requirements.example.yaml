@@ -1,0 +1,84 @@
+formulas:
+  - id: compound_interest
+    expression: "A = P * (1 + r / n) ** (n * t)"
+    variables: [P, r, n, t]
+    output: A
+    tolerance:
+      absoluteTolerance: 0.000000001
+      relativeTolerance: 0.000000001
+    constraints:
+      - "P >= 0"
+      - "r >= 0"
+      - "n >= 1"
+      - "t >= 0"
+    examples:
+      - id: compound-interest-fixed
+        kind: fixed
+        input: { P: 1000, r: 0.05, n: 12, t: 10 }
+      - id: compound-interest-zero-rate
+        kind: edge
+        input: { P: 1000, r: 0, n: 12, t: 10 }
+
+  - id: circle_area
+    expression: "area = pi * r ** 2"
+    variables: [r]
+    output: area
+    tolerance:
+      absoluteTolerance: 0.000000001
+      relativeTolerance: 0.000000001
+    constraints:
+      - "r >= 0"
+    examples:
+      - id: circle-area-fixed
+        kind: fixed
+        input: { r: 3 }
+      - id: circle-area-zero
+        kind: edge
+        input: { r: 0 }
+      - id: circle-area-metamorphic
+        kind: metamorphic
+        input: { r: 6 }
+        metadata:
+          property: "area(2r) ~= 4 * area(r)"
+
+  - id: linear_function
+    expression: "y = m * x + b"
+    variables: [m, x, b]
+    output: y
+    tolerance:
+      absoluteTolerance: 0.000000001
+      relativeTolerance: 0.000000001
+    constraints: []
+    examples:
+      - id: linear-function-fixed
+        kind: fixed
+        input: { m: 2, x: 5, b: 1 }
+      - id: linear-function-zero
+        kind: edge
+        input: { m: 0, x: 0, b: 0 }
+      - id: linear-function-negative
+        kind: edge
+        input: { m: -2, x: -3, b: -4 }
+
+testCases:
+  - id: frontend-circle-area-example
+    requirementId: circle_area
+    kind: fixed
+    input: { r: 3 }
+    metadata:
+      runner: frontend
+      url: /calculator
+      actions:
+        - { type: fill, selector: "[data-testid='radius-input']", valueFromInput: r }
+        - { type: click, selector: "[data-testid='calculate']" }
+        - { type: waitForSelector, selector: "[data-testid='result']" }
+      resultSelector: "[data-testid='result']"
+
+  - id: backend-compound-interest-example
+    requirementId: compound_interest
+    kind: fixed
+    input: { P: 1000, r: 0.05, n: 12, t: 10 }
+    metadata:
+      runner: backend
+      endpoint: /api/v1/example/compound-interest
+      resultPath: value

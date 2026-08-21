@@ -1,0 +1,400 @@
+/**
+ * ============================================================================
+ * CSS ISLAND — InsulationLayersTable ONLY (PROTECTED)
+ * Root: .insulation-layers-table
+ * ============================================================================
+ * STRUCTURAL 5-col grid via .insulation-layer-cell--* (React cells).
+ * Form.Item grid-column is ignored — cells own the columns.
+ * All structural/chrome selectors under .insulation-layers-table only.
+ * Host layout may override --ins-col-* from pages/heatcalc/heatcalc-insulation-page.css
+ * (CSS variables only — no header/grid/cell chrome outside this file).
+ * ============================================================================
+ */
+
+.insulation-layers-table {
+  /*
+   * Dense tracks: fixed metrics + material fills remaining width of parent.
+   * Parent (heat-structured) is sized by fields max-content → table ≤ fields,
+   * no empty strip under fields, no 1fr inflate beyond the heat card.
+   */
+  --ins-col-index: 56px;
+  --ins-col-material: minmax(160px, 1fr);
+  --ins-col-thickness: 92px;
+  --ins-col-lambda: 76px;
+  --ins-col-range: 104px;
+  --ins-cols: var(--ins-col-index) var(--ins-col-material) var(--ins-col-thickness) var(--ins-col-lambda) var(--ins-col-range);
+  --ins-control-h: 28px;
+  --tlt-field-radius: 6px;
+  /* Единый размер шрифта во всех ячейках таблицы = компактный размер формы
+     (пикер материала на форме = 9px). Так текст таблицы совпадает с формой,
+     а не крупнее её. */
+  --ins-font: 12px; /* кадр: текст таблицы 12px */
+  --field-input-min-width: 0px;
+  --inline-control-height: var(--ins-control-h);
+  --tlt-field-control-height: var(--ins-control-h);
+  --field-label-width: 0px;
+  --compact-field-label-width: 0px;
+
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ── Header = same 5 tracks as body ───────────────────────────── */
+.insulation-layers-table .insulation-layers-header {
+  display: grid;
+  grid-template-columns: var(--ins-cols);
+  width: 100%;
+  min-width: 0;
+  color: var(--color-swatch-26364a);
+  background: var(--color-swatch-f4f7fa);
+  border: 1px solid var(--color-swatch-d1dce8);
+  border-radius: 5px 5px 0 0;
+  font-size: var(--ins-font);
+  font-weight: 650;
+  box-sizing: border-box;
+}
+
+.insulation-layers-table .insulation-layers-header > span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-left: 1px solid var(--color-swatch-dce5ee);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.insulation-layers-table .insulation-layers-header > span:first-child,
+.insulation-layers-table .insulation-layers-header__index {
+  justify-content: center;
+  gap: 4px;
+  border-left: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.insulation-layers-table .insulation-layers-header__index-label {
+  line-height: 1;
+}
+
+/* Variant D: compact + in «Слой» header */
+.insulation-layers-table .insulation-layer-add-btn,
+.insulation-layers-table .insulation-layer-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-swatch-c5d4e4);
+  border-radius: 3px;
+  background: var(--color-surface);
+  color: var(--color-swatch-214c78);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
+.insulation-layers-table .insulation-layer-add-btn:hover:not(:disabled),
+.insulation-layers-table .insulation-layer-remove-btn:hover:not(:disabled) {
+  border-color: var(--color-formula-result);
+  color: var(--color-formula-result);
+  background: var(--color-swatch-f0f7ff);
+}
+
+.insulation-layers-table .insulation-layer-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.insulation-layers-table .insulation-layer-remove-btn {
+  border-color: var(--color-swatch-f0c9c9);
+  color: var(--color-danger-text);
+}
+
+.insulation-layers-table .insulation-layer-remove-btn:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-swatch-cf1322);
+  background: var(--color-danger-bg);
+}
+
+.insulation-layers-table .insulation-layer-index-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+}
+
+.insulation-layers-table .insulation-layer-group--active {
+  background: var(--color-swatch-f7fbff);
+  box-shadow: inset 0 0 0 1px var(--color-swatch-b7d4f0);
+}
+
+.insulation-layers-table .insulation-layer-group--active .insulation-layer-cell--index {
+  background: var(--color-swatch-eef6ff);
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+.insulation-layers-table .insulation-layers-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+.insulation-layers-table .insulation-layer-group {
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: var(--ins-cols);
+  grid-template-rows: auto;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  flex: none;
+  flex-wrap: nowrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-swatch-d1dce8);
+  border-top: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+/* Structural cells — ignore any form-item grid-column from legacy CSS */
+.insulation-layers-table .insulation-layer-cell {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-left: 1px solid var(--color-swatch-e0e7ef);
+  box-sizing: border-box;
+}
+
+.insulation-layers-table .insulation-layer-cell--index {
+  grid-column: 1;
+  justify-content: center;
+  border-left: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.insulation-layers-table .insulation-layer-cell--material {
+  grid-column: 2;
+}
+
+.insulation-layers-table .insulation-layer-cell--thickness {
+  grid-column: 3;
+}
+
+.insulation-layers-table .insulation-layer-cell--lambda {
+  grid-column: 4;
+}
+
+.insulation-layers-table .insulation-layer-cell--range {
+  grid-column: 5;
+}
+
+.insulation-layers-table .insulation-layer-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: var(--color-swatch-214c78);
+  font-size: var(--ins-font);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Form.Item is a plain block inside the cell — NOT a grid item of the row */
+.insulation-layers-table .insulation-layer-cell .ant-form-item {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  /* neutralize legacy grid-column: 1 / -1 on .layer-material-form-item */
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* sr-only labels — header owns column titles; inner label must not stretch
+   to the host column (screen-reader box stays 1px, geometry stays sane) */
+.insulation-layers-table .ant-form-item-label > label { width: max-content; }
+.insulation-layers-table .ant-form-item-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.insulation-layers-table .ant-form-item-row {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.insulation-layers-table .ant-form-item-control,
+.insulation-layers-table .ant-form-item-control-input,
+.insulation-layers-table .ant-form-item-control-input-content,
+.insulation-layers-table .field-control-with-help {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.insulation-layers-table .helped-form-item .ant-form-item-control,
+.insulation-layers-table .helped-form-item .ant-form-item-control-input,
+.insulation-layers-table .helped-form-item .ant-form-item-control-input-content {
+  display: block;
+}
+
+/* Controls */
+.insulation-layers-table .reference-picker-control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* высота растёт под 2 строки длинного имени материала, а не фиксирована */
+  height: auto;
+  min-height: var(--ins-control-h);
+  padding-top: 2px;
+  padding-bottom: 2px;
+  box-sizing: border-box;
+  font-size: var(--ins-font);
+}
+
+/*
+ * Длинное имя материала («Аэрофлекс, вспененный этиленпропиленовый каучук»)
+ * переносится на 2 строки внутри фиксированной ширины столбца, а не
+ * растягивает таблицу и не режется в одну строку (глобально nowrap+ellipsis).
+ * Больше 2 строк — усечение с многоточием.
+ */
+.insulation-layers-table .reference-picker-value {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+  font-size: var(--ins-font);
+}
+
+.insulation-layers-table .tlt-number-field,
+.insulation-layers-table .unit-input-number,
+.insulation-layers-table .ant-input-number,
+.insulation-layers-table .ant-input-number-group-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.insulation-layers-table .tlt-number-field__input {
+  height: var(--ins-control-h);
+  font-size: var(--ins-font);
+}
+
+/* Ant number input still fights CSS-in-JS */
+.insulation-layers-table .ant-input-number-input {
+  height: var(--ins-control-h);
+  font-size: var(--ins-font);
+}
+
+.insulation-layers-table .insulation-reference-value {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--ins-control-h);
+  color: var(--color-swatch-40566f);
+  font-size: var(--ins-font);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insulation-layers-table .ant-form-item-explain,
+.insulation-layers-table .ant-form-item-extra {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .insulation-layers-table[data-layout="side"] {
+    --ins-col-index: 52px;
+    --ins-col-material: minmax(140px, 1fr);
+    --ins-col-thickness: 84px;
+    --ins-col-lambda: 68px;
+    --ins-col-range: 92px;
+  }
+}
+
+/* Narrow: stack rows (owned here — not in heatcalc page CSS) */
+@media (max-width: 1200px) {
+  .insulation-layers-table[data-layout="side"] .insulation-layers-header {
+    display: none;
+  }
+
+  .insulation-layers-table[data-layout="side"] .insulation-layer-group {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px;
+    border-radius: 6px;
+  }
+
+  .insulation-layers-table[data-layout="side"] .insulation-layer-cell {
+    grid-column: 1;
+    border-left: 0;
+    border-top: 1px solid var(--color-swatch-e0e7ef);
+  }
+
+  .insulation-layers-table[data-layout="side"] .insulation-layer-cell:first-child {
+    border-top: 0;
+  }
+
+  .insulation-layers-table[data-layout="side"] .insulation-layer-index {
+    justify-content: flex-start;
+  }
+
+  .insulation-layers-table[data-layout="side"] .insulation-layer-index::before {
+    content: "Слой ";
+    margin-right: 4px;
+  }
+
+  .insulation-layers-table[data-layout="side"] .ant-form-item-label {
+    position: static;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}

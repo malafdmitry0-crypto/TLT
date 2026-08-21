@@ -1,0 +1,56 @@
+import apiClient from './client';
+import type { CableSource } from './calculations';
+import type {
+  AccessoryEntry,
+  CableTltEntry,
+  CableTtEntry,
+  ClimateEntry,
+  InsulationEntry,
+  PipeMaterialEntry,
+  ResistiveCablesReference,
+  SoilConductivityEntry,
+} from '@/types/reference';
+
+export async function getClimate(): Promise<ClimateEntry[]> {
+  const { data } = await apiClient.get<ClimateEntry[]>('/references/climate');
+  return data;
+}
+
+export async function getInsulation(): Promise<InsulationEntry[]> {
+  const { data } = await apiClient.get<InsulationEntry[]>('/references/insulation');
+  return data;
+}
+
+export async function getCablesTlt(): Promise<CableTltEntry[]> {
+  const { data } = await apiClient.get<CableTltEntry[]>('/references/cables');
+  return data;
+}
+
+export async function getCablesTt(): Promise<CableTtEntry[]> {
+  const { data } = await apiClient.get<CableTtEntry[]>('/references/tt-cables');
+  return data;
+}
+
+export async function getAccessories(): Promise<AccessoryEntry[]> {
+  const { data } = await apiClient.get<AccessoryEntry[]>('/references/accessories');
+  return data;
+}
+
+export async function getPipeMaterials(): Promise<PipeMaterialEntry[]> {
+  const { data } = await apiClient.get<PipeMaterialEntry[]>('/references/pipe-materials');
+  return data;
+}
+
+export async function getSoilConductivity(): Promise<SoilConductivityEntry[]> {
+  const { data } = await apiClient.get<SoilConductivityEntry[]>('/references/soil-conductivity');
+  return data;
+}
+
+export async function getResistiveCables(
+  source: CableSource = 'builtin',
+): Promise<ResistiveCablesReference> {
+  const { data } = await apiClient.get<ResistiveCablesReference>('/references/resistive-cables', {
+    params: { source },
+  });
+  return data;
+}

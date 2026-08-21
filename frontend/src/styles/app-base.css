@@ -1,0 +1,10 @@
+/**
+ * LEGACY entry name — freeze pointer to layered globals.
+ * Do not add rules here. Import order SoT: main.tsx + cssArchitectureRatchet GLOBAL_CSS_IMPORT_ORDER.
+ *
+ * Layers:
+ *   1. tokens.css
+ *   2. base.css
+ *   3. app-shell.css
+ *   4. vendor-overrides.css
+ */

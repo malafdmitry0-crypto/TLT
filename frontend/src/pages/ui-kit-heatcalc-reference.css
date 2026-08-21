@@ -1,0 +1,237 @@
+/* Owner: UI kit HeatCalc reference + contextual reference-picker showcase.
+ * Extracted from ui-kit.css (AF10-CSS-OWNER-SPLIT).
+ * Import from UIKitPage after ui-kit.css.
+ */
+
+.uikit-heatcalc-contract {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(100px, 1fr));
+  margin-bottom: 8px;
+  border: 1px solid var(--heatcalc-toolbar-border);
+  border-radius: 8px;
+  background: var(--heatcalc-toolbar-background);
+  overflow: hidden;
+}
+
+.uikit-heatcalc-contract > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-right: 1px solid var(--heatcalc-toolbar-divider);
+}
+
+.uikit-heatcalc-contract > div:last-child {
+  border-right: 0;
+}
+
+.uikit-heatcalc-contract span {
+  color: var(--color-swatch-63758b);
+  font-size: 9px;
+}
+
+.uikit-heatcalc-contract strong {
+  font: 700 10px var(--font-family-data);
+  white-space: nowrap;
+}
+
+.uikit-heatcalc-reference {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--heatcalc-panel-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px var(--color-alpha-48ecfeeb);
+}
+
+.uikit-heatcalc-reference__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 2px 3px;
+}
+
+.uikit-heatcalc-reference__caption .uikit-card-label {
+  margin: 0 0 2px;
+}
+
+.uikit-heatcalc-reference__caption strong {
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
+.uikit-heatcalc-reference .actionbar-srs {
+  min-width: 0;
+}
+
+.uikit-heatcalc-reference .actionbar-mode-tag {
+  display: inline-flex;
+  align-items: center;
+}
+
+.uikit-heatcalc-form,
+.uikit-heatcalc-form__grid {
+  --tlt-field-column-gap: 10px;
+  --tlt-field-row-gap: 4px;
+  --tlt-field-gap: 4px;
+}
+
+/* Форма живёт в реальной оболочке .inline-form-srs > .inline-object-form;
+   здесь только контекстные переменные контракта SC-03. */
+.uikit-heatcalc-form {
+  --inline-control-height: var(--tlt-field-control-height);
+  --field-input-min-width: 0px;
+  min-width: 0;
+}
+
+.uikit-heatcalc-form__grid {
+  padding: 8px 12px 10px;
+  --tlt-field-column-gap: 10px;
+  --tlt-field-row-gap: 4px;
+  --tlt-field-gap: 4px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.uikit-heatcalc-form .tlt-compact-field {
+  min-height: var(--tlt-field-row-min-h, 28px);
+}
+
+/* Таблица слоёв изоляции в эталоне = реальный CSS-остров
+   .insulation-layers-table; здесь только отступы внутри карточки формы. */
+.uikit-heatcalc-form .uikit-heatcalc-layers {
+  width: auto;
+  margin: 4px 12px 12px;
+}
+
+/* База ReferencePicker вне .inline-object-form — копия контракта
+   `.inline-object-form .reference-picker-control` (styles.css). */
+.uikit-page .reference-picker-control {
+  width: 100%;
+  min-width: 0;
+  height: var(--tlt-field-control-height);
+  min-height: var(--tlt-field-control-height);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--tlt-field-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+}
+
+.uikit-page .reference-picker-control:hover,
+.uikit-page .reference-picker-control:focus {
+  border-color: var(--color-swatch-4096ff);
+}
+
+.uikit-page .reference-picker-control--required {
+  box-shadow: inset 2px 0 0 var(--color-swatch-d48806);
+  background-color: var(--color-swatch-fffdf6);
+}
+
+.uikit-page .reference-picker-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tlt-field-select-font-size, 9px);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+}
+
+.uikit-page .reference-picker-placeholder {
+  color: var(--color-text-secondary);
+}
+
+.uikit-page .reference-picker-icon,
+.uikit-page .reference-picker-clear {
+  flex: 0 0 auto;
+  color: var(--color-swatch-b5c0ca);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.uikit-page .reference-picker-control:hover .reference-picker-icon,
+.uikit-page .reference-picker-control:focus .reference-picker-icon {
+  color: var(--color-swatch-6c7e8f);
+}
+
+.uikit-heatcalc-table {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.uikit-heatcalc-table .ant-table-wrapper {
+  min-width: 0;
+}
+
+.uikit-heatcalc-table .ant-table-content {
+  overflow-x: auto;
+}
+
+.uikit-heatcalc-table code { font-family: var(--font-family-data); font-size: inherit; }
+/* SC-03 parity: витрина повторяет плотность боевой формы (28px, решение владельца) */
+.uikit-page--compact .uikit-form-grid,
+.uikit-page--compact .uikit-heatcalc-form { --tlt-field-control-height: 36px; --tlt-field-label-font-size: 10.5px; --tlt-field-label-width: 118px; }
+
+.uikit-heatcalc-table .uikit-status { min-height: 16px; padding-block: 0; font-size: 8px; }
+/* = dual-form label box (11px, lh 1.05 — heatcalc-side-form-layout.css) */
+.uikit-page--compact .uikit-form-grid .tlt-compact-field__label,
+.uikit-page--compact .uikit-heatcalc-form .tlt-compact-field__label { min-height: 11px; line-height: 1.05; }
+
+/* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+
+/* Base form control coupling moved from ui-kit.css (AF12) */
+.uikit-page--comfortable .uikit-form-grid,
+.uikit-page--comfortable .uikit-heatcalc-form,
+.uikit-page--comfortable .tlt-compact-field-grid {
+  --tlt-field-control-height: 36px; /* = высота боевой формы (кадр макета) */
+  --tlt-field-control-font-size: 12px;
+  --tlt-field-number-font-size: 12px;
+  --tlt-field-unit-font-size: 9px;
+  --tlt-field-select-font-size: 9px;
+  --tlt-field-label-font-size: 8.5px;
+  --tlt-field-row-gap: 4px;
+  --tlt-field-column-gap: 10px;
+}
+
+.uikit-form-grid .ant-input,
+.uikit-form-grid .ant-input-affix-wrapper,
+.uikit-heatcalc-form .ant-input,
+.uikit-heatcalc-form .ant-input-affix-wrapper {
+  height: var(--tlt-field-control-height);
+  padding: 0 var(--tlt-field-control-padding-inline, 3px);
+  font-size: var(--tlt-field-control-font-size);
+  line-height: calc(var(--tlt-field-control-height) - 2px);
+  border-radius: var(--tlt-field-radius);
+}
+
+.uikit-form-grid .ant-input-affix-wrapper .ant-input,
+.uikit-heatcalc-form .ant-input-affix-wrapper .ant-input {
+  height: calc(var(--tlt-field-control-height) - 2px);
+  font-size: var(--tlt-field-control-font-size);
+}
+
+@media (max-width: 1200px) {
+  .uikit-heatcalc-contract {
+      grid-template-columns: repeat(3, minmax(100px, 1fr));
+    }
+
+  .uikit-heatcalc-contract > div:nth-child(3) {
+      border-right: 0;
+    }
+
+  .uikit-heatcalc-contract > div:nth-child(-n+3) {
+      border-bottom: 1px solid var(--heatcalc-toolbar-divider);
+    }
+}

@@ -1,0 +1,134 @@
+/*
+ * UI Kit data showcase — filters, empty/loading, toolbar, form grids, patterns.
+ * JSX owner: UIKitPage data/demo sections.
+ */
+
+.uikit-specimen,
+.uikit-demo-group {
+  padding: 10px;
+}
+
+.uikit-component-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 8px;
+}
+
+.uikit-toolbar {
+  width: min(100%, 380px);
+}
+
+.uikit-toolbar .ant-input-affix-wrapper {
+  min-width: 100px;
+}
+
+.uikit-form-grid {
+  padding: 10px 12px;
+  /* HeatCalc dual-form column/row gaps */
+  --tlt-field-column-gap: 16px;
+  --tlt-field-row-gap: 8px;
+  --tlt-field-gap: 4px;
+  border: 1px solid var(--ui-border);
+  border-radius: 2px;
+  background: var(--color-surface);
+  width: max-content;
+  max-width: 100%;
+}
+
+.uikit-form-grid .tlt-compact-field {
+  min-height: var(--tlt-field-row-min-h, 28px);
+}
+
+.uikit-options-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(140px, .4fr) minmax(160px, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 9px 12px;
+  color: var(--color-swatch-52667b);
+  font-size: 10px;
+}
+
+.uikit-options-row .ant-slider {
+  margin: 5px 8px;
+}
+
+.uikit-pattern {
+  padding: 12px;
+}
+
+.uikit-pattern__head,
+.uikit-pattern__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.uikit-pattern__head h3,
+.uikit-empty h3 {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+.uikit-pattern__head > strong {
+  color: var(--ui-blue-strong);
+  font: 700 18px var(--font-family-data);
+}
+
+.uikit-pattern__actions {
+  margin-top: 10px;
+  color: var(--color-swatch-63758b);
+  font-size: 10px;
+}
+
+.uikit-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.uikit-empty__glyph {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px dashed var(--color-swatch-a7bbcc);
+  border-radius: 6px;
+  color: var(--ui-blue-strong);
+  font-size: 22px;
+}
+
+.uikit-empty p {
+  margin: 3px 0 0;
+  color: var(--color-swatch-63758b);
+  font-size: 10px;
+}
+
+.uikit-loading {
+  display: grid;
+  grid-template-columns: 60px 1fr 100px 60px;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.uikit-loading span {
+  height: 18px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-swatch-edf2f6) 25%, var(--color-swatch-f8fbfd) 50%, var(--color-swatch-edf2f6) 75%);
+  background-size: 200% 100%;
+  animation: uikit-shimmer 1.4s infinite linear;
+}
+
+/* Desktop reflow (max-width: 1200px) — owner-local AF12 */
+@media (max-width: 1200px) {
+  .uikit-component-row {
+        grid-template-columns: 1fr;
+      }
+}

@@ -1,0 +1,216 @@
+/* Action bar (Heat + Elec) — moved from styles.css (C13) */
+
+.actionbar-srs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  padding: 2px 6px;
+  background: var(--heatcalc-toolbar-background);
+  border-radius: 4px;
+  border: 1px solid var(--heatcalc-toolbar-border);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.actionbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding-right: 6px;
+  border-right: 1px solid var(--heatcalc-toolbar-divider);
+}
+.actionbar-group:last-of-type {
+  border-right: 0;
+}
+.actionbar-type-group {
+  flex: 0 0 auto;
+}
+.actionbar-type-row .actionbar-form-state-group {
+  margin-left: auto;
+}
+.actionbar-form-actions-group,
+.actionbar-table-actions-group {
+  flex: 0 0 auto;
+}
+.actionbar-actions-row > [role='toolbar'] {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.actionbar-form-actions-row {
+  flex: 0 0 auto;
+}
+.actionbar-table-actions-row {
+  flex: 1 1 auto;
+}
+.actionbar-form-actions-group,
+.actionbar-table-actions-group {
+  border-right: 0;
+}
+.actionbar-actions-row .actionbar-form-actions-group {
+  border-right: 1px solid var(--heatcalc-toolbar-divider);
+}
+.actionbar-table-actions-group {
+  flex: 1 1 auto;
+}
+.actionbar-form-state-group {
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: 8px;
+}
+.actionbar-srs .ant-btn {
+  border-radius: 3px;
+  font-size: 10px;
+  height: 20px;
+  padding-inline: 6px;
+  line-height: 1;
+}
+.actionbar-srs .ant-segmented {
+  font-size: 10px;
+  padding: 1px;
+}
+.actionbar-srs .ant-segmented-item {
+  min-height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
+}
+.actionbar-srs .ant-segmented-item-label {
+  min-height: 20px;
+  line-height: 20px;
+}
+.actionbar-srs .action-tooltip-wrap {
+  display: inline-flex;
+}
+.actionbar-srs .action-icon-button {
+  width: 24px;
+  min-width: 24px;
+  padding-inline: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.actionbar-srs .action-icon-button .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.actionbar-srs .action-type-button {
+  min-width: 112px;
+  padding-inline: 8px;
+  font-weight: 600;
+}
+.actionbar-srs .action-type-button .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.actionbar-srs .action-type-count {
+  font-weight: 700;
+}
+.actionbar-srs .action-save-button {
+  min-width: 86px;
+  padding-inline: 8px;
+  font-weight: 600;
+}
+.actionbar-srs .action-add-button,
+.actionbar-srs .action-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: auto;
+  padding-inline: 8px;
+  font-weight: 500;
+}
+.actionbar-srs .action-add-button {
+  min-width: 86px;
+  font-weight: 600;
+}
+.actionbar-srs .action-secondary-button {
+  background: var(--color-surface);
+}
+.actionbar-srs .action-save-button .ant-btn-icon,
+.actionbar-srs .action-add-button .ant-btn-icon,
+.actionbar-srs .action-secondary-button .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.actionbar-srs .action-icon-button,
+.actionbar-srs .action-icon-button.action-add-button,
+.actionbar-srs .action-icon-button.action-save-button,
+.actionbar-srs .action-icon-button.action-secondary-button {
+  width: 24px;
+  min-width: 24px;
+  padding-inline: 0;
+  gap: 0;
+}
+.actionbar-srs .action-icon-button.add:not(:disabled),
+.actionbar-srs .action-add-button:not(:disabled),
+.actionbar-srs .action-icon-button.save:not(:disabled),
+.actionbar-srs .action-save-button.save:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+.actionbar-srs .action-icon-button.save:not(:disabled),
+.actionbar-srs .action-save-button.save:not(:disabled) {
+  background: var(--color-swatch-1f6f3e);
+  border-color: var(--color-swatch-1f6f3e);
+}
+.actionbar-srs .action-icon-button.add:not(:disabled):hover,
+.actionbar-srs .action-add-button:not(:disabled):hover,
+.actionbar-srs .action-icon-button.save:not(:disabled):hover,
+.actionbar-srs .action-save-button.save:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.actionbar-srs .action-icon-button:focus-visible,
+.actionbar-srs .action-add-button:focus-visible,
+.actionbar-srs .action-secondary-button:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 1px;
+}
+.actionbar-srs .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--heatcalc-toolbar-divider);
+  margin: 0 3px;
+}
+.actionbar-mode-tag {
+  margin: 0;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.actionbar-mode-tag.edit {
+  color: var(--color-swatch-7a4d00);
+  background: var(--color-swatch-fff3cd);
+  border-color: var(--color-swatch-f6c343);
+}
+.actionbar-mode-tag.new {
+  color: var(--color-swatch-1f6f3e);
+  background: var(--color-formula-hint-bg);
+  border-color: var(--color-swatch-91c788);
+}
+.actionbar-form-toggle {
+  white-space: nowrap;
+  font-size: 11px;
+}
+.actionbar-form-toggle .ant-checkbox + span {
+  padding-inline-start: 5px;
+  padding-inline-end: 0;
+}
+@media (max-width: 1400px) {
+  .actionbar-srs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .actionbar-group {
+    flex-wrap: wrap;
+  }
+
+  .actionbar-table-actions-row {
+    flex: 1 1 100%;
+  }
+}

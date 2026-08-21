@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<title>Макеты кейса 1</title>
+<link rel="stylesheet" href="../heatcalc-shared.css?v=e01874d9">
+<link rel="stylesheet" href="frames.css?v=e01874d9">
+</head><body><div class="page">
+<div class="nav-index">
+<h1>Макеты кейса 1 — гостевой путь HeatCalc</h1>
+<p>52 кадров. Собраны из того же источника, что и Penpot «Формы TLT» (<code>scripts/penpot_screens.py</code>), поэтому HTML и Penpot не расходятся. <a href='all.html'>Открыть все одной страницей</a>.</p>
+<h2>Гостевая шапка — 2</h2><div class='grid'>
+<div class='card'><a href='gost-shapka-1440.html'>Гость — шапка 1440</a><div class='meta'>1440×60</div><div class='note'></div></div>
+<div class='card'><a href='gost-shapka-1000.html'>Гость — шапка 1000</a><div class='meta'>1000×60</div><div class='note'></div></div>
+</div>
+<h2>Электротехнический расчёт — 19</h2><div class='grid'>
+<div class='card'><a href='er-rasschitano-happy.html'>ЭР — рассчитано (happy)</a><div class='meta'>1440×444</div><div class='note'>D-ELEC-01 · расчёт успешен · колонки §6.14 + L* (EQ3) · CTA «Сформировать спецификацию» · 1440</div></div>
+<div class='card'><a href='er-rasschitano-1000.html'>ЭР — рассчитано 1000</a><div class='meta'>1000×444</div><div class='note'>D-ELEC-12 · 1000px: таблица в горизонтальном скролле, «Объект» закреплена; L* уходит в opt-in (EQ3)</div></div>
+<div class='card'><a href='er-pusto-net-obektov-v-proekte.html'>ЭР — пусто (нет объектов в проекте)</a><div class='meta'>1440×430</div><div class='note'>D-ELEC-10a · в проекте пусто · CTA → Исходные данные · не путать с пустой вкладкой · 1440</div></div>
+<div class='card'><a href='er-vkladka-pusta-vse-neraspredeleny.html'>ЭР — вкладка пуста (все нераспределены)</a><div class='meta'>1440×430</div><div class='note'>D-ELEC-10b · вкладка пуста при непустом проекте · не показывать «ошибку расчёта» · 1440</div></div>
+<div class='card'><a href='er-vse-neraspredeleny.html'>ЭР — все нераспределены</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-02 · объекты не назначены · «Выбрать тип» / drag на вкладку «Самрег» · 1440</div></div>
+<div class='card'><a href='er-naznachenie-s-klaviatury.html'>ЭР — назначение с клавиатуры</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-08 · keyboard path primary, DnD secondary (drag-источник есть только в AntD-ветке) · focus ring, aria-label на icon-only · 1440</div></div>
+<div class='card'><a href='er-chastichnaya-oshibka.html'>ЭР — частичная ошибка</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-05 · error ≠ stale: тон danger у строки, warn у баннера · итоги только по успешным · 1440</div></div>
+<div class='card'><a href='er-ustarelo-posle-pravki-ishodnyh.html'>ЭР — устарело после правки исходных</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-04 · канон §6.19 в баннере · «Пересчитать» только в изменённых строках · статус «Требуется перерасчёт», не пустой прочерк · 1440</div></div>
+<div class='card'><a href='er-idop-ne-zadan-blokirovka.html'>ЭР — Iдоп не задан (блокировка)</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-03 · SECTION_CURRENT_LIMIT_REQUIRED · CTA «Настройки проекта» → форма Iдоп · расчёт disabled с причиной, не silent 422 · 1440</div></div>
+<div class='card'><a href='er-forma-vvoda-idop.html'>ЭР — форма ввода Iдоп</a><div class='meta'>1440×604</div><div class='note'>D-ELEC-03b · форма Iдоп (project settings) · решение сверх PDF, бриф §6.2 · 1440</div></div>
+<div class='card'><a href='er-vybor-marki-modalka.html'>ЭР — выбор марки (модалка)</a><div class='meta'>1440×604</div><div class='note'>D-ELEC-06 · опции с backend cable-options: серия, P@T3, disabled + причина · EQ2: модалка сейчас, inline — цель P1 (§6.16) · 1440</div></div>
+<div class='card'><a href='er-pereschet-i-ruchnye-marki.html'>ЭР — пересчёт и ручные марки</a><div class='meta'>1440×604</div><div class='note'>D-ELEC-09 · §6.13: пакетный пересчёт не трогает ручные марки по умолчанию (галка ON); перезапись — только через подтверждение · 1440</div></div>
+<div class='card'><a href='er-konflikt-versiy-409.html'>ЭР — конфликт версий (409)</a><div class='meta'>1440×482</div><div class='note'>D-ELEC-11 · 409: список уже обновлён автоматически (refetch), пользователь заново выбирает объекты · закрываемый алерт, не silent fail · 1440</div></div>
+<div class='card'><a href='er-maksimum-5-raschetov.html'>ЭР — максимум 5 расчётов</a><div class='meta'>1440×444</div><div class='note'>D-ELEC-07a · пятый вариант создан (§6.5) · «Добавить» неактивна + «Максимум 5 вариантов» · 1440</div></div>
+<div class='card'><a href='er-pereimenovanie-rascheta.html'>ЭР — переименование расчёта</a><div class='meta'>1440×444</div><div class='note'>D-ELEC-07b · rename inline (§6.20): Enter/клик вне — сохранить, Esc — отмена; пустое имя → ошибка; вкладка спецификации переименуется автоматически · 1440</div></div>
+<div class='card'><a href='er-udalenie-rascheta-podtverzhdenie.html'>ЭР — удаление расчёта (подтверждение)</a><div class='meta'>1440×604</div><div class='note'>D-ELEC-07c · подтверждение с именем ЭР (§6.7) · после удаления открывается соседний вариант · 1440</div></div>
+<div class='card'><a href='er-vernut-v-neraspredelennye.html'>ЭР — вернуть в нераспределённые</a><div class='meta'>1440×604</div><div class='note'>D-ELEC · confirm §6.17, copy брифа §4.1 дословно · исходные данные и теплопотери сохраняются · 1440</div></div>
+<div class='card'><a href='er-pravka-marki-v-stroke-cel-p1.html'>ЭР — правка марки в строке (цель P1)</a><div class='meta'>1440×487</div><div class='note'>D-ELEC-06b · целевой inline-паттерн §6.16 (EQ2 P1) · автопересчёт без кнопки · 1440</div></div>
+<div class='card'><a href='er-kartochka-obekta-provenance.html'>ЭР — карточка объекта (provenance)</a><div class='meta'>1440×504</div><div class='note'>D-ELEC · provenance drawer (бриф §4.1: Lтреб/Lфакт/Lдоп/Lзаказ, токи, источник выбора, критерий) · v1 tooltip, v2 drawer · 1440</div></div>
+</div>
+<h2>Спецификация — 13</h2><div class='grid'>
+<div class='card'><a href='spec-ne-sformirovana.html'>Спец — не сформирована</a><div class='meta'>1440×246</div><div class='note'>D-SPEC/1 · спецификаций нет (§7.2) · CTA открывает модалку выбора ЭР · 1440</div></div>
+<div class='card'><a href='spec-vybor-er-pri-formirovanii.html'>Спец — выбор ЭР при формировании</a><div class='meta'>1440×504</div><div class='note'>D-SPEC/1b · §7.2: выбор одного или нескольких ЭР; вкладки только для выбранных; автоформирования нет</div></div>
+<div class='card'><a href='spec-razdely-truby-bochki-obschie.html'>Спец — разделы (Трубы / Бочки / Общие)</a><div class='meta'>1440×522</div><div class='note'>D-SPEC/2 · generated · кабель и муфты в «Трубы» (PDF стр. 56) · без сортировщиков (§7.1) · 1440</div></div>
+<div class='card'><a href='spec-razdely-1000.html'>Спец — разделы 1000</a><div class='meta'>1000×522</div><div class='note'>D-SPEC/2 · 1000px: таблица в горизонтальном скролле внутри секции, страница не едет</div></div>
+<div class='card'><a href='spec-stroka-razvernuta-detali.html'>Спец — строка развёрнута (детали)</a><div class='meta'>1440×568</div><div class='note'>D-SPEC-03 · expand: id и версия позиции каталога, формула количества, параметры · пустой provenance — честная строка, не выдуманные коды</div></div>
+<div class='card'><a href='spec-statusy-na-vkladkah.html'>Спец — статусы на вкладках</a><div class='meta'>1440×544</div><div class='note'>D-SPEC-05 · badges generation_status на вкладках ЭР · после F5 статус читается без модалок · имя ЭР, не UUID</div></div>
+<div class='card'><a href='spec-ustarela.html'>Спец — устарела</a><div class='meta'>1440×556</div><div class='note'>D-SPEC/3 · is_stale (§7.7) · канон §7.7 в баннере · «Пересчитать» обновляет все вкладки · 1440</div></div>
+<div class='card'><a href='spec-neraspredelennye-podtverzhdenie.html'>Спец — нераспределённые (подтверждение)</a><div class='meta'>1440×704</div><div class='note'>D-SPEC-01 · kind=confirmable · «Исправить» → ЭР, вкладка «Нераспределённые», подсветка строк · 1440</div></div>
+<div class='card'><a href='spec-vybor-pozicii-kandidaty.html'>Спец — выбор позиции (кандидаты)</a><div class='meta'>1440×698</div><div class='note'>D-SPEC-05 · kind=selection_required · панель, не danger-дамп · без silent default · настройки не закрываются при выборе</div></div>
+<div class='card'><a href='spec-vybor-ustarel.html'>Спец — выбор устарел</a><div class='meta'>1440×698</div><div class='note'>D-SPEC-06 · fingerprint изменился: снова selection_required · старый выбор НЕ предвыбран · CTA оставляет в панели выбора</div></div>
+<div class='card'><a href='spec-zablokirovano-oshibki.html'>Спец — заблокировано (ошибки)</a><div class='meta'>1440×228</div><div class='note'>D-SPEC/6 · kind=blocking · тон danger, список причин, ложного успеха нет · 1440</div></div>
+<div class='card'><a href='spec-nastroyki.html'>Спец — настройки</a><div class='meta'>1440×704</div><div class='note'>D-SPEC/7 · Ex/K1i/K2i/Kiu/L,K2i/R,гр (§7.4) · база видна, но недоступна · применяются ко всему проекту</div></div>
+<div class='card'><a href='spec-obedinyat-materialy.html'>Спец — объединять материалы</a><div class='meta'>1440×352</div><div class='note'>D-SPEC/8 · «Объединять материалы» (§7.4): одинаковые позиции с одной базой и кодом суммируются</div></div>
+</div>
+<h2>Исходные данные — 13</h2><div class='grid'>
+<div class='card'><a href='ishodnye-truba-zapolneno.html'>Исходные — труба (заполнено)</a><div class='meta'>1280×764</div><div class='note'>D-HEAT · труба, все параметры заданы · две формы; третьей нет (Q1, бриф §6.3) · U скрыт · 1280</div></div>
+<div class='card'><a href='ishodnye-truba-novyy-obekt.html'>Исходные — труба (новый объект)</a><div class='meta'>1280×694</div><div class='note'>D-HEAT · §5.3: новый объект, значения не введены · серые подсказки в полях · «Сохранить» неактивна · 1280</div></div>
+<div class='card'><a href='ishodnye-truba-v-grunte.html'>Исходные — труба в грунте</a><div class='meta'>1280×743</div><div class='note'>D-HEAT · размещение «В грунте» открывает грунтовые параметры: тип грунта, λ грунта, глубина оси · 1280</div></div>
+<div class='card'><a href='ishodnye-truba-oshibka-parametra.html'>Исходные — труба, ошибка параметра</a><div class='meta'>1280×798</div><div class='note'>D-HEAT · §5.3: поле подсвечено, причина рядом; введённые значения сохраняются · 1280</div></div>
+<div class='card'><a href='rezervuar-cilindricheskiy.html'>Резервуар — цилиндрический</a><div class='meta'>1280×717</div><div class='note'>D-HEAT · резервуар, форма «Цилиндрический»: диаметр и высота · 1280</div></div>
+<div class='card'><a href='rezervuar-pryamougolnyy.html'>Резервуар — прямоугольный</a><div class='meta'>1280×717</div><div class='note'>D-HEAT · форма «Прямоугольный»: вместо диаметра — длина и ширина · 1280</div></div>
+<div class='card'><a href='rezervuar-zaglublennyy.html'>Резервуар — заглублённый</a><div class='meta'>1280×717</div><div class='note'>D-HEAT · частично в грунте: высота заглубления и λ грунта; температура среды берётся от грунта · 1280</div></div>
+<div class='card'><a href='ishodnye-panel-obektov.html'>Исходные — панель объектов</a><div class='meta'>1280×764</div><div class='note'>D-HEAT · именованные кнопки §5.5–5.9, счётчики выбора/отображения · 1280</div></div>
+<div class='card'><a href='ishodnye-gruppovaya-korrektirovka.html'>Исходные — групповая корректировка</a><div class='meta'>1280×834</div><div class='note'>D-HEAT · §5.8: один параметр за операцию; ошибки — перечнем проблемных объектов · 1280</div></div>
+<div class='card'><a href='ishodnye-nastroyki-otobrazheniya.html'>Исходные — настройки отображения</a><div class='meta'>1280×834</div><div class='note'>D-HEAT · §5.9: показать/скрыть, «По умолчанию», действует в рамках сессии · 1280</div></div>
+<div class='card'><a href='ishodnye-otkrytie-fayla-poverh-dannyh.html'>Исходные — открытие файла поверх данных</a><div class='meta'>1280×834</div><div class='note'>D-HEAT · §5.11: предупреждение о замене данных + подтверждение · при ошибке файла проект не меняется</div></div>
+<div class='card'><a href='ishodnye-oshibki-perehoda-dalee.html'>Исходные — ошибки перехода «Далее»</a><div class='meta'>1280×798</div><div class='note'>D-HEAT · §5.13: ЭР не создаётся, проблемные строки подсвечены, перечень ошибок показан · 1280</div></div>
+<div class='card'><a href='ishodnye-import-iz-excel-rezultat.html'>Исходные — импорт из Excel (результат)</a><div class='meta'>1280×832</div><div class='note'>D-HEAT · §5.5: количество успешно загруженных + причина пропуска · 1280</div></div>
+</div>
+<h2>Главная, справка, сессия, отчёт — 5</h2><div class='grid'>
+<div class='card'><a href='glavnaya-vhod-gostya.html'>Главная — вход гостя</a><div class='meta'>1440×288</div><div class='note'>D-HOME · §4.1: два CTA · подсказка про TTL и файл проекта · 1440</div></div>
+<div class='card'><a href='glavnaya-oshibka-vhoda.html'>Главная — ошибка входа</a><div class='meta'>1440×336</div><div class='note'>D-HOME · §4.3: ошибка входа, поле пароля очищается и подсвечивается; вход не выполняется · 1440</div></div>
+<div class='card'><a href='spravka-gostya.html'>Справка гостя</a><div class='meta'>1440×266</div><div class='note'>D-HELP · канон брифа §4.4: 3 дня, 500 объектов, 5 ЭР, «Начать без регистрации»</div></div>
+<div class='card'><a href='sessiya-istekla.html'>Сессия истекла</a><div class='meta'>1440×252</div><div class='note'>D-SESSION · одно сообщение вместо россыпи 401/404; старый workspace не показывается полупустым · 1440</div></div>
+<div class='card'><a href='otchet-gost-prosmotr-i-pechat.html'>Отчёт — гость (просмотр и печать)</a><div class='meta'>1440×344</div><div class='note'>D-REPORT · P2 · вход — кнопка «Сформировать отчёт» в футере спецификации (Q3) · 1440</div></div>
+</div>
+</div>
+</div></body></html>

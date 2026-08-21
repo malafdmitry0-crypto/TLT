@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    environment:
+      # dev → guard выключен, Secure-cookie выключен (локальный HTTP)
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
+      # Высокий лимит для dev/E2E — продакшен оставляет дефолт 10
+      GUEST_MAX_SESSIONS_PER_IP: "500"
+      LOGIN_MAX_ATTEMPTS_PER_IP: "500"
+      # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: heatcalc-backend-dev:${IMAGE_TAG:-latest}
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && watchfiles --filter python 'python -m app.worker' app"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db
+      REDIS_URL: redis://redis:6379/0
+      WORKER_QUEUE_CONSUMER: worker-dev
+      GUEST_MAX_SESSIONS_PER_IP: "500"
+      # PDL-ER-27: keep 50 rollout guard until full 500-object perf gate is green.
+      GUEST_MAX_OBJECTS_PER_PROJECT: "500"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    image: heatcalc-frontend-dev:${IMAGE_TAG:-latest}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 80
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1

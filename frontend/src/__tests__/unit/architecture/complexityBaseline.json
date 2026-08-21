@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "slice": "AF10-LOC-SHRINK-7",
+  "description": "Truthful shrink-only complexity baseline: all production TS/TSX files ≤ newFileLocCap (500)",
+  "newFileLocCap": 500,
+  "files": {}
+}

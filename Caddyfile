@@ -1,0 +1,42 @@
+# Caddy reverse proxy для prod-деплоя.
+# Используется только в docker-compose.prod.yml (сервис `caddy`).
+#
+# SITE_DOMAIN читается из .env (см. .env.production.example).
+# Caddy сам:
+#   • Получает Let's Encrypt сертификат для $SITE_DOMAIN при первом обращении
+#   • Перевыпускает его раз в 60 дней (фоновая задача)
+#   • Редиректит http://$SITE_DOMAIN → https://$SITE_DOMAIN
+#   • Включает HTTP/2 и сжатие
+
+{$SITE_DOMAIN} {
+	# Прокси на frontend-контейнер (nginx:alpine на порту 80 внутри Docker-сети)
+	reverse_proxy frontend:80
+
+	# Сжатие текстовых ответов (HTML, JSON-API, JS-bundle)
+	encode gzip zstd
+
+	# Базовые security-заголовки
+	header {
+		# Защита от clickjacking
+		X-Frame-Options "DENY"
+		# Запрет MIME-sniffing
+		X-Content-Type-Options "nosniff"
+		# HSTS — браузер запоминает, что сайт только https (1 год)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		# Убираем стандартный заголовок раскрывающий стек
+		-Server
+	}
+
+	# Лимит на размер запроса (импорт CSV/Excel может быть большим)
+	request_body {
+		max_size 10MB
+	}
+
+	# Логи — в stdout контейнера (docker logs caddy)
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}

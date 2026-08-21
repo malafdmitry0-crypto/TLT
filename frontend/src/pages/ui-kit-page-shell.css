@@ -1,0 +1,257 @@
+/*
+ * UI Kit page shell — /ui-kit chrome (AF12-UIKIT-SHELL-OWNER-01).
+ * JSX owner: UIKitPage.tsx
+ * Owns: page, header, navigation, main, intro; reduced-motion lives in responsive residual until shell absorbs it.
+ */
+
+.uikit-page {
+  --ui-ink: var(--color-swatch-213244);
+  --ui-ink-muted: var(--tlt-field-label-color);
+  /* Акценты = палитра приложения: --color-primary / --color-primary-light,
+     семантические цвета тегов HeatCalc */
+  --ui-blue: var(--color-primary);
+  --ui-blue-strong: var(--color-primary-light);
+  --ui-blue-soft: var(--color-info-soft);
+  --ui-panel: var(--color-surface);
+  --ui-shell: var(--color-swatch-f8fbfd);
+  --ui-border: var(--heatcalc-panel-border);
+  --ui-border-strong: var(--heatcalc-toolbar-divider);
+  --ui-success: var(--color-swatch-1f6f3e);
+  --ui-warning: var(--color-swatch-d46b08);
+  --ui-danger: var(--color-danger-border);
+  --ui-control: var(--tlt-field-control-height);
+  min-height: 100vh;
+  background: var(--ui-shell);
+  color: var(--ui-ink);
+  font-family: var(--font-family-app);
+  font-size: 12px;
+}
+
+.uikit-page--comfortable {
+  --ui-control: 32px;
+}
+
+.uikit-page *,
+.uikit-page *::before,
+.uikit-page *::after {
+  box-sizing: border-box;
+}
+
+.uikit-page button,
+.uikit-page input {
+  font: inherit;
+}
+
+.uikit-header {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  background: var(--color-surface);
+  color: var(--ui-ink);
+  border-bottom: 1px solid var(--color-swatch-dfe7f1);
+  box-shadow: 0 1px 5px var(--color-alpha-48ed076d);
+}
+
+.uikit-header__brand,
+.uikit-header__tools {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.uikit-header__mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-swatch-bcd8f1);
+  border-radius: 5px;
+  background: var(--color-info-soft);
+  color: var(--ui-blue-strong);
+  font-size: 14px;
+}
+
+.uikit-eyebrow,
+.uikit-kicker,
+.uikit-card-label,
+.uikit-nav__label {
+  display: block;
+  color: var(--color-swatch-6d7f93);
+  font: 700 9px/1.2 var(--font-family-app);
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.uikit-header h1 {
+  margin: 1px 0 0;
+  color: var(--color-swatch-162234);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.uikit-header__hint {
+  color: var(--color-swatch-5f7085);
+  font-size: 10px;
+}
+
+.uikit-header .ant-segmented {
+  background: var(--color-swatch-f3f7fb);
+}
+
+.uikit-header .ant-btn {
+  border-color: var(--heatcalc-toolbar-divider);
+  color: var(--color-swatch-213244);
+  box-shadow: none;
+}
+
+.uikit-shell {
+  display: grid;
+  grid-template-columns: 164px minmax(0, 1fr);
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.uikit-nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  min-height: calc(100vh - 44px);
+  padding: 18px 10px;
+  border-right: 1px solid var(--ui-border);
+  background: var(--color-surface);
+}
+
+.uikit-nav__label {
+  margin: 0 8px 8px;
+  color: var(--color-swatch-7b8ba0);
+}
+
+.uikit-nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: var(--color-swatch-465a70);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.uikit-nav a span {
+  color: var(--color-swatch-8a9aaf);
+  font: 700 9px var(--font-family-data);
+}
+
+.uikit-nav a:hover,
+.uikit-nav a:focus-visible {
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue-strong);
+  outline: none;
+}
+
+.uikit-nav__note {
+  margin: 18px 8px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.uikit-nav__note p {
+  color: var(--color-swatch-6d7f93);
+  font: 10px/1.45 var(--font-family-data);
+}
+
+.uikit-main {
+  min-width: 0;
+  padding: 16px clamp(12px, 2.5vw, 32px) 36px;
+}
+
+.uikit-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.uikit-kicker {
+  margin-bottom: 5px;
+  color: var(--ui-blue);
+}
+
+.uikit-intro p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--color-swatch-34495e);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.uikit-intro__spec {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--ui-blue-strong);
+  white-space: nowrap;
+}
+
+.uikit-intro__spec span {
+  color: var(--color-swatch-6d7f93);
+  font-size: 10px;
+}
+
+.uikit-intro__spec strong {
+  text-align: right;
+  font: 700 10px var(--font-family-data);
+}
+
+.uikit-card-label {
+  margin-bottom: 10px;
+  color: var(--color-swatch-6d7f93);
+}
+
+.radius-2 { border-radius: 2px; }
+
+.radius-4 { border-radius: 4px; }
+
+.radius-8 { border-radius: 8px; }
+
+.radius-round { border-radius: 50%; }
+
+@keyframes uikit-shimmer {
+  to { background-position: -200% 0; }
+}
+
+.uikit-footer {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-border);
+  color: var(--color-swatch-7b8ba0);
+  font: 9px var(--font-family-data);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .uikit-page *,
+  .uikit-page *::before,
+  .uikit-page *::after {
+    scroll-behavior: auto;
+    animation-duration: .01ms;
+    animation-iteration-count: 1;
+  }
+}

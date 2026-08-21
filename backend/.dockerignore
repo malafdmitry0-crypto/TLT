@@ -1,0 +1,37 @@
+# VCS / IDE
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Python артефакты
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+.eggs
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+build
+dist
+
+# Тесты и dev-инструменты — не нужны в production-образе
+app/tests
+test_*.py
+*_test.py
+conftest.py
+.python-version
+
+# Окружения и конфиги
+.venv
+venv
+env
+.env
+.env.local
+*.log
+*.md

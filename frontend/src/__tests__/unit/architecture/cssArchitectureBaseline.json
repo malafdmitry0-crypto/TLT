@@ -1,0 +1,382 @@
+{
+  "version": 5,
+  "slice": "AF12-CSS-MEDIA-CONTRACT-01",
+  "description": "AF12: media block counts observational; mediaConditionMaxWidths shrink-only; responsiveContracts optional",
+  "stylesCssMaxLoc": 30,
+  "newFileLocCap": 400,
+  "files": {
+    "src/components/ImportExcelButton.css": {
+      "loc": 23,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/admin/formulas/formula-primitives.css": {
+      "loc": 265,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/common/common-chrome.css": {
+      "loc": 27,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/electrical/CablePickerCharacteristics.css": {
+      "loc": 84,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/electrical/cable-selector.css": {
+      "loc": 14,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/electrical/electrical-candidate-field.css": {
+      "loc": 16,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/electrical/object-calc-card.css": {
+      "loc": 28,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/layout/layout-chrome.css": {
+      "loc": 28,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/reports/report-preview.css": {
+      "loc": 10,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/reports/report-wizard.css": {
+      "loc": 22,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/ui-kit/compact-fields.css": {
+      "loc": 555,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/ui-kit/primitives.css": {
+      "loc": 573,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/wizard/cable-algorithm-panel.css": {
+      "loc": 236,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/components/wizard/heat-object-fields.css": {
+      "loc": 270,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/components/wizard/insulation-layers-table.css": {
+      "loc": 401,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/components/wizard/wizard-chrome.css": {
+      "loc": 22,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/admin/admin-layout.css": {
+      "loc": 30,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/admin/formulas-tabs.css": {
+      "loc": 30,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/electrical/elec-workspace-summary.css": {
+      "loc": 406,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/pages/electrical/elec-workspace.css": {
+      "loc": 638,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/pages/heatcalc/heatcalc-dual-form-shell.css": {
+      "loc": 256,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/pages/heatcalc/heatcalc-field-chrome-core.css": {
+      "loc": 500,
+      "bareAnt": 0,
+      "media": 2
+    },
+    "src/pages/heatcalc/heatcalc-field-chrome.css": {
+      "loc": 318,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/heatcalc/heatcalc-glide-chrome.css": {
+      "loc": 54,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/heatcalc/heatcalc-insulation-page.css": {
+      "loc": 99,
+      "bareAnt": 0,
+      "media": 4
+    },
+    "src/pages/heatcalc/heatcalc-side-form-layout.css": {
+      "loc": 374,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/heatcalc/heatcalc-workspace-shell.css": {
+      "loc": 208,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/heatcalc/heatcalc-workspace-table.css": {
+      "loc": 192,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/pages/heatcalc/heatcalc-workspace.css": {
+      "loc": 6,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/help/help-page.css": {
+      "loc": 106,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/home-page.css": {
+      "loc": 84,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/login-page.css": {
+      "loc": 33,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/projects-page.css": {
+      "loc": 114,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/report-page.css": {
+      "loc": 15,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/report-wizard-page.css": {
+      "loc": 92,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/specification/specification-page.css": {
+      "loc": 258,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit-heatcalc-reference.css": {
+      "loc": 239,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit-primitives-showcase.css": {
+      "loc": 262,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/workflow-params.css": {
+      "loc": 60,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/workspace-page.css": {
+      "loc": 50,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/actionbar-srs.css": {
+      "loc": 217,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/styles/app-base.css": {
+      "loc": 11,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/app-header.css": {
+      "loc": 6,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/app-shell.css": {
+      "loc": 291,
+      "bareAnt": 0,
+      "media": 3
+    },
+    "src/styles/base.css": {
+      "loc": 16,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/calc-spreadsheet-base.css": {
+      "loc": 456,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/calc-spreadsheet-excel.css": {
+      "loc": 112,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/calc-spreadsheet.css": {
+      "loc": 7,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/form-grid-srs.css": {
+      "loc": 165,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/print.css": {
+      "loc": 38,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/styles/table-chrome.css": {
+      "loc": 480,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/tlt-form-controls.css": {
+      "loc": 243,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/tokens.css": {
+      "loc": 332,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles/vendor-overrides.css": {
+      "loc": 27,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/styles.css": {
+      "loc": 12,
+      "bareAnt": 0,
+      "media": 0
+    },
+    "src/pages/ui-kit-page-shell.css": {
+      "loc": 258,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit-foundation.css": {
+      "loc": 219,
+      "bareAnt": 0,
+      "media": 1
+    },
+    "src/pages/ui-kit-data-showcase.css": {
+      "loc": 135,
+      "bareAnt": 0,
+      "media": 1
+    }
+  },
+  "totals": {
+    "loc": 10023,
+    "bareAnt": 0,
+    "media": 41
+  },
+  "rawColors": {
+    "src/pages/projects-page.css": 1,
+    "src/styles/tokens.css": 271
+  },
+  "rawColorsTotal": 272,
+  "legacyPalette": {},
+  "legacyPaletteTotal": 0,
+  "noncanonicalMedia": {},
+  "noncanonicalMediaTotal": 0,
+  "mediaConditionMaxWidths": [
+    480,
+    768,
+    1200,
+    1400
+  ],
+  "responsiveContracts": {
+    "src/pages/ui-kit-page-shell.css": {
+      "conditions": [],
+      "ownerRoots": [
+        ".uikit-page",
+        ".uikit-header",
+        ".uikit-shell",
+        ".uikit-nav",
+        ".uikit-main",
+        ".uikit-intro"
+      ]
+    },
+    "src/pages/ui-kit-foundation.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-grid",
+        ".uikit-section",
+        ".uikit-swatch",
+        ".uikit-type",
+        ".uikit-spacing",
+        ".uikit-radius",
+        ".uikit-specimen",
+        ".uikit-font"
+      ]
+    },
+    "src/pages/ui-kit-data-showcase.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-component",
+        ".uikit-empty",
+        ".uikit-loading",
+        ".uikit-toolbar",
+        ".uikit-options",
+        ".uikit-pattern",
+        ".uikit-demo",
+        ".uikit-form"
+      ]
+    },
+    "src/pages/ui-kit-primitives-showcase.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-alerts",
+        ".uikit-primitive-",
+        ".uikit-metrics",
+        ".uikit-metric"
+      ]
+    },
+    "src/pages/ui-kit-heatcalc-reference.css": {
+      "conditions": [
+        "max-width: 1200px"
+      ],
+      "ownerRoots": [
+        ".uikit-heatcalc-",
+        ".uikit-form-grid"
+      ]
+    }
+  }
+}

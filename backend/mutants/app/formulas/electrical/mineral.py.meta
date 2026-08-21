@@ -1,0 +1,21 @@
+{
+    "exit_code_by_key": {
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_1": 1,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_2": 0,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_3": 0,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 1
+    },
+    "durations_by_key": {
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_2": 0.112825,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_1": 0.149194,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_3": 0.14536,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 0.149477
+    },
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_1": 0.010219292000101632,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_2": 0.010219292000101632,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_3": 0.010219292000101632,
+        "app.formulas.electrical.mineral.x_calc_mineral__mutmut_4": 0.010219292000101632
+    }
+}

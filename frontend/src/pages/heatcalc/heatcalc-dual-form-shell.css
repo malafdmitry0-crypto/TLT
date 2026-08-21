@@ -1,0 +1,253 @@
+/**
+ * OWNER: dual-forms shell + heat-structured grid areas.
+ * Placement of panes only — not field density (field-chrome) or insulation island.
+ */
+/* CSS2: dual-forms + heat-structured shell */
+
+.workspace-table-card .ant-card-body {
+  padding: 0 10px 10px;
+}
+.heatcalc-object-diagnostic {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 2px;
+  padding: 3px 6px;
+  border: 1px solid var(--color-formula-cable-header-border);
+  border-radius: 5px;
+  background: var(--color-formula-cable-header-bg);
+  color: var(--color-swatch-5c3b00);
+  font-size: 10px;
+  line-height: 1.25;
+}
+.heatcalc-object-diagnostic strong {
+  flex: 0 0 auto;
+  color: var(--color-swatch-8a5600);
+}
+.heatcalc-object-diagnostic span {
+  min-width: 0;
+}
+.inline-form-shell[hidden],
+.heatcalc-form-pane[hidden] {
+  display: none;
+}
+.heatcalc-form-pane--wide .inline-form-srs {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+.heatcalc-dual-forms {
+  display: grid;
+  gap: 8px 12px;
+  min-width: 0;
+  width: 100%;
+  align-items: start;
+}
+.heatcalc-dual-forms--wide {
+  --heatcalc-heat-pane-min: 440px;
+  --heatcalc-cable-pane-min: 240px;
+  /* теплопотери −10% от прежних 3:1, освободившееся уходит панели кабеля */
+  grid-template-columns:
+    minmax(var(--heatcalc-heat-pane-min), 2.08fr)
+    minmax(var(--heatcalc-cable-pane-min), 1fr);
+  justify-content: stretch;
+}
+.heatcalc-dual-forms--side {
+  grid-template-columns: minmax(0, 1fr);
+}
+/*
+ * ≥1400px reserve enough heat-pane width for its three slot columns (see
+ * heat-object-fields.css): tank needs ~714px for ≥110px wide-slot selects.
+ * The fields zone is an inline-size container, so it no longer contributes
+ * intrinsic width — this minimum IS the pane width unless the insulation
+ * table wants more. The cable pane absorbs the remaining width down to its
+ * minimum.
+ */
+@media (min-width: 1400px) {
+  .heatcalc-dual-forms--wide {
+    --heatcalc-heat-pane-min: 760px;
+  }
+}
+.heatcalc-dual-forms__heat,
+.heatcalc-dual-forms__cable {
+  min-width: 0;
+}
+.heatcalc-dual-forms {
+  --dual-form-banner-size: 9px;
+  --cable-banner-size: var(--dual-form-banner-size);
+}
+.heatcalc-dual-forms__heat .inline-form-section-banner,
+.heatcalc-dual-forms__heat .side-form-section-banner {
+  min-height: 20px;
+  padding: 3px 8px;
+  font-size: var(--cable-banner-size);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.inline-object-form--side .form-col-resize-handle {
+  display: none;
+}
+.workspace-table-card .ant-table-thead > tr > th {
+  padding-top: var(--heatcalc-table-header-padding-y, 2px);
+  padding-bottom: var(--heatcalc-table-header-padding-y, 2px);
+}
+.workspace-table-card .ant-table-tbody > tr > td {
+  padding-top: var(--heatcalc-table-cell-padding-y, 1px);
+  padding-bottom: var(--heatcalc-table-cell-padding-y, 1px);
+}
+
+/* C19: heat-structured dual-form shell / SC-03 form pane from styles.css */
+
+.form-grid-srs--heat-structured,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured,
+.heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured,
+.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--heat-structured {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "fields"
+    "layers";
+  gap: 8px;
+  align-items: start;
+  justify-items: stretch;
+  padding: 8px 10px 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.form-grid-srs--heat-structured > .heat-object-fields,
+.form-grid-srs--heat-structured > .heat-wizard-zone--fields,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+  grid-area: fields;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+.heat-wizard-zone--fields {
+  grid-area: fields;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+/*
+ * Fields zone is the `heat-fields` container: heat-object-fields--wide picks
+ * three-column vs stacked mode by the pane's REAL width (robust to browser
+ * zoom, unlike viewport media). Inline-size containment collapses the zone's
+ * intrinsic width — the wide panel's min-width floor (field-chrome-core.css)
+ * keeps the card at pane width instead.
+ */
+.form-grid-srs--heat-structured > .heat-wizard-zone--fields {
+  container: heat-fields / inline-size;
+}
+.heat-wizard-zone--layers {
+  min-width: 0;
+  /* stretch to fields column width (card is max-content of fields) */
+  width: 100%;
+  max-width: 100%;
+}
+.form-grid-srs--heat-structured > .form-col-srs--insulation,
+.form-grid-srs--heat-structured > .heat-wizard-zone--layers,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation,
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .heat-wizard-zone--layers {
+  grid-area: layers;
+  display: flex;
+  flex-direction: column;
+  gap: 4px 0;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+/*
+ * Generic dual-card template (heat|spec over cable). MUST NOT catch the
+ * heat-structured grid: it comes later in the file at equal specificity, so
+ * without :not() it overrides the fields/layers stack above — the layers table
+ * lands in "cable" (top-left) and the fields zone, whose "fields" area does not
+ * exist here, is thrown into an implicit column on the right.
+ */
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "heat spec"
+    "cable cable";
+  gap: 6px 10px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  align-items: start;
+  overflow: visible;
+  /* Match right cable card padding/type density */
+  padding: 8px 10px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--heatcalc-panel-border);
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs > .form-col-srs,
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three > .form-col-srs {
+  flex: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--primary {
+  grid-area: heat;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--insulation {
+  grid-area: cable;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) > .form-col-srs--climate {
+  grid-area: spec;
+}
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three .pdf-form-column {
+  position: relative;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* C19 residual media */
+
+@media (max-width: 1400px) {
+.heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs:not(.form-grid-srs--heat-structured),
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "heat spec"
+      "cable cable";
+  }
+
+/* Dual-form + heat-structured: keep fields/layers stack (do NOT force heat|spec). */
+  .heatcalc-dual-forms__heat .form-grid-srs--pdf-three.form-grid-srs--heat-structured {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "fields"
+      "layers";
+  }
+
+.heatcalc-dual-forms__heat .form-grid-srs--heat-structured > .form-col-srs--insulation {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+}
