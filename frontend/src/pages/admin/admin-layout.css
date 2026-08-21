@@ -1,0 +1,29 @@
+/* OWNER: AdminLayout — static chrome */
+
+.admin-layout {
+  min-height: 100vh;
+}
+
+.admin-layout-title {
+  color: var(--color-surface);
+  margin: 0;
+}
+
+.admin-layout-logout {
+  color: var(--color-surface);
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.admin-layout-content {
+  padding: 24px;
+}
+
+.admin-db-toolbar {
+  margin-bottom: 12px;
+}
+
+.admin-references-search {
+  margin-bottom: 12px;
+  max-width: 380px;
+}

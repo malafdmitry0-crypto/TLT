@@ -1,0 +1,180 @@
+/**
+ * OWNER: SC-03 workspace form placement maps (non-island).
+ * ⛔ Do not style .insulation-layers-table internals — host tokens live in
+ *    heatcalc-insulation-page.css; structure in insulation-layers-table.css.
+ */
+
+/* Pane height when insulation has many layers */
+.heatcalc-form-pane--wide .inline-object-form--wide.inline-object-form--layers-3 {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+
+@media (max-width: 1400px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three {
+    grid-template-rows: auto;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide.inline-object-form--layers-3 {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .compact-select-form-item .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--primary > .compact-select-form-item .field-label-two-line > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .field-label-two-line > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings .ant-form-item-label > label > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .ant-form-item-label > label > span,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .field-label-two-line,
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--climate .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    white-space: normal;
+  }
+}
+
+.inline-object-form--side .side-form-section > .name-form-item,
+.inline-object-form--side .side-form-section > .fixed-select-form-item,
+.inline-object-form--side .side-form-section > .pipe-material-form-item,
+.inline-object-form--side .side-form-section > .layer-material-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-count-form-item,
+.inline-object-form--side .side-form-section > .insulation-temperature-basis-form-item,
+.inline-object-form--side .side-form-section > .insulation-layer-group {
+  grid-column: 1 / -1;
+}
+
+/*
+ * Side field anatomy lives in UI kit + heat-object-fields island.
+ * Here — only side-compact insulation *container* placement.
+ */
+.inline-object-form--side .side-compact-insulation .ant-form-item {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.inline-object-form--side .side-compact-insulation {
+  display: grid;
+  grid-column: 1 / -1;
+  order: 1;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--heatcalc-panel-border);
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-settings-row,
+.inline-object-form--side .side-compact-insulation .insulation-layers-header,
+.inline-object-form--side .side-compact-insulation .insulation-layers-grid {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.inline-object-form--side .side-compact-insulation .insulation-settings-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+/* Side table host tokens: heatcalc-insulation-page.css */
+
+@media (max-width: 768px) {
+  .inline-object-form--side .side-compact-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inline-object-form--side .side-compact-insulation {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 1200px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .form-grid-srs--pdf-three:not(.form-grid-srs--heat-structured) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "heat"
+      "spec"
+      "cable";
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .form-col-srs--fittings > .ant-form-item:nth-of-type(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* Form placement residuals */
+.inline-object-form .insulation-layer-count-form-item {
+  grid-column: 1 / -1;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .ant-form-item {
+  flex: none;
+  min-height: 0;
+  padding: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .name-form-item,
+.inline-object-form--side .object-wizard-side-panel .name-form-item,
+.inline-object-form--side .object-wizard-side-panel .fixed-select-form-item,
+.inline-object-form--side .object-wizard-side-panel .pipe-material-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-layer-count-form-item,
+.inline-object-form--side .object-wizard-side-panel .insulation-temperature-basis-form-item {
+  flex-basis: 100%;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item {
+  flex: 0 0 220px;
+  min-width: 0;
+}
+
+/* Legacy 2-up settings row — ONLY outside heat-object-fields island. */
+.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row:not(.heat-object-fields .insulation-settings-row) {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(220px, 360px);
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  gap: 6px 10px;
+  justify-content: start;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .ant-select,
+.inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item .tlt-select {
+  max-width: 96px;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .insulation-settings-row > .ant-form-item {
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .insulation-settings-row > .ant-form-item {
+  width: max-content;
+}

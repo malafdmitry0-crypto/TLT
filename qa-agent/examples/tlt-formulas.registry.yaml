@@ -1,0 +1,992 @@
+formulas:
+  - id: tlt_alpha_outdoor
+    expression: "alpha = 11.6 + 7 * sqrt(windSpeed)"
+    variables: [windSpeed]
+    output: alpha_vnesh
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "windSpeed >= 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+      - "backend/app/formulas/heat_loss/tank.py"
+    oracle:
+      status: implemented
+      notes:
+        - "Independent TypeScript primitive mirrors the documented SNiP/TNP expression."
+    engineeringReview:
+      - "No additional wind_factor is permitted; indoor alpha is a separate branch, not this formula."
+      - "A negative wind speed should be normalized before this primitive or rejected by input validation."
+    examples:
+      - id: alpha-outdoor-4ms
+        kind: fixed
+        input:
+          windSpeed: 4
+        expected: 25.6
+
+  - id: tlt_pipe_effective_length
+    expression: "L_eff = pipeLength + numLocalElements * localElementEquivLength"
+    variables: [pipeLength, numLocalElements, localElementEquivLength]
+    output: effective_length
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "pipeLength > 0"
+      - "numLocalElements >= 0"
+      - "localElementEquivLength >= 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Keep safety factor out of effective length; it is applied later to total heat loss."
+    examples:
+      - id: pipe-effective-length-local-elements
+        kind: fixed
+        input:
+          pipeLength: 100
+          numLocalElements: 3
+          localElementEquivLength: 1.5
+        expected: 104.5
+
+  - id: tlt_cylindrical_layer_resistance
+    expression: "R = ln(rOut / rIn) / (2 * pi * lambda)"
+    variables: [rIn, rOut, lambda]
+    output: thermal_resistance
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    constraints:
+      - "rIn > 0"
+      - "rOut > 0"
+      - "lambda > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "This is the key pipe multilayer Fourier primitive; it should be mutation-tested because sign/order errors are easy to miss."
+    examples:
+      - id: cylindrical-layer-basic
+        kind: fixed
+        input:
+          rIn: 0.05
+          rOut: 0.1
+          lambda: 0.04
+
+  - id: tlt_pipe_external_resistance
+    expression: "R_ext = 1 / (2 * pi * rOuter * alpha)"
+    variables: [rOuter, alpha]
+    output: external_resistance
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    constraints:
+      - "rOuter > 0"
+      - "alpha > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    oracle:
+      status: implemented
+    examples:
+      - id: pipe-external-resistance-basic
+        kind: fixed
+        input:
+          rOuter: 0.08
+          alpha: 25.6
+
+  - id: tlt_pipe_ground_resistance
+    expression: "R_ground = arccosh(burialDepth / rOuter) / (2 * pi * lambdaGround)"
+    variables: [burialDepth, rOuter, lambdaGround]
+    output: ground_resistance
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    constraints:
+      - "burialDepth > 0"
+      - "rOuter > 0"
+      - "lambdaGround > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    oracle:
+      status: implemented
+      notes:
+        - "The oracle rejects burialDepth / rOuter < 1."
+    engineeringReview:
+      - "This is a high-risk boundary formula: H/r close to 1 must be tested explicitly."
+    examples:
+      - id: pipe-ground-resistance-basic
+        kind: fixed
+        input:
+          burialDepth: 1.2
+          rOuter: 0.1
+          lambdaGround: 1.5
+
+  - id: tlt_pipe_linear_heat_loss
+    expression: "q_linear = deltaT / thermalResistance"
+    variables: [deltaT, thermalResistance]
+    output: heat_loss_per_meter_base
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "deltaT > 0"
+      - "thermalResistance > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Safety factor must not be applied here; it belongs to total heat loss."
+    examples:
+      - id: pipe-linear-heat-loss-basic
+        kind: fixed
+        input:
+          deltaT: 60
+          thermalResistance: 2.4
+        expected: 25
+
+  - id: tlt_pipe_total_heat_loss
+    expression: "Q = heatLossPerMeter * effectiveLength * safetyFactor"
+    variables: [heatLossPerMeter, effectiveLength, safetyFactor]
+    output: total_heat_loss_design
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "heatLossPerMeter >= 0"
+      - "effectiveLength > 0"
+      - "safetyFactor > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+    backendEndpoint:
+      id: admin_formula_check_pipe
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: pipe
+      resultPath: total_heat_loss_design
+      requestShape: '{ formula_type: "pipe", params: PipeHeatLossParams }'
+    oracle:
+      status: implemented
+      notes:
+        - "This validates the final multiplication primitive, not the full multilayer pipe model."
+    engineeringReview:
+      - "Double-application of safety factor is the main regression risk in pipe-to-electrical flows."
+    examples:
+      - id: pipe-total-heat-loss-basic
+        kind: fixed
+        input:
+          heatLossPerMeter: 25
+          effectiveLength: 104.5
+          safetyFactor: 1.1
+        expected: 2873.75
+
+  - id: tlt_pipe_electrical_required_power_per_meter
+    expression: "q_electrical = heatLossPerMeter"
+    variables: [heatLossPerMeter]
+    output: required_power_per_meter
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "heatLossPerMeter >= 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+    implementationRefs:
+      - "backend/app/services/calculation_service.py"
+    oracle:
+      status: implemented
+      notes:
+        - "Pipe electrical selection receives q_linear without heat-loss safety factor; electrical selection applies safetyFactor once."
+    engineeringReview:
+      - "This locks the no-double-K contract between heat-loss and electrical calculations."
+    examples:
+      - id: pipe-electrical-required-power-no-double-k
+        kind: fixed
+        input:
+          heatLossPerMeter: 25
+        expected: 25
+
+  - id: tlt_pipe_heat_loss_full
+    expression: "Full multilayer pipe heat loss: q = deltaT / (R_wall + sum(R_ins) + R_external_or_ground), Q = q * L_eff * K"
+    variables:
+      - outer_diameter
+      - pipe_length
+      - process_temperature
+      - ambient_temperature
+      - insulation_layers
+      - wall_thickness
+      - safety_factor
+    output: PipeHeatLossResult
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в трубопроводах 30.04.docx"
+      - "docs/context/formulas-summary.md"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/pipe.py"
+      - "backend/app/schemas/calculation.py:PipeHeatLossParams"
+    backendEndpoint:
+      id: admin_formula_check_pipe
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: pipe
+      resultPath: total_heat_loss_design
+      requestShape: '{ formula_type: "pipe", params: PipeHeatLossParams }'
+    oracle:
+      status: external_reference_required
+      notes:
+        - "Do not use backend implementation as the only oracle for this full formula."
+        - "Break into primitive oracle checks plus certified example tables from documentation."
+    engineeringReview:
+      - "Physically reasonable cylindrical model; verify material conductivity tables and buried-boundary conditions against source standards."
+
+  - id: tlt_tank_surface_area_cylindrical
+    expression: "S = pi * diameter * height + 2 * pi * (diameter / 2)^2"
+    variables: [diameter, height]
+    output: surface_area_bare
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "diameter > 0"
+      - "height > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+    oracle:
+      status: implemented
+    examples:
+      - id: tank-cylinder-area-basic
+        kind: fixed
+        input:
+          diameter: 2
+          height: 5
+        expected: 37.69911184307752
+
+  - id: tlt_tank_surface_area_rectangular
+    expression: "S = 2 * (length * width + length * height + width * height)"
+    variables: [length, width, height]
+    output: surface_area_bare
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "length > 0"
+      - "width > 0"
+      - "height > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+    oracle:
+      status: implemented
+    examples:
+      - id: tank-rect-area-basic
+        kind: fixed
+        input:
+          length: 4
+          width: 2
+          height: 3
+        expected: 52
+
+  - id: tlt_tank_external_resistance
+    expression: "R_ext = 1 / alpha"
+    variables: [alpha]
+    output: external_resistance
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    constraints:
+      - "alpha > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+    oracle:
+      status: implemented
+      notes:
+        - "Tank heat-loss model uses flat-wall external resistance, not pipe circumference resistance."
+    engineeringReview:
+      - "The original DOCX appeared to copy a pipe formula here; flat-wall R_ext = 1/alpha is dimensionally consistent with tank q in W/m²."
+    examples:
+      - id: tank-external-resistance-flat-wall
+        kind: fixed
+        input:
+          alpha: 25.6
+        expected: 0.0390625
+
+  - id: tlt_tank_flat_heat_flux
+    expression: "q = deltaT / (wallResistance + insulationResistance + externalResistance)"
+    variables: [deltaT, wallResistance, insulationResistance, externalResistance]
+    output: heat_loss_per_m2_bare_base
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "deltaT > 0"
+      - "wallResistance >= 0"
+      - "insulationResistance > 0"
+      - "externalResistance > 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Flat-wall approximation is acceptable for many tanks, but small diameter plus thick insulation should be validated against cylindrical-shell references."
+    examples:
+      - id: tank-flat-heat-flux-basic
+        kind: fixed
+        input:
+          deltaT: 70
+          wallResistance: 0.001
+          insulationResistance: 2
+          externalResistance: 0.05
+
+  - id: tlt_tank_total_heat_loss
+    expression: "Q = heatLossPerM2 * surfaceArea * safetyFactor + qAdditional"
+    variables: [heatLossPerM2, surfaceArea, safetyFactor, qAdditional]
+    output: total_heat_loss_design
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "heatLossPerM2 >= 0"
+      - "surfaceArea > 0"
+      - "safetyFactor > 0"
+      - "qAdditional >= 0"
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+    backendEndpoint:
+      id: admin_formula_check_tank
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: tank
+      resultPath: total_heat_loss_design
+      requestShape: '{ formula_type: "tank", params: TankHeatLossParams }'
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "qAdditional is added after safety factor in backend; tests should lock this ordering."
+    examples:
+      - id: tank-total-heat-loss-basic
+        kind: fixed
+        input:
+          heatLossPerM2: 34
+          surfaceArea: 37.69911184307752
+          safetyFactor: 1.1
+          qAdditional: 50
+
+  - id: tlt_tank_electrical_required_power_per_meter
+    expression: "q_electrical = (totalHeatLoss / safetyFactor) / cableLength"
+    variables: [totalHeatLoss, safetyFactor, cableLength]
+    output: required_power_per_meter
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "totalHeatLoss >= 0"
+      - "safetyFactor > 0"
+      - "cableLength > 0"
+    sourceRefs:
+      - "docs/tnp/block-heat-loss-and-cable-selection/tank-heat-loss-and-cable-selection.md"
+    implementationRefs:
+      - "backend/app/services/calculation_service.py"
+    oracle:
+      status: implemented
+      notes:
+        - "When tank totalHeatLoss already contains K, remove it before passing power into an electrical formula that applies safetyFactor."
+    engineeringReview:
+      - "This preserves total effective demand while preventing double safety-factor application."
+    examples:
+      - id: tank-electrical-required-power-no-double-k
+        kind: fixed
+        input:
+          totalHeatLoss: 1100
+          safetyFactor: 1.1
+          cableLength: 50
+        expected: 20
+
+  - id: tlt_tank_heat_loss_full
+    expression: "Full tank heat loss: flat-wall q, geometry surface, optional underground air/ground split, Q plus qAdditional"
+    variables:
+      - shape
+      - process_temperature
+      - ambient_temperature
+      - insulation_thickness
+      - insulation_material
+      - geometry
+      - safety_factor
+    output: TankHeatLossResult
+    sourceRefs:
+      - "ТНП/Блок теплопотери и выбор кабеля/теплопротери в резервуарах 30.04.docx"
+      - "docs/tnp/internal-references/insulation.md"
+    implementationRefs:
+      - "backend/app/formulas/heat_loss/tank.py"
+      - "backend/app/schemas/calculation.py:TankHeatLossParams"
+    backendEndpoint:
+      id: admin_formula_check_tank
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: tank
+      resultPath: total_heat_loss_design
+      requestShape: '{ formula_type: "tank", params: TankHeatLossParams }'
+    oracle:
+      status: external_reference_required
+      notes:
+        - "Full formula needs independent reference examples for material tables and underground split."
+    engineeringReview:
+      - "Validate flat-wall assumption limits and buried-height split with engineering source data."
+
+  - id: tlt_self_reg_cable_length
+    expression: "N = pipeLength * 1.1 * windingCoefficient * numberOfThreads"
+    variables: [pipeLength, windingCoefficient, numberOfThreads]
+    output: cable_length
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    constraints:
+      - "pipeLength > 0"
+      - "windingCoefficient > 0"
+      - "numberOfThreads >= 1"
+    sourceRefs:
+      - "backend/app/formulas/electrical/self_regulating.py:calc_self_regulating"
+    implementationRefs:
+      - "backend/app/formulas/electrical/self_regulating.py"
+    backendEndpoint:
+      id: admin_formula_check_self_regulating
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: electrical
+      resultPath: cable_length
+      requestShape: '{ formula_type: "electrical", params: SelfRegulatingParams }'
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "The 1.1 reserve is a business constant; keep it named in tests and docs."
+      - "required_power_per_meter must be q_linear without heat-loss safety factor."
+    examples:
+      - id: self-reg-cable-length-two-threads
+        kind: fixed
+        input:
+          pipeLength: 100
+          windingCoefficient: 1.2
+          numberOfThreads: 2
+        expected: 264
+
+  - id: tlt_tt_power_curve
+    expression: "q_b = q1 * (maintainTemperature ?? processTemperature) + q2"
+    variables: [q1, maintainTemperature, processTemperature, q2]
+    output: power_per_meter
+    tolerance:
+      absoluteTolerance: 0.001
+      relativeTolerance: 0.000001
+    sourceRefs:
+      - "backend/app/formulas/electrical/self_regulating.py:calc_self_regulating_tt"
+    implementationRefs:
+      - "backend/app/formulas/electrical/self_regulating.py"
+    backendEndpoint:
+      id: admin_formula_check_self_regulating_tt
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: electrical_tt
+      resultPath: power_per_meter
+      requestShape: '{ formula_type: "electrical_tt", params: SelfRegulatingTTParams }'
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Reject q_b <= 0 before cable selection; a negative slope curve can cross zero."
+    examples:
+      - id: tt-power-curve-basic
+        kind: fixed
+        input:
+          q1: -0.1
+          maintainTemperature: 50
+          q2: 35
+        expected: 30
+
+  - id: tlt_resistive_rho_t
+    expression: "rho_T = 0.0175 * (1 + 0.0042 * (processTemperature - 20))"
+    variables: [processTemperature]
+    output: rho_t
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    sourceRefs:
+      - "backend/app/formulas/electrical/resistive.py:_rho_t"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Constants are domain-critical; mutation testing should flip ALPHA/RHO to verify tests fail."
+    examples:
+      - id: resistive-rho-70c
+        kind: fixed
+        input:
+          processTemperature: 70
+        expected: 0.021175
+
+  - id: tlt_resistive_single_line_cross_section
+    expression: "S_k = (requiredHeatLoss / supplyVoltage^2) * rhoT * cableLength"
+    variables: [requiredHeatLoss, supplyVoltage, rhoT, cableLength]
+    output: required_cross_section
+    tolerance:
+      absoluteTolerance: 0.000001
+      relativeTolerance: 0.000001
+    constraints:
+      - "requiredHeatLoss > 0"
+      - "supplyVoltage > 0"
+      - "rhoT > 0"
+      - "cableLength > 0"
+    sourceRefs:
+      - "backend/app/formulas/electrical/resistive.py:calc_resistive_single_core"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+    backendEndpoint:
+      id: admin_formula_check_resistive_single
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: resistive_single
+      resultPath: required_cross_section
+      requestShape: '{ formula_type: "resistive_single", params: ResistiveSingleCoreParams }'
+    oracle:
+      status: implemented
+    engineeringReview:
+      - "Connection type changes the multiplier; each supported scheme needs its own fixed and boundary cases."
+    examples:
+      - id: resistive-single-line-cross-section-basic
+        kind: fixed
+        input:
+          requiredHeatLoss: 5000
+          supplyVoltage: 220
+          rhoT: 0.021175
+          cableLength: 120
+
+  - id: tlt_mineral_cable
+    expression: "Mineral cable calculation is not available in current backend version."
+    variables: [required_power_per_meter, pipe_length]
+    output: SelfRegulatingResult
+    sourceRefs:
+      - "backend/app/formulas/electrical/mineral.py:calc_mineral"
+    implementationRefs:
+      - "backend/app/formulas/electrical/mineral.py"
+    oracle:
+      status: not_implemented
+      notes:
+        - "Backend raises NotImplementedError; agent should classify use of this formula as unsupported, not failed math."
+    engineeringReview:
+      - "Frontend/backend should not expose this as a successful calculation path until a reference formula exists."
+
+algorithms:
+  - id: tlt_climate_safety_factor
+    description: "Resolve TNP climate design temperature and safety factor by object type and pipe diameter."
+    inputs: [objectType, diameterMm, t0, t1, tColdFiveDay092]
+    outputs: [climate_design]
+    constraints:
+      - "For pipe: diameterMm >= 100 uses K=1.1 and T1; diameterMm < 100 uses K=1.12 and T0."
+      - "For non-pipe/tank: K=1.1 and cold five-day temperature with 0.92 probability."
+    sourceRefs:
+      - "docs/tnp/algorithms/climate.md"
+      - "docs/tnp/algorithms/generated/climate.json"
+    implementationRefs:
+      - "qa-agent/src/oracle/AlgorithmOracle.ts"
+    oracle:
+      status: implemented
+      notes:
+        - "The backend still distributes this rule across forms/reference data; QA-agent now has an independent deterministic oracle."
+    properties:
+      - "The pipe diameter threshold is exactly 100 mm."
+      - "Missing source temperature for the selected branch is an oracle error."
+    engineeringReview:
+      - "Use backend/API tests to verify that UI and calculation payloads preserve this exact K/T contract."
+    examples:
+      - id: climate-pipe-large-diameter
+        kind: fixed
+        input:
+          objectType: pipe
+          diameterMm: 100
+          t0: -40
+          t1: -35
+        expected:
+          safetyFactor: 1.1
+          ambientTemperature: -35
+          temperatureBasis: T1
+          rule: pipe_diameter_ge_100
+      - id: climate-pipe-small-diameter
+        kind: fixed
+        input:
+          objectType: pipe
+          diameterMm: 99
+          t0: -40
+          t1: -35
+        expected:
+          safetyFactor: 1.12
+          ambientTemperature: -40
+          temperatureBasis: T0
+          rule: pipe_diameter_lt_100
+      - id: climate-tank-cold-fiveday
+        kind: fixed
+        input:
+          objectType: tank
+          tColdFiveDay092: -33
+        expected:
+          safetyFactor: 1.1
+          ambientTemperature: -33
+          temperatureBasis: t_cold_fiveday_0_92
+          rule: non_pipe_cold_fiveday_0_92
+
+  - id: tlt_max_winding_coefficient
+    description: "Resolve TNP maximum winding coefficient by pipe outer diameter."
+    inputs: [diameterMm]
+    outputs: [max_winding_coefficient]
+    constraints:
+      - "diameterMm > 0"
+      - "D < 57 -> 1.0"
+      - "D = 57 -> 1.1"
+      - "57 < D <= 75 -> 1.2"
+      - "75 < D <= 89 -> 1.3"
+      - "89 < D <= 108 -> 1.4"
+      - "D > 108 -> 1.5"
+    sourceRefs:
+      - "docs/tnp/algorithms/winding.md"
+      - "docs/tnp/algorithms/generated/winding.json"
+    implementationRefs:
+      - "qa-agent/src/oracle/AlgorithmOracle.ts"
+    oracle:
+      status: implemented
+      notes:
+        - "The source flowchart had open upper bounds at 75/89/108. QA policy closes them on the upper bound to avoid holes while preserving the lower interval."
+    properties:
+      - "Coefficient is monotonic by diameter."
+      - "Boundary values 75, 89 and 108 resolve to the lower adjacent interval."
+    engineeringReview:
+      - "This is the conservative interpretation for a maximum allowed winding coefficient: exact threshold values do not jump to the more permissive next band."
+    examples:
+      - id: winding-diameter-below-57
+        kind: edge
+        input:
+          diameterMm: 56.9
+        expected: 1
+      - id: winding-diameter-exact-57
+        kind: edge
+        input:
+          diameterMm: 57
+        expected: 1.1
+      - id: winding-diameter-exact-75
+        kind: edge
+        input:
+          diameterMm: 75
+        expected: 1.2
+      - id: winding-diameter-exact-89
+        kind: edge
+        input:
+          diameterMm: 89
+        expected: 1.3
+      - id: winding-diameter-exact-108
+        kind: edge
+        input:
+          diameterMm: 108
+        expected: 1.4
+      - id: winding-diameter-above-108
+        kind: edge
+        input:
+          diameterMm: 108.1
+        expected: 1.5
+
+  - id: tlt_tank_cable_length
+    description: "Cable length for tank surface laying by perimeter, heating height and laying step."
+    inputs: [shape, diameter, length, width, heatingHeight, layingStep]
+    outputs: [cable_length]
+    constraints:
+      - "heatingHeight > 0"
+      - "0.05 <= layingStep <= 0.5"
+    sourceRefs:
+      - "backend/app/formulas/electrical/cable_geometry.py:compute_tank_cable_length"
+    implementationRefs:
+      - "backend/app/formulas/electrical/cable_geometry.py"
+    backendEndpoint:
+      id: admin_formula_check_tank_cable_geometry
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: tank_cable_geometry
+      resultPath: cable_length
+      requestShape: '{ formula_type: "tank_cable_geometry", params: TankCableGeometryCheckParams }'
+    oracle:
+      status: implemented
+    properties:
+      - "Doubling heatingHeight doubles cable length."
+      - "Doubling layingStep halves cable length."
+    engineeringReview:
+      - "The formula uses perimeter / 2; this business rule should stay linked to documentation because it is not obvious from geometry alone."
+    examples:
+      - id: tank-cable-cylindrical-basic
+        kind: fixed
+        input:
+          shape: cylindrical
+          diameter: 2
+          heatingHeight: 3
+          layingStep: 0.3
+        expected: 31.41592653589793
+        metadata:
+          endpoint: /api/v1/admin/formula-check
+          backendFormulaType: tank_cable_geometry
+          resultPath: cable_length
+      - id: tank-cable-rectangular-basic
+        kind: fixed
+        input:
+          shape: rectangular
+          length: 4
+          width: 2
+          heatingHeight: 3
+          layingStep: 0.3
+        expected: 60
+        metadata:
+          endpoint: /api/v1/admin/formula-check
+          backendFormulaType: tank_cable_geometry
+          resultPath: cable_length
+
+  - id: tlt_tt_series_selection
+    description: "Select minimal TTН/TTВ/TTХ series by product and vapor temperature limits."
+    inputs: [processTemperature, vaporTemperature]
+    outputs: [series]
+    sourceRefs:
+      - "backend/app/formulas/electrical/self_regulating.py:_select_tt_series"
+    implementationRefs:
+      - "backend/app/formulas/electrical/self_regulating.py"
+    oracle:
+      status: implemented
+    properties:
+      - "Selected series is monotonic with processTemperature and vaporTemperature."
+      - "Temperatures beyond TTХ limits must fail validation."
+    engineeringReview:
+      - "Temperature limits are treated as inclusive rated maximums: 65/85, 120/210 and 150/250 are valid boundary cases."
+    examples:
+      - id: tt-series-ttv-by-temperature
+        kind: fixed
+        input:
+          processTemperature: 80
+          vaporTemperature: 120
+        expected: "ТТВ"
+      - id: tt-series-ttn-at-rated-limit
+        kind: edge
+        input:
+          processTemperature: 65
+          vaporTemperature: 85
+        expected: "ТТН"
+      - id: tt-series-ttv-at-rated-limit
+        kind: edge
+        input:
+          processTemperature: 120
+          vaporTemperature: 210
+        expected: "ТТВ"
+      - id: tt-series-ttx-at-rated-limit
+        kind: edge
+        input:
+          processTemperature: 150
+          vaporTemperature: 250
+        expected: "ТТХ"
+
+  - id: tlt_select_min_sufficient_cable
+    description: "Select the lowest sufficient TLT cable that satisfies effective power, temperature and self-regulating thread constraints."
+    inputs:
+      - requiredPowerPerMeter
+      - safetyFactor
+      - layoutFactor
+      - ambientTemperature
+      - processTemperature
+      - catalog
+    outputs: [selected_cable]
+    sourceRefs:
+      - "backend/app/formulas/electrical/self_regulating.py:calc_self_regulating"
+    implementationRefs:
+      - "backend/app/formulas/electrical/self_regulating.py"
+    backendEndpoint:
+      id: admin_formula_check_self_regulating
+      method: POST
+      endpoint: /api/v1/admin/formula-check
+      auth: admin
+      formulaType: electrical
+      resultPath: selected_cable
+      requestShape: '{ formula_type: "electrical", params: SelfRegulatingParams }'
+    oracle:
+      status: implemented
+      notes:
+        - "The oracle takes an explicit catalog in the test input to avoid importing backend reference data."
+    engineeringReview:
+      - "Catalog-driven selection must be tested with ties, unavailable temperature ranges and manual cable selection."
+      - "If TLT threads are not explicitly requested, backend auto-selection may try 1..3 threads and must keep requested/applied thread counts separate."
+    examples:
+      - id: min-sufficient-cable-basic
+        kind: fixed
+        input:
+          requiredPowerPerMeter: 15
+          safetyFactor: 1.1
+          layoutFactor: 1
+          ambientTemperature: -40
+          processTemperature: 50
+          catalog:
+            - model: TLT-10
+              power_per_meter: 10
+              min_temperature: -60
+              max_temperature: 65
+            - model: TLT-17
+              power_per_meter: 17
+              min_temperature: -60
+              max_temperature: 65
+            - model: TLT-30
+              power_per_meter: 30
+              min_temperature: -60
+              max_temperature: 120
+        expected: TLT-17
+
+  - id: tlt_resistive_pick_cross_section
+    description: "Pick the smallest standard conductor cross-section that is >= requiredCrossSection."
+    inputs: [requiredCrossSection, crossSections]
+    outputs: [conductor_cross_section]
+    sourceRefs:
+      - "backend/app/formulas/electrical/resistive.py:_pick_cable"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+    oracle:
+      status: implemented
+      notes:
+        - "The oracle uses an explicit cross-section list instead of backend catalog imports."
+    properties:
+      - "Selected cross-section is never less than requiredCrossSection."
+      - "Selected cross-section is the minimum satisfying value."
+    examples:
+      - id: pick-cross-section-basic
+        kind: fixed
+        input:
+          requiredCrossSection: 3.7
+          crossSections: [1.5, 2.5, 4, 6]
+        expected: 4
+
+  - id: tlt_resistive_passport_ohm_law
+    description: "Compute resistive cable power/current from passport resistance, length and voltage."
+    inputs: [resistanceOhmKm, cableLength, supplyVoltage, resistanceFactor, powerMultiplier, maxCurrentA]
+    outputs: [resistance_ohm, total_power, current, within_current_limit]
+    sourceRefs:
+      - "docs/tnp/internal-references/resistive-cable-r1.md"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+    oracle:
+      status: implemented
+      notes:
+        - "Uses R = resistanceOhmKm / 1000 * cableLength * resistanceFactor and P = U^2 / R * powerMultiplier."
+        - "Current limit defaults to 65 A."
+    examples:
+      - id: passport-ohm-law-basic
+        kind: fixed
+        input:
+          resistanceOhmKm: 80
+          cableLength: 100
+          supplyVoltage: 220
+        expected:
+          resistanceOhm: 8
+          totalPower: 6050
+          current: 27.5
+          maxCurrentA: 65
+          withinCurrentLimit: true
+
+  - id: tlt_resistive_vsdx_auto_select
+    description: "Full-version deterministic auto-selection for resistive cable by U/N/M, p2/p3, type-specific W/m cap and 65A current limit."
+    inputs: [requiredHeatLoss, objectLength, windingCoefficient, catalog, startVoltage, highVoltage, maxCurrentA, maxLinearPowerWM, maxParallelSchemes]
+    outputs: [selected_cable, voltage, threads, schemes, p2_w_m, p3_w_m, total_power]
+    sourceRefs:
+      - "docs/tnp/algorithms/resistive-selection.md"
+      - "docs/tnp/internal-references/resistive-cable-r1.md"
+      - "docs/tnp/internal-references/resistive-cable-r3.md"
+    implementationRefs:
+      - "backend/app/formulas/electrical/resistive.py"
+      - "qa-agent/src/oracle/AlgorithmOracle.ts"
+    oracle:
+      status: implemented
+      notes:
+        - "VSDX order: M from 1 up; loop at start voltage with step-down if first cable exceeds p3; loop at high voltage; star at high voltage."
+        - "p2 is the VSDX scheme-unit W/m used in p=p2*N*M; for TT R3 it includes the three-core scheme multipliers."
+        - "If maxLinearPowerWM is omitted, p3 uses datasheet defaults: TT R1 = 40 W/m, TT R3 = 50 W/m."
+        - "Selected candidates must also keep reported current <= maxCurrentA."
+        - "For TT R3 three-core auto selection, loop_2x3 and star_3x3 use the same three-conductor passport resistance multipliers as manual mode."
+    examples:
+      - id: resistive-vsdx-auto-loop-380
+        kind: fixed
+        input:
+          requiredHeatLoss: 5000
+          objectLength: 100
+          catalog:
+            - model: TT R1 100
+              resistanceOhmKm: 100
+              conductorCrossSection: 0.47
+            - model: TT R1 80
+              resistanceOhmKm: 80
+              conductorCrossSection: 0.22
+        expected:
+          model: TT R1 100
+          voltage: 380
+          threads: 2
+          schemes: 1
+      - id: resistive-vsdx-r3-loop-380
+        kind: fixed
+        input:
+          cableKind: three_core
+          requiredHeatLoss: 10000
+          objectLength: 100
+          catalog:
+            - model: TT R3 100
+              resistanceOhmKm: 100
+              conductorCrossSection: 0.47
+        expected:
+          model: TT R3 100
+          voltage: 380
+          threads: 2
+          schemes: 1
+          connectionType: loop_2x3
+          totalPower: 21660
+          current: 57
+          p2WM: 108.3
+
+  - id: tlt_specification_grouping
+    description: "Group electrical calculation results by selected cable/cable_mark and add accessory quantities per total object count."
+    inputs: [electrical_results, total_objects_count]
+    outputs: [specification_items]
+    sourceRefs:
+      - "backend/app/formulas/specification/builder.py:build_basic_specification"
+    implementationRefs:
+      - "backend/app/formulas/specification/builder.py"
+    oracle:
+      status: external_reference_required
+      notes:
+        - "Needs independent accessory catalog fixture before becoming a deterministic oracle."
+    engineeringReview:
+      - "Accessory count intentionally uses total object count, not only successful electrical calculations."

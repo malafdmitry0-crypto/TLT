@@ -1,0 +1,37 @@
+/* Print chrome — moved from styles.css (C20) */
+
+@media print {
+  .specification-stale-banner,
+  .specification-partial-banner {
+    color: var(--color-swatch-9a3412);
+    border: 2px solid var(--color-swatch-9a3412);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+
+  .heatcalc-header,
+  body .ant-layout-sider,
+  body .ant-layout-footer,
+  .report-page-actions-hint,
+  .report-page-er-selector,
+  body .ant-card-extra,
+  body .ant-btn {
+    display: none;
+  }
+
+  body .ant-layout,
+  body .ant-layout-content,
+  body .ant-card,
+  body .ant-card-body {
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+  }
+
+  .report-preview {
+    width: 100%;
+    overflow: visible;
+  }
+}

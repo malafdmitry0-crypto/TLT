@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "defaultFontSize": "compact",
+  "fontSizes": {
+    "compact": {
+      "label": "Компактный",
+      "fontSizePx": 10,
+      "lineHeight": 1.18,
+      "cellPaddingY": 1
+    },
+    "standard": {
+      "label": "Стандартный",
+      "fontSizePx": 11,
+      "lineHeight": 1.22,
+      "cellPaddingY": 2
+    },
+    "comfortable": {
+      "label": "Комфортный",
+      "fontSizePx": 12,
+      "lineHeight": 1.28,
+      "cellPaddingY": 3
+    },
+    "large": {
+      "label": "Крупный",
+      "fontSizePx": 13,
+      "lineHeight": 1.32,
+      "cellPaddingY": 4
+    }
+  }
+}

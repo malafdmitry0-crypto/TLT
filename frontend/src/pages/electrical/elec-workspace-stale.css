@@ -1,0 +1,18 @@
+/* OWNER: electrical workspace — stale assignment row states (E3 / FE-21). */
+
+.electrical-spreadsheet .row-stale > td {
+  background: var(--color-swatch-fffbe6);
+}
+
+.electrical-spreadsheet .row-stale:hover > td {
+  background: var(--color-swatch-fff4bf);
+}
+
+.electrical-spreadsheet .electrical-row-active.row-stale > td {
+  background: var(--color-swatch-fff7d6);
+  box-shadow: inset 3px 0 0 var(--color-swatch-d97706);
+}
+
+.electrical-spreadsheet .electrical-row-active.row-stale.row-invalid > td {
+  background: var(--color-danger-bg);
+}

@@ -1,0 +1,69 @@
+/**
+ * Heat form — insulation *host* layout only.
+ *
+ * OWNER of table structure/chrome: components/wizard/insulation-layers-table.css
+ * This file may only set layout CSS variables on the hosted table root
+ * (column track tokens under form shell contexts). No header/grid/cell chrome.
+ */
+
+/* Side-compact host: denser tracks (tokens only) */
+.inline-object-form--side .side-compact-insulation .insulation-layers-table {
+  --ins-col-index: 36px;
+  --ins-col-material: minmax(120px, 1.8fr);
+  --ins-col-thickness: minmax(60px, 0.5fr);
+  --ins-col-lambda: minmax(56px, 0.45fr);
+  --ins-col-range: minmax(72px, 0.6fr);
+}
+
+/*
+ * Dual-form type scale for heat fields + side compact form.
+ * ⛔ NEVER select .insulation-layers-table internals here.
+ */
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide button,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .tlt-select__trigger,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-input-number-input,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .reference-picker-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-select-selector,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-control,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .field-control-with-help,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-explain,
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-extra,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .ant-form-item-control,
+.inline-object-form--side .object-wizard-side-panel .side-compact-form > .ant-form-item .field-control-with-help {
+  grid-column: auto;
+}
+
+@media (max-width: 768px) {
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-layer-count-form-item,
+  .inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+    flex: 0 0 100%;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .inline-object-form--wide .object-wizard-wide-panel .heat-object-fields .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 768px) {
+  .reference-picker-filter-row {
+    flex-direction: column;
+  }
+
+  .reference-picker-group-filter {
+    flex-basis: auto;
+    width: 100%;
+  }
+}

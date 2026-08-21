@@ -1,0 +1,178 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: heatcalc_db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_STATEMENT:-100ms}
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-8MB}
+      - -c
+      - random_page_cost=${POSTGRES_RANDOM_PAGE_COST:-1.1}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-heatcalc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-heatcalc_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-heatcalc_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-heatcalc} -d ${POSTGRES_DB:-heatcalc_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: heatcalc_redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - ${REDIS_MAXMEMORY_POLICY:-volatile-lru}
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: heatcalc-backend:${IMAGE_TAG:-latest}
+    container_name: heatcalc_backend
+    restart: unless-stopped
+    environment:
+      # production по умолчанию → validate_runtime_security() требует реальный
+      # SECRET_KEY/FIRST_ADMIN_PASSWORD и включает Secure-cookie. Dev-override
+      # (docker-compose.dev.yml) переопределяет на development.
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db}
+      TEST_DATABASE_URL: ${TEST_DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_test}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      FIRST_ADMIN_EMAIL: ${FIRST_ADMIN_EMAIL:-admin@heatcalc.io}
+      FIRST_ADMIN_PASSWORD: ${FIRST_ADMIN_PASSWORD:-admin}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      GUEST_MAX_SESSIONS_PER_IP: ${GUEST_MAX_SESSIONS_PER_IP:-10}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-50}
+      REPORT_ARTIFACT_DIR: ${REPORT_ARTIFACT_DIR:-/var/lib/heatcalc/reports}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+      UVICORN_LIMIT_CONCURRENCY: ${UVICORN_LIMIT_CONCURRENCY:-100}
+      UVICORN_BACKLOG: ${UVICORN_BACKLOG:-128}
+      UVICORN_KEEPALIVE: ${UVICORN_KEEPALIVE:-5}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_ACCESS: ${LOG_ACCESS:-false}
+      AUDIT_ENABLED: ${AUDIT_ENABLED:-true}
+      AUDIT_FAIL_CLOSED: ${AUDIT_FAIL_CLOSED:-false}
+      WORKER_QUEUE_MAXLEN: ${WORKER_QUEUE_MAXLEN:-10000}
+      WORKER_DEAD_LETTER_STREAM: ${WORKER_DEAD_LETTER_STREAM:-heatcalc:tasks:cpu:dead}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
+      WORKER_PROGRESS_MIN_INTERVAL_MS: ${WORKER_PROGRESS_MIN_INTERVAL_MS:-500}
+      WORKER_PROGRESS_MIN_PERCENT_DELTA: ${WORKER_PROGRESS_MIN_PERCENT_DELTA:-1.0}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - report_artifacts:/var/lib/heatcalc/reports
+    healthcheck:
+      # python -c вместо curl — работает и в dev (Dockerfile.dev без curl), и в prod
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/docs', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: heatcalc-backend:${IMAGE_TAG:-latest}
+    container_name: heatcalc_worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://heatcalc:heatcalc_pass@db:5432/heatcalc_db}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_MAX_CONNECTIONS: ${REDIS_MAX_CONNECTIONS:-50}
+      REPORT_ARTIFACT_DIR: ${REPORT_ARTIFACT_DIR:-/var/lib/heatcalc/reports}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_ACCESS: ${LOG_ACCESS:-false}
+      AUDIT_ENABLED: ${AUDIT_ENABLED:-true}
+      AUDIT_FAIL_CLOSED: ${AUDIT_FAIL_CLOSED:-false}
+      WORKER_QUEUE_CONSUMER: ${WORKER_QUEUE_CONSUMER:-worker}
+      WORKER_QUEUE_MAXLEN: ${WORKER_QUEUE_MAXLEN:-10000}
+      WORKER_DEAD_LETTER_STREAM: ${WORKER_DEAD_LETTER_STREAM:-heatcalc:tasks:cpu:dead}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
+      WORKER_PROGRESS_MIN_INTERVAL_MS: ${WORKER_PROGRESS_MIN_INTERVAL_MS:-500}
+      WORKER_PROGRESS_MIN_PERCENT_DELTA: ${WORKER_PROGRESS_MIN_PERCENT_DELTA:-1.0}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    volumes:
+      - report_artifacts:/var/lib/heatcalc/reports
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Относительный путь — nginx внутри frontend-контейнера проксирует на backend.
+        # Не зависит от .env, чтобы случайное локальное значение (например dev-адрес
+        # http://localhost:8000) не попало в prod/demo-бандл.
+        VITE_API_BASE_URL: /api/v1
+    image: heatcalc-frontend:${IMAGE_TAG:-latest}
+    container_name: heatcalc_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3003}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  report_artifacts:

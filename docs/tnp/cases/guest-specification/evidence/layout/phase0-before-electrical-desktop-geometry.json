@@ -1,0 +1,59 @@
+{
+  "url": "http://127.0.0.1:3003/workspace/elec-calc",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "document": {
+    "clientWidth": 1440,
+    "scrollWidth": 1440,
+    "clientHeight": 1000,
+    "scrollHeight": 1000
+  },
+  "pageHorizontalOverflow": false,
+  "tabs": [
+    {
+      "text": "СО1",
+      "x": 13,
+      "y": 158.28125,
+      "width": 41.53125,
+      "height": 22,
+      "right": 54.53125,
+      "bottom": 180.28125,
+      "visible": true
+    },
+    {
+      "text": "СО2",
+      "x": 59.53125,
+      "y": 158.28125,
+      "width": 43.21875,
+      "height": 22,
+      "right": 102.75,
+      "bottom": 180.28125,
+      "visible": true
+    },
+    {
+      "text": "СО3",
+      "x": 107.75,
+      "y": 158.28125,
+      "width": 43.5,
+      "height": 22,
+      "right": 151.25,
+      "bottom": 180.28125,
+      "visible": true
+    },
+    {
+      "text": "СО4",
+      "x": 156.25,
+      "y": 158.28125,
+      "width": 43.6875,
+      "height": 22,
+      "right": 199.9375,
+      "bottom": 180.28125,
+      "visible": true
+    }
+  ],
+  "tabCount": 4,
+  "allTabsPositiveSize": true,
+  "overlaps": []
+}

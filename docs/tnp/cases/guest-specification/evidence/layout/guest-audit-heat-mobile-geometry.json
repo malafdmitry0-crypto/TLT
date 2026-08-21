@@ -1,0 +1,470 @@
+{
+  "viewport": [
+    390,
+    844
+  ],
+  "document": [
+    393,
+    1435
+  ],
+  "body": [
+    393,
+    1435
+  ],
+  "horizontalScroll": true,
+  "over": [
+    {
+      "tag": "DIV",
+      "role": null,
+      "aria": "Тип объекта",
+      "text": "Трубопровод: 1 Резервуар: 0 Все: 1",
+      "box": [
+        13,
+        103,
+        380,
+        22
+      ]
+    }
+  ],
+  "clip": [
+    {
+      "tag": "SPAN",
+      "text": "мм",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        10,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "мм",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        10,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "Углеродистая сталь",
+      "client": [
+        85,
+        22
+      ],
+      "scroll": [
+        91,
+        22
+      ],
+      "css": {
+        "overflow": "hidden",
+        "textOverflow": "ellipsis",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "шт",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        9,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "шт",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        9,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "шт",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        9,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "На открытом воздухе",
+      "client": [
+        29,
+        22
+      ],
+      "scroll": [
+        89,
+        22
+      ],
+      "css": {
+        "overflow": "hidden",
+        "textOverflow": "ellipsis",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "°C",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        9,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "°C",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        9,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "м/с",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        11,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    },
+    {
+      "tag": "SPAN",
+      "text": "Вт/мК",
+      "client": [
+        6,
+        22
+      ],
+      "scroll": [
+        16,
+        22
+      ],
+      "css": {
+        "overflow": "visible",
+        "textOverflow": "clip",
+        "fontSize": "9px"
+      }
+    }
+  ],
+  "small": [
+    {
+      "text": "Наименование",
+      "fontSize": "9px",
+      "box": [
+        16,
+        168,
+        110,
+        10
+      ]
+    },
+    {
+      "text": "Наружный",
+      "fontSize": "9px",
+      "box": [
+        16,
+        227,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "диаметр",
+      "fontSize": "9px",
+      "box": [
+        16,
+        237,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "мм",
+      "fontSize": "9px",
+      "box": [
+        60,
+        261,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Длина",
+      "fontSize": "9px",
+      "box": [
+        77,
+        227,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "трубопровода",
+      "fontSize": "9px",
+      "box": [
+        77,
+        237,
+        49,
+        21
+      ]
+    },
+    {
+      "text": "м",
+      "fontSize": "9px",
+      "box": [
+        132,
+        272,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Толщина",
+      "fontSize": "9px",
+      "box": [
+        16,
+        307,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "стенки",
+      "fontSize": "9px",
+      "box": [
+        16,
+        317,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "мм",
+      "fontSize": "9px",
+      "box": [
+        60,
+        341,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Источник теплопроводности",
+      "fontSize": "9px",
+      "box": [
+        77,
+        307,
+        49,
+        31
+      ]
+    },
+    {
+      "text": "трубы",
+      "fontSize": "9px",
+      "box": [
+        77,
+        338,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "Справочник",
+      "fontSize": "9px",
+      "box": [
+        82,
+        363,
+        50,
+        22
+      ]
+    },
+    {
+      "text": "Материал",
+      "fontSize": "9px",
+      "box": [
+        16,
+        397,
+        110,
+        10
+      ]
+    },
+    {
+      "text": "трубы",
+      "fontSize": "9px",
+      "box": [
+        16,
+        407,
+        110,
+        10
+      ]
+    },
+    {
+      "text": "Углеродистая сталь",
+      "fontSize": "9px",
+      "box": [
+        21,
+        433,
+        85,
+        22
+      ]
+    },
+    {
+      "text": "Задвижки",
+      "fontSize": "9px",
+      "box": [
+        140,
+        168,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "шт",
+      "fontSize": "9px",
+      "box": [
+        195,
+        192,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Фланцы",
+      "fontSize": "9px",
+      "box": [
+        201,
+        168,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "шт",
+      "fontSize": "9px",
+      "box": [
+        256,
+        192,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Опоры",
+      "fontSize": "9px",
+      "box": [
+        140,
+        227,
+        49,
+        10
+      ]
+    },
+    {
+      "text": "шт",
+      "fontSize": "9px",
+      "box": [
+        195,
+        251,
+        7,
+        24
+      ]
+    },
+    {
+      "text": "Эквивалентная длина",
+      "fontSize": "9px",
+      "box": [
+        201,
+        227,
+        49,
+        31
+      ]
+    },
+    {
+      "text": "локального элемента",
+      "fontSize": "9px",
+      "box": [
+        201,
+        258,
+        49,
+        31
+      ]
+    },
+    {
+      "text": "м",
+      "fontSize": "9px",
+      "box": [
+        251,
+        303,
+        7,
+        24
+      ]
+    }
+  ]
+}

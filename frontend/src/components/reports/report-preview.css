@@ -1,0 +1,9 @@
+/* OWNER: ReportPreview — static chrome */
+
+.report-preview-frame {
+  border: 1px solid var(--color-border);
+  padding: 16px;
+  background: var(--color-surface);
+  max-height: 700px;
+  overflow: auto;
+}

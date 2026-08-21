@@ -1,0 +1,319 @@
+/* core: ./heatcalc-field-chrome-core.css */
+.inline-object-form .ant-input-number-input-wrap {
+  height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .ant-input-number-input {
+  height: calc(var(--inline-control-height) - 2px);
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: calc(var(--inline-control-height) - 2px);
+}
+.inline-object-form .unit-input-number__addon {
+  height: var(--inline-control-height);
+  font-size: 9px;
+  padding: 0 3px;
+  line-height: calc(var(--inline-control-height) - 2px);
+  vertical-align: middle;
+  box-sizing: border-box;
+  border-radius: 0 var(--tlt-field-radius, 2px) var(--tlt-field-radius, 2px) 0;
+  white-space: nowrap;
+}
+.inline-object-form .ant-form-item-explain,
+.inline-object-form .ant-form-item-extra {
+  font-size: 9px;
+  grid-column: 2;
+}
+/* Только подпись: ни овала, ни точки — решение владельца */
+.inline-object-form .field-source-tag {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-size: 8px;
+  line-height: 12px;
+  color: var(--color-swatch-5d7180);
+  background: none;
+  border: 0;
+}
+.inline-object-form .fit-label-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .numeric-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .compact-select-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .medium-select-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .layer-count-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-row,
+.inline-object-form .numeric-form-item .ant-form-item-row,
+.inline-object-form .compact-select-form-item .ant-form-item-row,
+.inline-object-form .medium-select-form-item .ant-form-item-row,
+.inline-object-form .layer-count-form-item .ant-form-item-row {
+  grid-template-columns: minmax(var(--compact-field-label-width, 84px), 1fr) max-content;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-label,
+.inline-object-form .numeric-form-item .ant-form-item-label,
+.inline-object-form .compact-select-form-item .ant-form-item-label,
+.inline-object-form .medium-select-form-item .ant-form-item-label,
+.inline-object-form .layer-count-form-item .ant-form-item-label {
+  width: auto;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-form-item-control,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input,
+.inline-object-form .fit-label-form-item .ant-form-item-control-input-content,
+.inline-object-form .numeric-form-item .ant-form-item-control,
+.inline-object-form .numeric-form-item .ant-form-item-control-input,
+.inline-object-form .numeric-form-item .ant-form-item-control-input-content,
+.inline-object-form .compact-select-form-item .ant-form-item-control,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input,
+.inline-object-form .compact-select-form-item .ant-form-item-control-input-content,
+.inline-object-form .medium-select-form-item .ant-form-item-control,
+.inline-object-form .medium-select-form-item .ant-form-item-control-input,
+.inline-object-form .medium-select-form-item .ant-form-item-control-input-content,
+.inline-object-form .layer-count-form-item .ant-form-item-control,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input,
+.inline-object-form .layer-count-form-item .ant-form-item-control-input-content {
+  width: max-content;
+  min-width: 0;
+}
+.inline-object-form .fit-label-form-item .ant-input,
+.inline-object-form .fit-label-form-item .ant-select,
+.inline-object-form .fit-label-form-item .tlt-select,
+.inline-object-form .fit-label-form-item .reference-picker-control,
+.inline-object-form .numeric-form-item .ant-input,
+.inline-object-form .numeric-form-item .ant-select,
+.inline-object-form .numeric-form-item .tlt-select,
+.inline-object-form .numeric-form-item .reference-picker-control,
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select,
+.inline-object-form .compact-select-form-item .reference-picker-control,
+.inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select,
+.inline-object-form .medium-select-form-item .reference-picker-control,
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
+  width: max-content;
+  min-width: var(--field-input-min-width, 104px);
+}
+.inline-object-form .compact-select-form-item .ant-select,
+.inline-object-form .compact-select-form-item .tlt-select {
+  width: 88px;
+  min-width: 88px;
+}
+.inline-object-form .compact-select-form-item .reference-picker-control {
+  width: 88px;
+  min-width: 88px;
+}
+.inline-object-form .medium-select-form-item .ant-select,
+.inline-object-form .medium-select-form-item .tlt-select {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .medium-select-form-item .reference-picker-control {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .environment-form-item .ant-select,
+.inline-object-form .environment-form-item .tlt-select {
+  flex: 0 0 94px;
+  width: 94px;
+  min-width: 94px;
+}
+.heatcalc-workspace-layout--left .inline-object-form .environment-form-item .field-control-with-help,
+.heatcalc-workspace-layout--right .inline-object-form .environment-form-item .field-control-with-help {
+  width: max-content;
+  max-width: none;
+}
+.inline-object-form .layer-material-form-item .ant-select {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .layer-material-form-item .reference-picker-control {
+  width: 128px;
+  min-width: 128px;
+}
+.inline-object-form .layer-material-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+.inline-object-form .second-layer-thickness-form-item {
+  grid-column: 1;
+}
+.inline-object-form .layer-count-form-item .ant-select,
+.inline-object-form .layer-count-form-item .tlt-select {
+  width: 94px;
+  min-width: 94px;
+}
+.inline-object-form .fit-label-form-item .ant-input-number,
+.inline-object-form .fit-label-form-item .ant-input-number-group-wrapper,
+.inline-object-form .numeric-form-item .ant-input-number,
+.inline-object-form .numeric-form-item .ant-input-number-group-wrapper {
+  min-width: 0;
+}
+.inline-object-form .fixed-select-form-item .reference-picker-control {
+  width: 100%;
+  min-width: var(--field-input-min-width, 160px);
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-row {
+  grid-template-columns: minmax(112px, 1fr) minmax(180px, 1.3fr);
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-form-item-label {
+  width: auto;
+  min-width: 0;
+}
+.inline-object-form .insulation-temperature-basis-form-item .ant-select {
+  min-width: 180px;
+}
+.inline-object-form .insulation-temperature-basis-form-item .field-label-two-line > span {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.inline-object-form .reduced-select-form-item .ant-form-item-row {
+  grid-template-columns: minmax(var(--field-label-width, 104px), 1fr) minmax(var(--field-input-min-width, 160px), 1.2fr);
+}
+.inline-object-form .temperature-group-form-item {
+  width: 100%;
+  min-width: 0;
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-row {
+  grid-template-columns: var(--compact-field-label-width, 84px) max-content;
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-label {
+  width: var(--compact-field-label-width, 84px);
+}
+.inline-object-form .temperature-group-form-item .ant-form-item-control,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input,
+.inline-object-form .temperature-group-form-item .ant-form-item-control-input-content {
+  width: max-content;
+  min-width: 0;
+}
+.inline-object-form .temperature-group-form-item .ant-select,
+.inline-object-form .temperature-group-form-item .tlt-select {
+  width: 44px;
+  min-width: 44px;
+}
+.inline-object-form .short-number-form-item {
+  --numeric-value-width: 4ch;
+}
+.inline-object-form .temperature-number-form-item {
+  --numeric-value-width: 4ch;
+}
+.inline-object-form .coefficient-form-item {
+  --numeric-value-width: 5ch;
+}
+.inline-object-form .insulation-temperature-range-form-item {
+  --field-input-min-width: 96px;
+}
+.inline-object-form .insulation-temperature-range-form-item .ant-input {
+  min-width: 96px;
+  width: 96px;
+}
+.inline-object-form .temperature-range-picker-control {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+}
+.inline-object-form .tank-size-form-item {
+  --numeric-value-width: 5ch;
+}
+.inline-object-form .long-number-form-item {
+  --numeric-value-width: 6ch;
+}
+.inline-object-form .fitting-count-form-item .ant-input-number-group-wrapper {
+  width: 86px;
+}
+.inline-object-form .fitting-count-form-item .ant-input-number {
+  width: 52px;
+}
+.inline-object-form--wide .object-wizard-wide-panel .ant-form-item {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .insulation-temperature-basis-form-item {
+  flex: 1 1 calc(100% - 228px);
+  min-width: 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .form-col-srs--insulation {
+  gap: 4px 0;
+}
+.inline-object-form--wide .object-wizard-wide-panel .form-grid-srs--pdf-three > .form-col-srs--insulation {
+  display: flex;
+  overflow: hidden;
+}
+.inline-object-form .insulation-reference-value {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--color-swatch-40566f);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.inline-object-form--wide .object-wizard-wide-panel .heat-object-fields--wide .ant-form-item-label > label > span {
+  overflow: hidden;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+@media (max-width: 1200px) {
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label {
+    display: block;
+    height: auto;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .ant-form-item-label > label > span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .heatcalc-form-pane--wide .inline-object-form--wide .field-label-two-line > span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+  }
+}
+.heatcalc-column-resizing,
+.heatcalc-column-resizing * {
+  cursor: col-resize;
+  user-select: none;
+}
+.reference-picker-modal .ant-modal-body {
+  padding-top: 8px;
+}
+.reference-picker-group-filter {
+  flex: 0 0 240px;
+}
+.reference-picker-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(55vh, 460px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.reference-picker-loading,
+.reference-picker-empty {
+  padding: 28px 0;
+}

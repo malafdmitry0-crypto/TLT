@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "functionalMinWidth": 1000,
+  "fullWorkspaceMinWidth": 1280,
+  "primaryQaWidth": 1440,
+  "profiles": [
+    {
+      "id": "functional_1000",
+      "width": 1000,
+      "height": 800,
+      "level": "functional",
+      "required": true
+    },
+    {
+      "id": "full_workspace_1280",
+      "width": 1280,
+      "height": 900,
+      "level": "full_workspace",
+      "required": true
+    },
+    {
+      "id": "primary_qa_1440",
+      "width": 1440,
+      "height": 900,
+      "level": "primary_qa",
+      "required": true
+    },
+    {
+      "id": "wide_1920",
+      "width": 1920,
+      "height": 1080,
+      "level": "wide",
+      "required": true
+    }
+  ]
+}

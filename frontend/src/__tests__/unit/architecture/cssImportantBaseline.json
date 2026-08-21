@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "slice": "CSS-RESIDUAL-CLOSE",
+  "description": "Zero !important after StyleProvider hashPriority=low (Ant :where). Growth fails.",
+  "total": 0,
+  "files": {}
+}
