@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -12,6 +13,8 @@ from heatcalc_specification_core.bom import (
     GenerationFailure,
     GenerationInput,
     GenerationSuccess,
+    InputRevision,
+    ObjectRevision,
     ObjectTypeSection,
     ResolvedOptions,
     RevisionContext,
@@ -21,6 +24,7 @@ from heatcalc_specification_core.bom import (
     run_specification,
 )
 from heatcalc_specification_core.bom.selections import candidate_set_fingerprint
+from heatcalc_specification_core.catalog import CatalogParameters
 from heatcalc_specification_core.catalog_conditions import not_applicable
 
 VARIANT_ID = UUID("00000000-0000-0000-0000-000000000101")
@@ -34,9 +38,9 @@ def _item(
     mark: str,
     code: str,
     *,
-    applicability: dict[str, object] | None = None,
-    package: dict[str, object] | None = None,
-    formula: dict[str, object] | None = None,
+    applicability: Mapping[str, object] | None = None,
+    package: Mapping[str, object] | None = None,
+    formula: Mapping[str, object] | None = None,
     unit: str = "шт.",
 ) -> CatalogItem:
     return CatalogItem(
@@ -47,9 +51,15 @@ def _item(
         mark=mark,
         nomenclature_code=code,
         supply_unit=unit,
-        applicability=applicability or {},
-        package_parameters=package or {},
-        formula_parameters=formula or {},
+        parameters=CatalogParameters.parse(
+            category=category,
+            applicability=applicability or {},
+            package_parameters=package or {},
+            formula_parameters=formula or {},
+            item_key=f"item-{number}",
+            mark=mark,
+            nomenclature_code=code,
+        ),
     )
 
 
@@ -175,7 +185,9 @@ def _input(*, groups: tuple[CandidateGroup, ...] | None = None) -> GenerationInp
         revision_context=RevisionContext(
             variant_updated_at=datetime(2026, 1, 2, 3, 4, tzinfo=UTC),
             settings_revision=7,
-            input_revisions=({"object": {"id": OBJECT_ID, "version": 4}},),
+            input_revisions=(
+                InputRevision(object=ObjectRevision(id=OBJECT_ID, version=4)),
+            ),
         ),
         preflight_fingerprint=f"sha256:{'1' * 64}",
         generated_at=datetime(2026, 1, 2, 3, 5, tzinfo=UTC),
@@ -194,12 +206,23 @@ def test_full_pipeline_matches_existing_golden_quantities_and_snapshot() -> None
     assert by_category["fiberglass_tape"].quantity > 0
     assert by_category["box"].quantity == Decimal("3")
     assert all(item.source == "auto" for item in outcome.items)
+    assert all(item.params["object_type_section"] == "pipe" for item in outcome.items)
+    assert all(
+        item.params["electrical_variant_id"] == str(VARIANT_ID) for item in outcome.items
+    )
+    assert all(item.params["catalog_id"] == str(CATALOG_ID) for item in outcome.items)
 
-    snapshot = outcome.snapshot
+    snapshot = outcome.snapshot.to_dict()
     assert snapshot["schema"] == "specification-generation"
     assert snapshot["generated_at"] == "2026-01-02T03:05:00+00:00"
     assert snapshot["preflight_fingerprint"] == f"sha256:{'1' * 64}"
-    assert snapshot["normalized_inputs"]["objects"][0]["outer_diameter_mm"] == "108.000"
+    normalized = snapshot["normalized_inputs"]
+    assert isinstance(normalized, Mapping)
+    objects = normalized["objects"]
+    assert isinstance(objects, Sequence)
+    first = objects[0]
+    assert isinstance(first, Mapping)
+    assert first["outer_diameter_mm"] == "108.000"
     assert run_specification(_input()) == outcome
 
 

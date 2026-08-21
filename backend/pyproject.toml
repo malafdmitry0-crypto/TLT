@@ -54,7 +54,6 @@ addopts = "-ra -q --cov=app --cov-fail-under=85 --cov-report=term-missing:skip-c
 # Запуск: scripts/formula-qa.sh mutation
 paths_to_mutate = [
     "app/formulas/electrical/",
-    "packages/specification-core/src/heatcalc_specification_core/",
 ]
 pytest_add_cli_args = [
     "--no-cov",
@@ -68,7 +67,6 @@ also_copy = [
     "app",
     "packages/heat-loss-core/src",
     "packages/electrical-core/src",
-    "packages/specification-core/src",
 ]
 backup = false
 

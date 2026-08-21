@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import time
 
+from heatcalc_specification_core.connection_kit import calculate_connection_kits
+from heatcalc_specification_core.repair_kit import calculate_repair_kits
+from heatcalc_specification_core.sealant import calculate_sealant
+
 from app.core.config import settings
-from app.formulas.specification.calculators.connection_kit import calculate_connection_kits
-from app.formulas.specification.calculators.repair_kit import calculate_repair_kits
-from app.formulas.specification.calculators.sealant import calculate_sealant
 
 
 def test_product_default_object_limit_is_five_hundred():
@@ -35,9 +36,7 @@ def test_canonical_accessory_formulas_scale_under_object_probe():
         # Two sections per synthetic object; length 20 m each.
         n_sections = n_objects * 2
         length_m = n_objects * 20
-        connection = calculate_connection_kits(
-            n_sections, 2, temperature_group="LOW"
-        )
+        connection = calculate_connection_kits(n_sections, 2, temperature_group="LOW")
         repair = calculate_repair_kits(length_m, 150, temperature_group="LOW")
         sealant = calculate_sealant(connection.quantity, repair.quantity, 7)
         return {

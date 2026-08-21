@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from heatcalc_specification_core.preflight import CatalogIdentity as CoreCatalogIdentity
@@ -34,7 +34,7 @@ from app.services.specification_candidate_service import (
     candidate_groups_fingerprint_payload,
     catalog_selections_for_variant,
 )
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     ResolvedSpecificationCatalog,
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
@@ -463,25 +463,22 @@ def _input_fingerprint(
     candidate_groups: Sequence[Any],
     excluded_unassigned_object_ids: Sequence[UUID],
 ) -> str:
-    return cast(
-        str,
-        preflight_fingerprint(
-            project_id=project_id,
-            electrical_variant_id=variant_id,
-            assignments=tuple(to_core_preflight_assignment(row) for row in assignments),
-            catalog=CoreCatalogIdentity(
-                catalog_id=catalog.id,
-                catalog_key=catalog.catalog_key,
-                version=catalog.version,
-                source_checksum=catalog.source_checksum,
-                payload_checksum=catalog.payload_checksum,
-                schema_version=catalog.schema_version,
-            ),
-            resolved_options=resolved_options.model_dump(mode="json", by_alias=True),
-            catalog_selections=catalog_selections,
-            candidate_groups=candidate_groups_fingerprint_payload(candidate_groups),
-            excluded_unassigned_object_ids=excluded_unassigned_object_ids,
+    return preflight_fingerprint(
+        project_id=project_id,
+        electrical_variant_id=variant_id,
+        assignments=tuple(to_core_preflight_assignment(row) for row in assignments),
+        catalog=CoreCatalogIdentity(
+            catalog_id=catalog.id,
+            catalog_key=catalog.catalog_key,
+            version=catalog.version,
+            source_checksum=catalog.source_checksum,
+            payload_checksum=catalog.payload_checksum,
+            schema_version=catalog.schema_version,
         ),
+        resolved_options=resolved_options.model_dump(mode="json", by_alias=True),
+        catalog_selections=catalog_selections,
+        candidate_groups=candidate_groups_fingerprint_payload(candidate_groups),
+        excluded_unassigned_object_ids=excluded_unassigned_object_ids,
     )
 
 

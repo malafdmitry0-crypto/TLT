@@ -97,8 +97,7 @@ async def test_import_creates_immutable_draft_with_validation_issues(
     assert payload["is_complete"] is False
     assert payload["authority"] == "approved"
     assert any(
-        issue.get("reason") == "sealant_catalog_missing"
-        for issue in payload["validation_issues"]
+        issue.get("reason") == "sealant_catalog_missing" for issue in payload["validation_issues"]
     )
 
     listed = await client.get(
@@ -144,9 +143,7 @@ async def test_provisional_and_incomplete_cannot_activate_as_production(
         headers=headers,
     )
     assert provisional_activation.status_code == 422
-    assert (
-        provisional_activation.json()["detail"]["code"] == "SPEC_CATALOG_VALIDATION_FAILED"
-    )
+    assert provisional_activation.json()["detail"]["code"] == "SPEC_CATALOG_VALIDATION_FAILED"
 
     incomplete = await client.post(
         "/api/v1/admin/specification-catalogs/import",

@@ -70,6 +70,8 @@ def test_backend_and_core_floors_are_independent(monkeypatch: pytest.MonkeyPatch
             return score_gate.Counter({1: 87, 0: 13})
         if roots == score_gate.ELECTRICAL_CORE_MUTANT_ROOTS:
             return score_gate.Counter({1: 87, 0: 13})
+        if roots == score_gate.SPECIFICATION_CORE_MUTANT_ROOTS:
+            return score_gate.Counter({1: 87, 0: 13})
         raise AssertionError(f"unexpected roots: {roots!r}")
 
     monkeypatch.setattr(score_gate, "_status_counts", status_counts)
@@ -89,6 +91,8 @@ def test_core_scope_does_not_require_backend_artifacts(
             return Counter({1: 87, 0: 13})
         if roots == score_gate.ELECTRICAL_CORE_MUTANT_ROOTS:
             return Counter()
+        if roots == score_gate.SPECIFICATION_CORE_MUTANT_ROOTS:
+            return Counter()
         raise AssertionError(f"unexpected roots: {roots!r}")
 
     monkeypatch.setattr(score_gate, "_status_counts", status_counts)
@@ -107,9 +111,33 @@ def test_electrical_core_scope_does_not_require_other_artifacts(
             return Counter()
         if roots == score_gate.ELECTRICAL_CORE_MUTANT_ROOTS:
             return Counter({1: 87, 0: 13})
+        if roots == score_gate.SPECIFICATION_CORE_MUTANT_ROOTS:
+            return Counter()
         raise AssertionError(f"unexpected roots: {roots!r}")
 
     monkeypatch.setattr(score_gate, "_status_counts", status_counts)
     monkeypatch.setenv("MUTMUT_SCOPE", "electrical-core")
+
+    assert score_gate.main() == 0
+
+
+def test_specification_core_scope_is_independent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_gate = _load_score_gate()
+
+    def status_counts(roots: tuple[Path, ...] | None = None) -> Counter[int]:
+        if roots == score_gate.SPECIFICATION_CORE_MUTANT_ROOTS:
+            return Counter({1: 80, 0: 20})
+        if roots in {
+            score_gate.BACKEND_MUTANT_ROOTS,
+            score_gate.CORE_MUTANT_ROOTS,
+            score_gate.ELECTRICAL_CORE_MUTANT_ROOTS,
+        }:
+            return Counter()
+        raise AssertionError(f"unexpected roots: {roots!r}")
+
+    monkeypatch.setattr(score_gate, "_status_counts", status_counts)
+    monkeypatch.setenv("MUTMUT_SCOPE", "specification-core")
 
     assert score_gate.main() == 0

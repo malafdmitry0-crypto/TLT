@@ -112,9 +112,7 @@ def test_generation_form_diagnostic_is_excluded_from_readiness() -> None:
         code=SpecificationDiagnosticCode.FORMULA_INPUT_INVALID,
         kind=SpecificationIssueKind.BLOCKING,
         message="Не разрешены обязательные настройки спецификации",
-        issues=[
-            {"reason": "required_option_unresolved", "field": "grouping_mode"}
-        ],
+        issues=[{"reason": "required_option_unresolved", "field": "grouping_mode"}],
     )
     assert _is_generation_form_diagnostic(diagnostic) is True
 

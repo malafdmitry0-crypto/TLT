@@ -156,9 +156,7 @@ class SpecificationRequestedOptions(BaseModel):
 
     catalog_id: UUID | str | None = None
     catalog_version: str | None = Field(default=None, min_length=1)
-    grouping_mode: SpecificationGroupingMode = (
-        SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
-    )
+    grouping_mode: SpecificationGroupingMode = SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
     ex: bool = Field(default=False, alias="Ex")
     k1i: bool = Field(default=False, alias="K1i")
     k2i: bool = Field(default=False, alias="K2i")
@@ -171,11 +169,7 @@ class SpecificationRequestedOptions(BaseModel):
     def _default_grouping_mode(
         cls, value: SpecificationGroupingMode | str | None
     ) -> SpecificationGroupingMode | str:
-        return (
-            SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE
-            if value is None
-            else value
-        )
+        return SpecificationGroupingMode.SEPARATE_BY_OBJECT_TYPE if value is None else value
 
     @field_validator("catalog_id")
     @classmethod

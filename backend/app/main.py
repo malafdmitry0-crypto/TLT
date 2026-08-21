@@ -23,6 +23,7 @@ from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis
 from app.core.request_context import reset_request_id, set_request_id
 from app.core.security import hash_password
+from app.core.specification_metrics import specification_metrics
 from app.electrical_variant_limits import MAX_ELECTRICAL_VARIANTS
 from app.models.user import User
 from app.reference_data.loader import preload_all
@@ -166,6 +167,14 @@ app = FastAPI(
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
 )
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    return Response(
+        content=specification_metrics.render(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @app.middleware("http")

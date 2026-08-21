@@ -11,7 +11,7 @@ from app.services.specification_candidate_service import (
     catalog_selections_for_variant,
     stable_group_key,
 )
-from app.services.specification_catalog_service import ResolvedSpecificationCatalog
+from app.services.specification_catalog import ResolvedSpecificationCatalog
 from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
 
 
@@ -72,9 +72,7 @@ def test_zero_candidates_is_blocking_missing_item():
             item
             for item in complete_specification_catalog_items()
             if item.category != "connection_kit"
-            and (
-                getattr(item.category, "value", item.category) != "connection_kit"
-            )
+            and (getattr(item.category, "value", item.category) != "connection_kit")
         ]
     )
     # Drop connection kits explicitly.
@@ -113,8 +111,7 @@ def test_one_candidate_auto_selects_without_selection_required():
     items = [
         item
         for item in items
-        if getattr(item.category, "value", item.category) != "cable"
-        or item.mark == "30ТТВ2-СР"
+        if getattr(item.category, "value", item.category) != "cable" or item.mark == "30ТТВ2-СР"
     ]
     catalog = _catalog_from_inputs(items)
     variant_id = uuid.uuid4()
@@ -123,9 +120,7 @@ def test_one_candidate_auto_selects_without_selection_required():
         catalog=catalog,
         contributing_results=[_result()],
     )
-    assert not any(
-        d.kind is SpecificationIssueKind.SELECTION_REQUIRED for d in built.diagnostics
-    )
+    assert not any(d.kind is SpecificationIssueKind.SELECTION_REQUIRED for d in built.diagnostics)
     assert not any(d.kind is SpecificationIssueKind.BLOCKING for d in built.diagnostics)
     for group in built.groups:
         assert group.selected_catalog_item_id is not None
@@ -343,10 +338,7 @@ def test_model_or_series_without_explicit_temperature_group_blocks():
     unresolved = [
         diagnostic
         for diagnostic in built.diagnostics
-        if any(
-            issue.get("reason") == "temperature_group_unresolved"
-            for issue in diagnostic.issues
-        )
+        if any(issue.get("reason") == "temperature_group_unresolved" for issue in diagnostic.issues)
     ]
     assert {diagnostic.details["category"] for diagnostic in unresolved} == {
         "connection_kit",

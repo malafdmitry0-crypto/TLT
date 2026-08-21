@@ -10,7 +10,6 @@ from heatcalc_specification_core.candidates.contracts import (
     CandidateCatalog,
     CandidateCatalogItem,
     SpecificationCandidate,
-    thaw,
 )
 from heatcalc_specification_core.common import normalize_temperature_group
 from heatcalc_specification_core.types import FormulaInputError
@@ -40,9 +39,7 @@ def filter_candidates(
             mark=item.mark,
             nomenclature_code=item.nomenclature_code,
             supply_unit=item.supply_unit,
-            applicability=bounded_mapping(item.applicability),
-            package_parameters=bounded_mapping(item.package_parameters),
-            formula_parameters=bounded_mapping(item.formula_parameters),
+            parameters=item.parameters,
         )
         for item in filtered
     )
@@ -53,7 +50,7 @@ def item_matches(
     category: str,
     conditions: Mapping[str, Any],
 ) -> bool:
-    applicability = item.applicability
+    parameters = item.parameters
     if category in MARK_FILTER_CATEGORIES:
         mark = conditions.get("mark")
         code = conditions.get("nomenclature_code")
@@ -68,7 +65,7 @@ def item_matches(
         required = conditions.get("temperature_group")
         if required is None:
             return True
-        item_temperature = applicability.get("temperature_group")
+        item_temperature = parameters.temperature_group
         if item_temperature is None:
             return False
         try:
@@ -81,20 +78,9 @@ def item_matches(
     for key, expected in conditions.items():
         if key.startswith("_"):
             continue
-        actual = applicability.get(key)
+        actual = parameters.applicability_dict().get(key)
         if actual is None:
             continue
         if str(actual) != str(expected):
             return False
     return True
-
-
-def bounded_mapping(value: Any, *, max_keys: int = 32) -> dict[str, Any]:
-    if not isinstance(value, Mapping):
-        return {}
-    output: dict[str, Any] = {}
-    for index, (key, item) in enumerate(value.items()):
-        if index >= max_keys:
-            break
-        output[str(key)] = thaw(item)
-    return output

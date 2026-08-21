@@ -40,9 +40,9 @@ from app.schemas.specification_catalog import (
     SpecificationCatalogItemInput,
 )
 from app.services.electrical_catalog_service import ElectricalCatalogService
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
-    _canonical_checksum,
+    canonical_catalog_checksum,
 )
 from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
 
@@ -159,7 +159,7 @@ async def _import_http_flow_catalog(
         version=version,
         authority=SpecificationCatalogAuthority.APPROVED,
         source="integration owner registry http-flow",
-        source_checksum=_canonical_checksum(
+        source_checksum=canonical_catalog_checksum(
             {
                 "catalog_key": "builtin-specification",
                 "version": version,
@@ -345,9 +345,10 @@ async def test_http_readiness_aggregates_upstream_blockers_per_er_without_genera
         headers=headers,
     )
     assert invalid_generate.status_code == 422, invalid_generate.text
-    assert {
-        issue["field"] for issue in invalid_generate.json()["detail"]["issues"]
-    } == {"L_K2i_m", "R_gr"}
+    assert {issue["field"] for issue in invalid_generate.json()["detail"]["issues"]} == {
+        "L_K2i_m",
+        "R_gr",
+    }
 
     persisted = await client.get(
         f"/api/v1/specifications/{project.id}/readiness",

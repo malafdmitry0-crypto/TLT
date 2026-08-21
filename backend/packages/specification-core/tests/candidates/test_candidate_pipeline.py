@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from types import MappingProxyType
+from collections.abc import Mapping
 from uuid import UUID
 
 from heatcalc_specification_core.candidates import (
@@ -16,7 +16,7 @@ from heatcalc_specification_core.candidates import (
     catalog_selections_for_variant,
     stable_group_key,
 )
-from heatcalc_specification_core.candidates.contracts import thaw
+from heatcalc_specification_core.catalog import CatalogParameters
 
 VARIANT_ID = UUID("10000000-0000-0000-0000-000000000001")
 OTHER_VARIANT_ID = UUID("20000000-0000-0000-0000-000000000002")
@@ -30,7 +30,7 @@ def _item(
     *,
     code: str | None = None,
     temperature_group: str | None = None,
-    applicability: dict | None = None,
+    applicability: Mapping[str, object] | None = None,
 ) -> CandidateCatalogItem:
     conditions = dict(applicability or {})
     if temperature_group is not None:
@@ -42,9 +42,16 @@ def _item(
         mark=mark,
         nomenclature_code=code or f"CODE-{number}",
         supply_unit="шт.",
-        applicability=conditions,
-        package_parameters={"capacity": number},
-        formula_parameters={"factor": number},
+        parameters=(
+            CatalogParameters.parse(
+                category=category,
+                applicability=conditions,
+                package_parameters={"capacity": number},
+                formula_parameters={"factor": number},
+            )
+            if category != "box"
+            else CatalogParameters()
+        ),
     )
 
 
@@ -70,7 +77,7 @@ def _catalog(*, multiple_connection_kits: bool = False) -> CandidateCatalog:
     )
 
 
-def _result(*, temperature_group: str = "high") -> dict:
+def _result(*, temperature_group: str = "high") -> dict[str, object]:
     return {
         "cable": {"mark": "30ТТВ2-СР", "nomenclature_code": "001-002-002"},
         "temperature_group": temperature_group,
@@ -160,7 +167,9 @@ def test_multi_candidate_requires_explicit_member_and_rejects_foreign_item() -> 
 
 def test_exact_cable_identity_and_explicit_temperature_group_are_fail_closed() -> None:
     missing_code = _result()
-    missing_code["cable"].pop("nomenclature_code")
+    cable = missing_code["cable"]
+    assert isinstance(cable, dict)
+    cable.pop("nomenclature_code")
     cable_failure = build_candidate_groups(
         electrical_variant_id=VARIANT_ID,
         catalog=_catalog(),
@@ -256,12 +265,11 @@ def test_fingerprints_and_payload_are_deterministic() -> None:
     )
 
 
-def test_contracts_deep_freeze_catalog_and_candidate_mappings() -> None:
+def test_contracts_parse_catalog_parameters_without_aliasing_input() -> None:
     source = {f"key-{index}": {"values": [index]} for index in range(40)}
     item = _item(10, "sealant", "Seal", applicability=source)
     source["key-0"]["values"].append(99)
-    assert isinstance(item.applicability, MappingProxyType)
-    assert thaw(item.applicability["key-0"]) == {"values": [0]}
+    assert item.parameters.applicability_dict()["key-0"] == {"values": [0]}
 
     catalog = CandidateCatalog(
         version=_catalog().version,
@@ -273,7 +281,7 @@ def test_contracts_deep_freeze_catalog_and_candidate_mappings() -> None:
         contributing_results=[_result()],
     )
     sealant = next(group for group in built.groups if group.category == "sealant")
-    assert len(sealant.candidates[0].applicability) == 32
+    assert len(sealant.candidates[0].parameters.applicability_dict()) == 40
 
 
 def test_empty_contributing_results_has_no_groups_or_diagnostics() -> None:

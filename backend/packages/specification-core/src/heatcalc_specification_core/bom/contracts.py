@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any, Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 from uuid import UUID
 
-JsonObject: TypeAlias = Mapping[str, Any]
+from heatcalc_specification_core.catalog import CatalogParameters
+from heatcalc_specification_core.json_types import JsonObject
+
+if TYPE_CHECKING:
+    from heatcalc_specification_core.bom.snapshot_contracts import GenerationSnapshot
 
 
 class ObjectTypeSection(StrEnum):
@@ -54,9 +57,7 @@ class CatalogItem:
     mark: str
     nomenclature_code: str
     supply_unit: str
-    applicability: JsonObject = field(default_factory=dict)
-    package_parameters: JsonObject = field(default_factory=dict)
-    formula_parameters: JsonObject = field(default_factory=dict)
+    parameters: CatalogParameters = field(default_factory=CatalogParameters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +123,50 @@ class CandidateGroup:
 class RevisionContext:
     variant_updated_at: datetime
     settings_revision: int
-    input_revisions: tuple[JsonObject, ...]
+    input_revisions: tuple[InputRevision, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ObjectRevision:
+    id: UUID
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class AssignmentRevision:
+    id: UUID
+    version: int
+    object_version_snapshot: int
+    state: str
+    system_type: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ElectricalResultRevision:
+    id: UUID
+    updated_at: datetime
+    formula_version: str | None
+    formula_fingerprint: str | None
+    calculation_fingerprint: str | None
+    object_version: int | None
+    heat_result_version: int | None
+    assignment_version: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class SectionPlanRevision:
+    payload: JsonObject
+    calculation_fingerprint: str | None
+    result_updated_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class InputRevision:
+    object: ObjectRevision
+    assignment: AssignmentRevision | None = None
+    electrical_result: ElectricalResultRevision | None = None
+    section_plan_revision: SectionPlanRevision | None = None
+    excluded: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +206,7 @@ class SpecificationDiagnostic:
 @dataclass(frozen=True, slots=True)
 class GenerationSuccess:
     items: tuple[BomItem, ...]
-    snapshot: JsonObject
+    snapshot: GenerationSnapshot
 
 
 @dataclass(frozen=True, slots=True)

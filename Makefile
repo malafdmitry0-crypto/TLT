@@ -2,7 +2,7 @@
         migrate migrate-new \
         seed setup setup-fresh \
         test test-backend test-frontend test-e2e test-compose-readiness test-worker-chaos \
-        test-formulas test-formulas-full test-formulas-mutation \
+        test-formulas test-formulas-full test-formulas-mutation test-specification-mutation \
         audit-docs audit-contracts audit-mcp audit-db-invariants audit-smoke audit-calc \
         audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
         audit-warnings audit-backend audit-frontend audit-functional audit-deep \
@@ -118,6 +118,10 @@ test-formulas-full: ## Run formula QA plus API/object integration guards
 
 test-formulas-mutation: ## Run mutation testing for backend formulas (requires mutmut)
 	@bash scripts/formula-qa.sh mutation
+
+test-specification-mutation: ## Run standalone specification-core mutation gate
+	$(BACKEND) sh -c 'cd packages/specification-core && mutmut run'
+	$(BACKEND) env MUTMUT_SCOPE=specification-core python scripts/mutmut_score_gate.py
 
 audit-docs: ## Codex audit: docs drift
 	@bash scripts/codex-functional-audit.sh docs

@@ -8,7 +8,8 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+
 from app.schemas.specification import (
     SpecificationCandidate,
     SpecificationCandidateGroup,

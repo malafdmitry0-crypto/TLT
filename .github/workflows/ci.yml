@@ -84,7 +84,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install package test tools
-        run: python -m pip install 'setuptools>=68' pytest==9.0.3 ruff==0.6.9 mypy==1.11.2
+        run: python -m pip install 'setuptools>=68' pytest==9.0.3 ruff==0.6.9 mypy==1.11.2 mutmut==3.5.0
       - name: Build wheel
         working-directory: backend/packages/specification-core
         run: python -m pip wheel --no-deps --no-build-isolation --wheel-dir dist .
@@ -92,7 +92,7 @@ jobs:
         run: |
           python -m venv /tmp/specification-core-venv
           /tmp/specification-core-venv/bin/pip install --no-deps backend/packages/specification-core/dist/*.whl
-          env -u PYTHONPATH /tmp/specification-core-venv/bin/python -I -c 'import heatcalc_specification_core as core; import heatcalc_specification_core.api as api; assert core.__all__ == api.__all__; assert all(hasattr(core, name) for name in core.__all__)'
+          env -u PYTHONPATH /tmp/specification-core-venv/bin/python -I -c 'import heatcalc_specification_core as core; import heatcalc_specification_core.api as api; expected = ["build_candidate_groups", "prepare_specification", "run_specification"]; removed = {"calculate_box_quantity", "calculate_cable_mark", "calculate_connection_kits", "merge_items"}; assert core.__all__ == expected == api.__all__; assert all(hasattr(core, name) for name in expected); assert all(not hasattr(core, name) for name in removed)'
       - name: Package tests, lint, and types
         working-directory: backend/packages/specification-core
         run: |
@@ -100,6 +100,14 @@ jobs:
           python -m pytest tests
           ruff check src tests
           mypy src tests
+      - name: Standalone specification core mutation score
+        working-directory: backend/packages/specification-core
+        run: mutmut run
+      - name: Enforce standalone specification core mutation floor
+        working-directory: backend
+        env:
+          MUTMUT_SCOPE: specification-core
+        run: python scripts/mutmut_score_gate.py
 
   frontend-dod:
     name: Frontend full DoD (test:agent-dod:dual-safe)

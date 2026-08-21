@@ -1,36 +1,48 @@
 """Dependency-free canonical specification BOM pipeline."""
 
 from heatcalc_specification_core.bom.contracts import (
+    AssignmentRevision,
     BomItem,
     CandidateGroup,
     CatalogIdentity,
     CatalogItem,
+    ElectricalResultRevision,
     GenerationFailure,
     GenerationInput,
     GenerationOutcome,
     GenerationSuccess,
+    InputRevision,
+    ObjectRevision,
     ObjectTypeSection,
     ResolvedOptions,
     RevisionContext,
+    SectionPlanRevision,
     SelectionSource,
     SpecificationCatalog,
     SpecificationContribution,
     SpecificationDiagnostic,
 )
 from heatcalc_specification_core.bom.pipeline import run_specification
+from heatcalc_specification_core.bom.snapshot_contracts import GenerationSnapshot
 
 __all__ = [
     "BomItem",
     "CandidateGroup",
     "CatalogIdentity",
     "CatalogItem",
+    "ElectricalResultRevision",
     "GenerationFailure",
     "GenerationInput",
     "GenerationOutcome",
     "GenerationSuccess",
+    "GenerationSnapshot",
+    "InputRevision",
     "ObjectTypeSection",
+    "ObjectRevision",
+    "AssignmentRevision",
     "ResolvedOptions",
     "RevisionContext",
+    "SectionPlanRevision",
     "SelectionSource",
     "SpecificationCatalog",
     "SpecificationContribution",

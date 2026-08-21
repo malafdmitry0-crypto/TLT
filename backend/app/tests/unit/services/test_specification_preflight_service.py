@@ -27,7 +27,7 @@ from app.schemas.specification import (
     SpecificationPreflightStatus,
 )
 from app.services.project_service import ProjectService
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     ResolvedSpecificationCatalog,
     SpecificationCatalogService,
 )
@@ -190,10 +190,15 @@ def _catalog(*, multi_connection: bool = False) -> ResolvedSpecificationCatalog:
             continue
         if category == "connection_kit" and not multi_connection and raw.mark != "КСВ-1":
             continue
-        if category == "connection_kit" and multi_connection and raw.mark not in {
-            "КСВ-1",
-            "КСВ-2",
-        }:
+        if (
+            category == "connection_kit"
+            and multi_connection
+            and raw.mark
+            not in {
+                "КСВ-1",
+                "КСВ-2",
+            }
+        ):
             continue
         if category == "repair_kit" and raw.mark != "КСР-2":
             continue
@@ -726,9 +731,7 @@ async def test_selection_from_wrong_group_is_rejected(monkeypatch):
     connection = next(
         group for group in first[0].candidate_groups if group.category == "connection_kit"
     )
-    foreign_item = next(
-        item for item in catalog.items if item.category == "sealant"
-    )
+    foreign_item = next(item for item in catalog.items if item.category == "sealant")
 
     db2 = _db_for([variant], [_row(project_id, variant.id)])
     rejected = await SpecificationPreflightService(db2).preflight_variants(
@@ -768,8 +771,7 @@ async def test_two_er_selections_are_validated_only_in_their_own_scope(monkeypat
         for item in discovery
     ]
     selections = {
-        group.group_key: group.candidates[0].catalog_item_id
-        for group in connection_groups
+        group.group_key: group.candidates[0].catalog_item_id for group in connection_groups
     }
 
     resolved = await SpecificationPreflightService(

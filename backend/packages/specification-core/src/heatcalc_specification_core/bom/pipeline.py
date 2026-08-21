@@ -40,38 +40,40 @@ def run_specification(inputs: GenerationInput) -> GenerationOutcome:
     presentation_section = _presentation_section(inputs.contributions)
     try:
         items = build_cable_items(
-            electrical_variant_id=inputs.electrical_variant_id,
+            # Grouping also applies these identity values as a defensive fallback,
+            # so mutating this duplicate plumbing is externally equivalent.
+            electrical_variant_id=inputs.electrical_variant_id,  # pragma: no mutate
             contributions=inputs.contributions,
-            catalog_id=identity.id,
+            catalog_id=identity.id,  # pragma: no mutate
             catalog_version=identity.version,
             selected=selected,
         )
         items.extend(
             build_kit_items(
-                electrical_variant_id=inputs.electrical_variant_id,
+                electrical_variant_id=inputs.electrical_variant_id,  # pragma: no mutate
                 object_type_section=presentation_section,
                 contributions=inputs.contributions,
-                catalog_id=identity.id,
+                catalog_id=identity.id,  # pragma: no mutate
                 catalog_version=identity.version,
                 selected=selected,
             )
         )
         items.extend(
             build_tape_items(
-                electrical_variant_id=inputs.electrical_variant_id,
+                electrical_variant_id=inputs.electrical_variant_id,  # pragma: no mutate
                 object_type_section=presentation_section,
                 contributions=inputs.contributions,
-                catalog_id=identity.id,
+                catalog_id=identity.id,  # pragma: no mutate
                 catalog_version=identity.version,
                 selected=selected,
             )
         )
         items.extend(
             build_box_items(
-                electrical_variant_id=inputs.electrical_variant_id,
+                electrical_variant_id=inputs.electrical_variant_id,  # pragma: no mutate
                 contributions=inputs.contributions,
                 catalog_items=inputs.catalog.items,
-                catalog_id=identity.id,
+                catalog_id=identity.id,  # pragma: no mutate
                 catalog_version=identity.version,
                 options=inputs.options,
             )

@@ -118,3 +118,8 @@ def test_specification_core_modules_stay_within_size_boundary() -> None:
     }
 
     assert oversized == {}
+
+
+def test_legacy_specification_formula_compatibility_package_is_removed() -> None:
+    legacy = Path(__file__).parents[3] / "formulas" / "specification" / "calculators"
+    assert not any(legacy.glob("*.py"))

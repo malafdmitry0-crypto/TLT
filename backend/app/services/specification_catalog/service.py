@@ -1,4 +1,4 @@
-"""Versioned, fail-closed catalog boundary for specification generation."""
+"""Versioned, fail-closed catalog lifecycle for specification generation."""
 
 from __future__ import annotations
 
@@ -7,19 +7,17 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from heatcalc_specification_core.catalog_conditions import (
-    BOX_BOOLEAN_CONDITION_KEYS,
-    BOX_CONDITION_KEYS,
-    BOX_EX_KEY,
-    BOX_R_GR_KEY,
-    condition_mode,
-    material_approval_reference_ok,
-    validate_condition_shape,
+from heatcalc_specification_core.catalog import (
+    CatalogCategory as CoreCatalogCategory,
 )
+from heatcalc_specification_core.catalog import (
+    CatalogContentItem,
+    validate_catalog_content,
+)
+from heatcalc_specification_core.json_types import json_object
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +42,6 @@ from app.reference_data.specification_catalog_case1_demo import (
 )
 from app.schemas.specification_catalog import (
     SpecificationCatalogAuthority,
-    SpecificationCatalogCategory,
     SpecificationCatalogImportRequest,
     SpecificationCatalogItemInput,
 )
@@ -144,50 +141,6 @@ def _reject_case1_demo_in_production(
     )
 
 
-_REQUIRED_CABLE_MARKS = {
-    "10ТТН2-СТ",
-    "17ТТН2-СТ",
-    "25ТТН2-СТ",
-    "31ТТН2-СТ",
-    "10ТТН2-СР",
-    "17ТТН2-СР",
-    "25ТТН2-СР",
-    "31ТТН2-СР",
-    "15ТТВ2-СР",
-    "30ТТВ2-СР",
-    "45ТТВ2-СР",
-    "60ТТВ2-СР",
-    "15ТТХ2-СР",
-    "30ТТХ2-СР",
-    "45ТТХ2-СР",
-    "60ТТХ2-СР",
-    "75ТТХ2-СР",
-    "90ТТХ2-СР",
-}
-_REQUIRED_CONNECTION_MARKS = {"КСН-1", "КСН-2", "КСВ-1", "КСВ-2"}
-_REQUIRED_REPAIR_MARKS = {"КСР-1", "КСР-2"}
-_REQUIRED_BOX_MARKS = {
-    "СКВ 1201",
-    "СКВ 1202",
-    "СКВ 1201-С",
-    "СКВ 1201-С1",
-    "СКВ 1202-С",
-    "СКВ 1202-С1",
-    "СКВ 1601",
-    "СКВ 1602",
-    "СКВ 1601-С",
-    "СКВ 1601-С1",
-    "СКВ 1602-С",
-    "СКВ 1602-С1",
-}
-_TEMPERATURE_GROUPS = {"LOW", "MEDIUM_HIGH"}
-_MATERIAL_CATEGORIES = {
-    SpecificationCatalogCategory.SEALANT,
-    SpecificationCatalogCategory.FIBERGLASS_TAPE,
-    SpecificationCatalogCategory.ALUMINIUM_TAPE,
-}
-
-
 class SpecificationCatalogServiceError(Exception):
     def __init__(
         self,
@@ -232,7 +185,7 @@ class SpecificationCatalogActivationResult:
     stale_specification_count: int
 
 
-def _canonical_checksum(payload: Any) -> str:
+def canonical_catalog_checksum(payload: Any) -> str:
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -256,220 +209,6 @@ def _issue(
     if details:
         issue["details"] = details
     return issue
-
-
-def _decimal(
-    value: Any,
-    *,
-    positive: bool,
-) -> Decimal | None:
-    if isinstance(value, bool) or value is None:
-        return None
-    try:
-        result = Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return None
-    if not result.is_finite():
-        return None
-    if positive and result <= 0:
-        return None
-    if not positive and result < 0:
-        return None
-    return result
-
-
-def _require_decimal_parameter(
-    item: SpecificationCatalogItemInput,
-    key: str,
-    issues: list[dict[str, Any]],
-    *,
-    parameter_group: str = "formula_parameters",
-    positive: bool = True,
-) -> Decimal | None:
-    parameters = getattr(item, parameter_group)
-    value = _decimal(parameters.get(key), positive=positive)
-    if value is None:
-        issues.append(
-            _issue(
-                "SPEC_FORMULA_INPUT_INVALID",
-                f"invalid_or_missing_{key}",
-                item=item,
-                details={"parameter_group": parameter_group},
-            )
-        )
-    return value
-
-
-def _validate_temperature_group(
-    item: SpecificationCatalogItemInput,
-    issues: list[dict[str, Any]],
-) -> None:
-    if item.applicability.get("temperature_group") not in _TEMPERATURE_GROUPS:
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
-                "temperature_group_missing_or_invalid",
-                item=item,
-            )
-        )
-
-
-def _attach_item(
-    raw_issues: list[dict[str, Any]],
-    item: SpecificationCatalogItemInput,
-) -> list[dict[str, Any]]:
-    attached: list[dict[str, Any]] = []
-    for raw in raw_issues:
-        issue = dict(raw)
-        issue["item_key"] = item.item_key
-        issue["category"] = item.category.value
-        attached.append(issue)
-    return attached
-
-
-def _validate_box_item(
-    item: SpecificationCatalogItemInput,
-    issues: list[dict[str, Any]],
-) -> None:
-    for key in BOX_BOOLEAN_CONDITION_KEYS:
-        value = item.applicability.get(key)
-        if key not in item.applicability:
-            issues.append(
-                _issue(
-                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
-                    f"box_condition_{key}_missing_or_invalid",
-                    item=item,
-                )
-            )
-            continue
-        issues.extend(
-            _attach_item(
-                validate_condition_shape(value, field=key, kind="bool"),
-                item,
-            )
-        )
-
-    if BOX_EX_KEY not in item.applicability:
-        issues.append(
-            _issue(
-                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
-                "authoritative_Ex_condition_missing",
-                item=item,
-            )
-        )
-    else:
-        issues.extend(
-            _attach_item(
-                validate_condition_shape(
-                    item.applicability.get(BOX_EX_KEY),
-                    field=BOX_EX_KEY,
-                    kind="ex",
-                ),
-                item,
-            )
-        )
-
-    if BOX_R_GR_KEY not in item.applicability:
-        issues.append(
-            _issue(
-                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
-                "authoritative_R_gr_condition_missing",
-                item=item,
-            )
-        )
-    else:
-        issues.extend(
-            _attach_item(
-                validate_condition_shape(
-                    item.applicability.get(BOX_R_GR_KEY),
-                    field=BOX_R_GR_KEY,
-                    kind="r_gr",
-                ),
-                item,
-            )
-        )
-
-    divider = _require_decimal_parameter(item, "section_divider", issues)
-    min_quantity = _require_decimal_parameter(item, "min_quantity", issues)
-    if min_quantity is not None and min_quantity != min_quantity.to_integral_value():
-        issues.append(
-            _issue(
-                "SPEC_FORMULA_INPUT_INVALID",
-                "box_min_quantity_must_be_integer",
-                item=item,
-            )
-        )
-    if divider is not None and divider != divider.to_integral_value():
-        issues.append(
-            _issue(
-                "SPEC_FORMULA_INPUT_INVALID",
-                "box_section_divider_must_be_integer",
-                item=item,
-            )
-        )
-    if item.formula_parameters.get("rounding_mode") not in {"up", "down"}:
-        issues.append(
-            _issue(
-                "SPEC_FORMULA_INPUT_INVALID",
-                "box_rounding_mode_invalid",
-                item=item,
-            )
-        )
-
-
-def _validate_material_authority(
-    item: SpecificationCatalogItemInput,
-    issues: list[dict[str, Any]],
-) -> None:
-    """Sealant and tapes need confirmed nomenclature, unit, capacity, approval."""
-    if not item.nomenclature_code.strip():
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "material_nomenclature_code_missing",
-                item=item,
-            )
-        )
-    if not item.supply_unit.strip():
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "material_supply_unit_missing",
-                item=item,
-            )
-        )
-    if not material_approval_reference_ok(item.source_ref) and not is_case1_demo_item_source(
-        item.source_ref
-    ):
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "material_approval_reference_missing",
-                item=item,
-                details={"required_pattern": "approval:SPEC-OWNER-MATERIALS/<ref>"},
-            )
-        )
-
-
-def _missing_marks_issue(
-    *,
-    category: SpecificationCatalogCategory,
-    required: set[str],
-    actual: set[str],
-) -> dict[str, Any] | None:
-    missing = sorted(required - actual)
-    if not missing:
-        return None
-    code = (
-        "SPEC_CABLE_NOMENCLATURE_MISSING"
-        if category is SpecificationCatalogCategory.CABLE
-        else "SPEC_ACCESSORY_CATALOG_ITEM_MISSING"
-    )
-    return _issue(
-        code,
-        "required_catalog_rows_missing",
-        details={"category": category.value, "missing_marks": missing},
-    )
 
 
 def _item_input_from_model(
@@ -498,7 +237,7 @@ def _validate_catalog_checksums(
     for persisted, item in items:
         payload = item.model_dump(mode="json")
         canonical_items.append(payload)
-        actual_row_checksum = _canonical_checksum(payload)
+        actual_row_checksum = canonical_catalog_checksum(payload)
         if persisted.row_checksum != actual_row_checksum:
             issues.append(
                 _issue(
@@ -509,7 +248,7 @@ def _validate_catalog_checksums(
                 )
             )
 
-    actual_payload_checksum = _canonical_checksum(
+    actual_payload_checksum = canonical_catalog_checksum(
         sorted(canonical_items, key=lambda item: item["item_key"])
     )
     if version.payload_checksum != actual_payload_checksum:
@@ -557,238 +296,28 @@ def _persisted_item_inputs(
 def validate_specification_catalog(
     items: list[SpecificationCatalogItemInput],
 ) -> SpecificationCatalogValidation:
-    """Validate completeness without granting authority to the input source."""
-
-    issues: list[dict[str, Any]] = []
-    seen_keys: set[str] = set()
-    seen_codes: set[str] = set()
-    by_category: dict[SpecificationCatalogCategory, list[SpecificationCatalogItemInput]] = {
-        category: [] for category in SpecificationCatalogCategory
-    }
-
-    for item in items:
-        if item.item_key in seen_keys:
-            issues.append(
-                _issue("SPEC_ACCESSORY_CATALOG_INCOMPLETE", "duplicate_item_key", item=item)
-            )
-        seen_keys.add(item.item_key)
-        if item.nomenclature_code in seen_codes:
-            issues.append(
-                _issue(
-                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
-                    "duplicate_nomenclature_code",
-                    item=item,
-                )
-            )
-        seen_codes.add(item.nomenclature_code)
-        by_category[item.category].append(item)
-
-        if any(token in item.source_ref.casefold() for token in _UNTRUSTED_SOURCE_TOKENS) and not is_case1_demo_item_source(item.source_ref):
-            issues.append(
-                _issue(
-                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
-                    "untrusted_source_ref",
-                    item=item,
-                )
-            )
-
-        if item.category is SpecificationCatalogCategory.CONNECTION_KIT:
-            _validate_temperature_group(item, issues)
-            _require_decimal_parameter(
-                item,
-                "sections_per_kit",
-                issues,
-                parameter_group="package_parameters",
-            )
-        elif item.category is SpecificationCatalogCategory.REPAIR_KIT:
-            _validate_temperature_group(item, issues)
-            _require_decimal_parameter(
-                item,
-                "cable_length_per_kit_m",
-                issues,
-                parameter_group="package_parameters",
-            )
-        elif item.category is SpecificationCatalogCategory.SEALANT:
-            _require_decimal_parameter(
-                item,
-                "kits_per_sealant_unit",
-                issues,
-                parameter_group="package_parameters",
-            )
-            _validate_material_authority(item, issues)
-        elif item.category is SpecificationCatalogCategory.FIBERGLASS_TAPE:
-            _validate_temperature_group(item, issues)
-            _require_decimal_parameter(
-                item,
-                "reel_length_m",
-                issues,
-                parameter_group="package_parameters",
-            )
-            _validate_material_authority(item, issues)
-        elif item.category is SpecificationCatalogCategory.ALUMINIUM_TAPE:
-            _require_decimal_parameter(item, "consumption_m_per_cable_m", issues)
-            _require_decimal_parameter(
-                item,
-                "reel_length_m",
-                issues,
-                parameter_group="package_parameters",
-            )
-            _validate_material_authority(item, issues)
-        elif item.category is SpecificationCatalogCategory.BOX:
-            _validate_box_item(item, issues)
-
-    required_marks = (
-        (SpecificationCatalogCategory.CABLE, _REQUIRED_CABLE_MARKS),
-        (SpecificationCatalogCategory.CONNECTION_KIT, _REQUIRED_CONNECTION_MARKS),
-        (SpecificationCatalogCategory.REPAIR_KIT, _REQUIRED_REPAIR_MARKS),
-        (SpecificationCatalogCategory.BOX, _REQUIRED_BOX_MARKS),
+    """Adapt the HTTP/Pydantic boundary to the pure core validator."""
+    result = validate_catalog_content([_core_catalog_item(item) for item in items])
+    return SpecificationCatalogValidation(
+        is_complete=result.is_complete,
+        issues=[dict(issue.to_dict()) for issue in result.issues],
     )
-    for category, required in required_marks:
-        missing_issue = _missing_marks_issue(
-            category=category,
-            required=required,
-            actual={item.mark for item in by_category[category]},
-        )
-        if missing_issue:
-            issues.append(missing_issue)
-
-    if not by_category[SpecificationCatalogCategory.SEALANT]:
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "sealant_catalog_missing",
-            )
-        )
-    if not by_category[SpecificationCatalogCategory.ALUMINIUM_TAPE]:
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "aluminium_tape_catalog_missing",
-            )
-        )
-    fiberglass_groups = {
-        item.applicability.get("temperature_group")
-        for item in by_category[SpecificationCatalogCategory.FIBERGLASS_TAPE]
-    }
-    if fiberglass_groups != _TEMPERATURE_GROUPS:
-        issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
-                "fiberglass_temperature_groups_incomplete",
-                details={"missing_groups": sorted(_TEMPERATURE_GROUPS - fiberglass_groups)},
-            )
-        )
-
-    box_items = by_category[SpecificationCatalogCategory.BOX]
-    if box_items:
-        issues.extend(_validate_box_matrix_authority(box_items))
-
-    return SpecificationCatalogValidation(is_complete=not issues, issues=issues)
 
 
-def _condition_fingerprint(value: Any) -> str:
-    mode = condition_mode(value)
-    if mode == "match" and isinstance(value, dict):
-        return f"match:{value.get('operator')!s}:{value.get('value')!s}"
-    if mode == "not_applicable" and isinstance(value, dict):
-        return f"na:{value.get('decision_ref')!s}"
-    if mode == "unresolved":
-        return "unresolved"
-    return f"raw:{value!r}"
-
-
-def _validate_box_matrix_authority(
-    box_items: list[SpecificationCatalogItemInput],
-) -> list[dict[str, Any]]:
-    """Reject non-discriminating or silently duplicated box matrices."""
-    issues: list[dict[str, Any]] = []
-    marks = {item.mark for item in box_items}
-    missing_marks = sorted(_REQUIRED_BOX_MARKS - marks)
-    if missing_marks:
-        # Already reported via required marks; still continue for Ex/R_gr rules.
-        pass
-
-    fingerprints: dict[str, list[str]] = {}
-    ex_modes: list[str | None] = []
-    r_gr_modes: list[str | None] = []
-    for item in box_items:
-        parts = [
-            f"{key}={_condition_fingerprint(item.applicability.get(key))}"
-            for key in BOX_CONDITION_KEYS
-        ]
-        # Case 1 page 76 contains rows with the same applicability cells but
-        # different quantity rule (for example СКВ 1201 vs СКВ 1601).  A row
-        # is silently duplicated only when both its conditions *and* its
-        # declared calculation rule are identical.
-        parts.extend(
-            (
-                f"section_divider={item.formula_parameters.get('section_divider')!s}",
-                f"rounding_mode={item.formula_parameters.get('rounding_mode')!s}",
-                f"min_quantity={item.formula_parameters.get('min_quantity')!s}",
-            )
-        )
-        fingerprint = "|".join(parts)
-        fingerprints.setdefault(fingerprint, []).append(item.item_key)
-        ex_modes.append(condition_mode(item.applicability.get(BOX_EX_KEY)))
-        r_gr_modes.append(condition_mode(item.applicability.get(BOX_R_GR_KEY)))
-
-    duplicated = {
-        fingerprint: keys
-        for fingerprint, keys in fingerprints.items()
-        if len(keys) > 1
-    }
-    if duplicated:
-        issues.append(
-            _issue(
-                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
-                "box_matrix_silently_duplicated_conditions",
-                details={
-                    "duplicate_groups": [
-                        {"fingerprint": key, "item_keys": values}
-                        for key, values in sorted(duplicated.items())
-                    ]
-                },
-            )
-        )
-
-    if (
-        box_items
-        and all(mode == "not_applicable" for mode in ex_modes)
-        and all(mode == "not_applicable" for mode in r_gr_modes)
-    ):
-        # All-not-applicable Ex/R_gr makes those axes non-discriminating.
-        # Only accept when every decision_ref is present (shape-validated) AND
-        # at least one boolean condition remains a match on some row.
-        any_bool_match = False
-        for item in box_items:
-            for key in BOX_BOOLEAN_CONDITION_KEYS:
-                if condition_mode(item.applicability.get(key)) == "match":
-                    any_bool_match = True
-                    break
-            if any_bool_match:
-                break
-        if not any_bool_match:
-            issues.append(
-                _issue(
-                    "SPEC_BOX_EX_RGR_MATRIX_MISSING",
-                    "all_boxes_ex_rgr_not_applicable_without_discrimination",
-                    details={
-                        "box_count": len(box_items),
-                        "owner_decision": "SPEC-OWNER-EX-RGR",
-                    },
-                )
-            )
-
-    if box_items and all(mode == "unresolved" for mode in (*ex_modes, *r_gr_modes)):
-        issues.append(
-            _issue(
-                "SPEC_BOX_EX_RGR_MATRIX_MISSING",
-                "all_boxes_ex_rgr_unresolved",
-                details={"box_count": len(box_items)},
-            )
-        )
-
-    return issues
+def _core_catalog_item(item: SpecificationCatalogItemInput) -> CatalogContentItem:
+    return CatalogContentItem(
+        item_key=item.item_key,
+        category=CoreCatalogCategory(item.category.value),
+        name=item.name,
+        mark=item.mark,
+        nomenclature_code=item.nomenclature_code,
+        supply_unit=item.supply_unit,
+        applicability=json_object(item.applicability),
+        package_parameters=json_object(item.package_parameters),
+        formula_parameters=json_object(item.formula_parameters),
+        source_ref=item.source_ref,
+        is_demo_source=is_case1_demo_item_source(item.source_ref),
+    )
 
 
 def _principal_reference(principal: CurrentPrincipal | None) -> str | None:
@@ -998,7 +527,7 @@ class SpecificationCatalogService:
             authority=document.authority.value,
             source=document.source,
             source_checksum=document.source_checksum,
-            payload_checksum=_canonical_checksum(canonical_items),
+            payload_checksum=canonical_catalog_checksum(canonical_items),
             schema_version=document.schema_version,
             item_count=len(document.items),
             is_complete=validation.is_complete,
@@ -1022,7 +551,7 @@ class SpecificationCatalogService:
                     package_parameters=payload["package_parameters"],
                     formula_parameters=payload["formula_parameters"],
                     source_ref=item.source_ref,
-                    row_checksum=_canonical_checksum(payload),
+                    row_checksum=canonical_catalog_checksum(payload),
                     position=position,
                 )
             )
@@ -1179,8 +708,7 @@ class SpecificationCatalogService:
             update(Specification)
             .where(
                 Specification.is_stale.is_(False),
-                Specification.snapshot["catalog"]["catalog_key"].astext
-                == target.catalog_key,
+                Specification.snapshot["catalog"]["catalog_key"].astext == target.catalog_key,
             )
             .values(
                 is_stale=True,
@@ -1265,9 +793,7 @@ class SpecificationCatalogService:
             )
         )
         if existing is None:
-            existing = await self.import_draft(
-                document, principal=principal, commit=False
-            )
+            existing = await self.import_draft(document, principal=principal, commit=False)
         elif existing.status == "active":
             if commit:
                 await self.db.commit()

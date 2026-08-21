@@ -11,10 +11,10 @@ from app.models.specification import (
     SpecificationCatalogItem,
     SpecificationCatalogVersion,
 )
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
-    _canonical_checksum,
+    canonical_catalog_checksum,
     validate_specification_catalog,
 )
 from app.tests.specification_catalog_fixtures import complete_specification_catalog_items
@@ -45,7 +45,7 @@ def _persisted_items():
                 package_parameters=item.package_parameters,
                 formula_parameters=item.formula_parameters,
                 source_ref=item.source_ref,
-                row_checksum=_canonical_checksum(payload),
+                row_checksum=canonical_catalog_checksum(payload),
                 position=position,
             )
         )
@@ -68,7 +68,7 @@ def _payload_checksum(items):
         }
         for item in items
     ]
-    return _canonical_checksum(sorted(payloads, key=lambda item: item["item_key"]))
+    return canonical_catalog_checksum(sorted(payloads, key=lambda item: item["item_key"]))
 
 
 def test_complete_test_catalog_passes_shape_validation():
@@ -120,9 +120,7 @@ def test_raw_unused_condition_is_rejected():
     validation = validate_specification_catalog(items)
 
     assert validation.is_complete is False
-    assert any(
-        issue["reason"] == "legacy_unused_condition_rejected" for issue in validation.issues
-    )
+    assert any(issue["reason"] == "legacy_unused_condition_rejected" for issue in validation.issues)
 
 
 def test_unresolved_condition_makes_catalog_incomplete_but_is_valid_shape():
@@ -150,7 +148,7 @@ def test_not_applicable_without_decision_ref_blocks_completeness():
 
 
 def test_all_not_applicable_ex_rgr_without_bool_discrimination_blocked():
-    from app.formulas.specification.catalog_conditions import not_applicable
+    from heatcalc_specification_core.catalog_conditions import not_applicable
 
     items = complete_specification_catalog_items()
     for item in items:
@@ -221,10 +219,10 @@ def test_payload_checksum_is_order_insensitive_only_after_explicit_sort():
     items = [item.model_dump(mode="json") for item in complete_specification_catalog_items()]
     canonical = sorted(items, key=lambda item: item["item_key"])
 
-    assert _canonical_checksum(canonical) == _canonical_checksum(list(canonical))
+    assert canonical_catalog_checksum(canonical) == canonical_catalog_checksum(list(canonical))
     changed = [dict(item) for item in canonical]
     changed[0] = {**changed[0], "mark": f"{changed[0]['mark']}-changed"}
-    assert _canonical_checksum(canonical) != _canonical_checksum(changed)
+    assert canonical_catalog_checksum(canonical) != canonical_catalog_checksum(changed)
 
 
 @pytest.mark.parametrize(
@@ -456,9 +454,7 @@ async def test_resolve_default_uses_the_only_active_catalog_without_builtin_key(
         validation_issues=[],
     )
     db = AsyncMock()
-    db.execute = AsyncMock(
-        side_effect=[_items_result([version]), _items_result(items)]
-    )
+    db.execute = AsyncMock(side_effect=[_items_result([version]), _items_result(items)])
 
     resolved = await SpecificationCatalogService(db).resolve_active()
 

@@ -169,7 +169,9 @@ def _aggregate_global_blockers(
     diagnostics: list[SpecificationDiagnostic],
 ) -> list[SpecificationGlobalReadinessBlocker]:
     blockers = _aggregate_blockers(diagnostics, variant_id=None, variant_name=None)
-    return [blocker for blocker in blockers if isinstance(blocker, SpecificationGlobalReadinessBlocker)]
+    return [
+        blocker for blocker in blockers if isinstance(blocker, SpecificationGlobalReadinessBlocker)
+    ]
 
 
 def _aggregate_variant_blockers(
@@ -183,7 +185,9 @@ def _aggregate_variant_blockers(
         variant_id=variant_id,
         variant_name=variant_name,
     )
-    return [blocker for blocker in blockers if isinstance(blocker, SpecificationVariantReadinessBlocker)]
+    return [
+        blocker for blocker in blockers if isinstance(blocker, SpecificationVariantReadinessBlocker)
+    ]
 
 
 def _status_for(diagnostics: list[SpecificationDiagnostic]) -> SpecificationPreflightStatus:

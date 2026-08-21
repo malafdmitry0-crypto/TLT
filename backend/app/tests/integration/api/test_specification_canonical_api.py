@@ -25,9 +25,7 @@ async def test_project_specification_settings_routes_are_removed(
     url = f"/api/v1/specifications/{project['id']}/settings"
 
     assert (await client.get(url, headers=headers)).status_code == 404
-    assert (
-        await client.put(url, json={"settings": {}}, headers=headers)
-    ).status_code == 404
+    assert (await client.put(url, json={"settings": {}}, headers=headers)).status_code == 404
 
 
 async def test_generate_returns_typed_error_for_unknown_explicit_uuid(
@@ -138,9 +136,7 @@ async def test_generate_without_active_catalog_is_exact_typed_503(
                 "outer_diameter": 0.108,
                 "wall_thickness": 0.004,
                 "pipe_material": "carbon_steel",
-                "insulation_layers": [
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"}
-                ],
+                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
                 "insulation_temperature_basis": "outdoor_winter",
                 "ambient_temperature": -30,
                 "process_temperature": 80,
@@ -234,9 +230,7 @@ async def _project_with_initialized_variant(
     headers: dict[str, str],
     name: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    project = (
-        await client.post("/api/v1/projects", json={"name": name}, headers=headers)
-    ).json()
+    project = (await client.post("/api/v1/projects", json={"name": name}, headers=headers)).json()
     created_object = await client.post(
         f"/api/v1/projects/{project['id']}/objects",
         json=_PIPE_OBJECT,
@@ -256,9 +250,7 @@ async def test_uuid_get_returns_null_when_specification_not_formed(
     employee_token: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {employee_token}"}
-    project, variant = await _project_with_initialized_variant(
-        client, headers, "UUID GET empty"
-    )
+    project, variant = await _project_with_initialized_variant(client, headers, "UUID GET empty")
     variant_id = variant["id"]
 
     response = await client.get(
@@ -309,9 +301,7 @@ async def test_uuid_manual_put_round_trip_serializes_quantity_as_decimal_string(
     employee_token: str,
 ) -> None:
     headers = {"Authorization": f"Bearer {employee_token}"}
-    project, variant = await _project_with_initialized_variant(
-        client, headers, "UUID manual PUT"
-    )
+    project, variant = await _project_with_initialized_variant(client, headers, "UUID manual PUT")
     variant_id = variant["id"]
 
     put_response = await client.put(

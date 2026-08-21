@@ -11,34 +11,38 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 import pytest
-
-from app.formulas.specification.calculators import (
-    FIBERGLASS_RESERVE,
-    PI,
+from heatcalc_specification_core.aluminium_tape import calculate_aluminium_from_scalar
+from heatcalc_specification_core.boxes import (
+    compute_d_ge_57,
+    evaluate_box_matrix,
+    evaluate_box_matrix_from_input,
+)
+from heatcalc_specification_core.cable import (
+    calculate_cable_mark,
+    calculate_group_actual,
+    calculate_mark_order,
+)
+from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.common import FIBERGLASS_RESERVE, PI
+from heatcalc_specification_core.connection_kit import calculate_connection_kits
+from heatcalc_specification_core.fiberglass_tape import (
+    calculate_fiberglass_object_length,
+    calculate_fiberglass_reels_from_total,
+)
+from heatcalc_specification_core.grouping import (
+    MODE_MERGE_MATERIALS,
+    MODE_SEPARATE_BY_OBJECT_TYPE,
+    merge_items,
+)
+from heatcalc_specification_core.repair_kit import calculate_repair_kits
+from heatcalc_specification_core.sealant import calculate_sealant
+from heatcalc_specification_core.types import (
     BoxMatrixInput,
     BoxPipeInput,
     BoxRowConditions,
     BoxRowInput,
     CableGroupInput,
     CableMarkInput,
-    calculate_aluminium_from_scalar,
-    calculate_cable_mark,
-    calculate_connection_kits,
-    calculate_fiberglass_object_length,
-    calculate_fiberglass_reels_from_total,
-    calculate_group_actual,
-    calculate_mark_order,
-    calculate_repair_kits,
-    calculate_sealant,
-    compute_d_ge_57,
-    evaluate_box_matrix,
-    evaluate_box_matrix_from_input,
-)
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
-from app.formulas.specification.grouping import (
-    MODE_MERGE_MATERIALS,
-    MODE_SEPARATE_BY_OBJECT_TYPE,
-    merge_items,
 )
 
 GOLDENS_PATH = (
@@ -341,7 +345,7 @@ class TestSpecCtrlBoxes:
 
     def test_spec_ctrl_box_min1(self) -> None:
         case = resolve_case("SPEC-CTRL-BOX-MIN1")
-        from app.formulas.specification.calculators import calculate_box_quantity
+        from heatcalc_specification_core.boxes import calculate_box_quantity
 
         inputs = case["inputs"]
         result = calculate_box_quantity(

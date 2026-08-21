@@ -9,6 +9,8 @@ from types import MappingProxyType
 from typing import Any, TypeAlias, cast
 from uuid import UUID
 
+from heatcalc_specification_core.catalog import CatalogParameters
+
 JsonMapping: TypeAlias = Mapping[str, Any]
 
 
@@ -82,14 +84,7 @@ class CandidateCatalogItem:
     mark: str
     nomenclature_code: str
     supply_unit: str
-    applicability: JsonMapping = field(default_factory=_frozen_mapping)
-    package_parameters: JsonMapping = field(default_factory=_frozen_mapping)
-    formula_parameters: JsonMapping = field(default_factory=_frozen_mapping)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "applicability", _frozen_mapping(self.applicability))
-        object.__setattr__(self, "package_parameters", _frozen_mapping(self.package_parameters))
-        object.__setattr__(self, "formula_parameters", _frozen_mapping(self.formula_parameters))
+    parameters: CatalogParameters = field(default_factory=CatalogParameters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,14 +107,7 @@ class SpecificationCandidate:
     mark: str
     nomenclature_code: str
     supply_unit: str
-    applicability: JsonMapping = field(default_factory=_frozen_mapping)
-    package_parameters: JsonMapping = field(default_factory=_frozen_mapping)
-    formula_parameters: JsonMapping = field(default_factory=_frozen_mapping)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "applicability", _frozen_mapping(self.applicability))
-        object.__setattr__(self, "package_parameters", _frozen_mapping(self.package_parameters))
-        object.__setattr__(self, "formula_parameters", _frozen_mapping(self.formula_parameters))
+    parameters: CatalogParameters = field(default_factory=CatalogParameters)
 
 
 @dataclass(frozen=True, slots=True)

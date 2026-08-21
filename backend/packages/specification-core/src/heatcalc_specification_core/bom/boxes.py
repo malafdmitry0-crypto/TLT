@@ -17,12 +17,9 @@ from heatcalc_specification_core.bom.contracts import (
     SpecificationDiagnostic,
 )
 from heatcalc_specification_core.bom.rows import FORMULA_FINGERPRINTS, item_from_catalog
-from heatcalc_specification_core.box_matrix import (
-    box_row_from_catalog_parts,
-    evaluate_box_matrix,
-)
+from heatcalc_specification_core.box_matrix import evaluate_box_matrix
 from heatcalc_specification_core.box_quantity import SPEC_BOX_EX_RGR_MATRIX_MISSING
-from heatcalc_specification_core.types import BoxPipeInput, FormulaInputError
+from heatcalc_specification_core.types import BoxPipeInput, BoxRowInput, FormulaInputError
 
 
 def build_box_items(
@@ -45,16 +42,7 @@ def build_box_items(
         return []
 
     try:
-        matrix_rows = tuple(
-            box_row_from_catalog_parts(
-                formula_parameters=item.formula_parameters,
-                applicability=item.applicability,
-                item_key=item.item_key,
-                mark=item.mark,
-                nomenclature_code=item.nomenclature_code,
-            )
-            for item in box_items
-        )
+        matrix_rows = tuple(_box_row(item) for item in box_items)
     except FormulaInputError as exc:
         raise _matrix_error(exc) from exc
 
@@ -172,3 +160,13 @@ def _matrix_error(exc: FormulaInputError) -> BlockingBomError:
             ),
         )
     )
+
+
+def _box_row(item: CatalogItem) -> BoxRowInput:
+    if item.parameters.box_row is None:
+        raise FormulaInputError(
+            "MISSING_VALUE",
+            "box catalog item has no typed matrix row",
+            field="box_row",
+        )
+    return item.parameters.box_row

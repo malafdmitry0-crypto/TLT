@@ -18,13 +18,15 @@ from app.reference_data.specification_catalog_case1_demo import (
     bundled_case1_demo_catalog_document,
     case1_demo_payload_checksum,
 )
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
-    _active_authority_allowed,
-    _catalog_demo_markers_compatible,
     is_case1_demo_catalog_version,
     validate_specification_catalog,
+)
+from app.services.specification_catalog.service import (
+    _active_authority_allowed,
+    _catalog_demo_markers_compatible,
 )
 
 _EXPECTED_BOX_ROWS = {

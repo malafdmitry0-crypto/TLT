@@ -7,23 +7,21 @@ from __future__ import annotations
 
 import uuid
 
+from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 from app.models.specification import SpecificationCatalogVersion
 from app.schemas.specification_catalog import (
     SpecificationCatalogImportRequest,
     SpecificationCatalogItemInput,
 )
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
-    _canonical_checksum,
+    canonical_catalog_checksum,
 )
 
-_TEST_SOURCE = (
-    "normalized backend test fixture; approval:SPEC-OWNER-MATERIALS/test-fixture"
-)
+_TEST_SOURCE = "normalized backend test fixture; approval:SPEC-OWNER-MATERIALS/test-fixture"
 _EX_RGR_NA = "SPEC-OWNER-EX-RGR/test-fixture/not-applicable"
 
 _CABLES = [
@@ -219,9 +217,7 @@ async def import_and_activate_complete_specification_catalog(
         if raw.category.value == "connection_kit":
             applicability = dict(raw.applicability or {})
             applicability["temperature_group"] = (
-                "MEDIUM_HIGH"
-                if raw.mark in high_temperature_connection_marks
-                else "LOW"
+                "MEDIUM_HIGH" if raw.mark in high_temperature_connection_marks else "LOW"
             )
             raw = raw.model_copy(update={"applicability": applicability})
         items.append(raw)
@@ -236,7 +232,7 @@ async def import_and_activate_complete_specification_catalog(
         version=version,
         authority="approved",
         source="integration owner registry",
-        source_checksum=_canonical_checksum(
+        source_checksum=canonical_catalog_checksum(
             {
                 "catalog_key": "builtin-specification",
                 "version": version,

@@ -60,7 +60,7 @@ def _result(**changes: object) -> ElectricalResultSnapshot:
         formula_version="tt-v1",
         formula_fingerprint="sha256:" + "c" * 64,
     )
-    return replace(result, **changes)
+    return replace(result, **changes)  # type: ignore[arg-type]
 
 
 def _assignment(**changes: object) -> PreflightAssignment:
@@ -78,7 +78,7 @@ def _assignment(**changes: object) -> PreflightAssignment:
         assignment_object_version=4,
         result=_result(),
     )
-    return replace(row, **changes)
+    return replace(row, **changes)  # type: ignore[arg-type]
 
 
 def test_ready_preflight_has_typed_result_and_stable_fingerprint() -> None:

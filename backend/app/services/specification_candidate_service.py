@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from heatcalc_specification_core.candidates import (
@@ -32,6 +32,7 @@ from heatcalc_specification_core.candidates import (
     stable_group_key as core_stable_group_key,
 )
 from heatcalc_specification_core.candidates.contracts import thaw
+from heatcalc_specification_core.catalog import CatalogParameters
 
 from app.schemas.specification import (
     SpecificationCandidate,
@@ -41,7 +42,7 @@ from app.schemas.specification import (
     SpecificationIssueKind,
     SpecificationSelectionSource,
 )
-from app.services.specification_catalog_service import ResolvedSpecificationCatalog
+from app.services.specification_catalog import ResolvedSpecificationCatalog
 
 
 @dataclass(frozen=True)
@@ -88,14 +89,11 @@ def stable_group_key(
     conditions: Mapping[str, Any],
     object_type_section: str | None = None,
 ) -> str:
-    return cast(
-        str,
-        core_stable_group_key(
-            electrical_variant_id=electrical_variant_id,
-            category=category,
-            conditions=conditions,
-            object_type_section=object_type_section,
-        ),
+    return core_stable_group_key(
+        electrical_variant_id=electrical_variant_id,
+        category=category,
+        conditions=conditions,
+        object_type_section=object_type_section,
     )
 
 
@@ -104,23 +102,17 @@ def catalog_selections_for_variant(
     electrical_variant_id: UUID,
     requested_variant_ids: Sequence[UUID] | None = None,
 ) -> dict[str, UUID]:
-    return cast(
-        dict[str, UUID],
-        core_selections_for_variant(
-            selections,
-            electrical_variant_id,
-            requested_variant_ids,
-        ),
+    return core_selections_for_variant(
+        selections,
+        electrical_variant_id,
+        requested_variant_ids,
     )
 
 
 def candidate_groups_fingerprint_payload(
     groups: Sequence[SpecificationCandidateGroup],
 ) -> list[dict[str, Any]]:
-    return cast(
-        list[dict[str, Any]],
-        core_groups_fingerprint_payload([_core_group(item) for item in groups]),
-    )
+    return core_groups_fingerprint_payload([_core_group(item) for item in groups])
 
 
 def _core_catalog(catalog: ResolvedSpecificationCatalog) -> CandidateCatalog:
@@ -138,9 +130,15 @@ def _core_catalog(catalog: ResolvedSpecificationCatalog) -> CandidateCatalog:
                 mark=item.mark,
                 nomenclature_code=item.nomenclature_code,
                 supply_unit=item.supply_unit,
-                applicability=_mapping(item.applicability),
-                package_parameters=_mapping(item.package_parameters),
-                formula_parameters=_mapping(item.formula_parameters),
+                parameters=CatalogParameters.parse(
+                    category=item.category,
+                    applicability=_mapping(item.applicability),
+                    package_parameters=_mapping(item.package_parameters),
+                    formula_parameters=_mapping(item.formula_parameters),
+                    item_key=item.item_key,
+                    mark=item.mark,
+                    nomenclature_code=item.nomenclature_code,
+                ),
             )
             for item in catalog.items
         ),
@@ -171,9 +169,9 @@ def _application_candidate(candidate: CoreCandidate) -> SpecificationCandidate:
         mark=candidate.mark,
         nomenclature_code=candidate.nomenclature_code,
         supply_unit=candidate.supply_unit,
-        applicability=thaw(candidate.applicability),
-        package_parameters=thaw(candidate.package_parameters),
-        formula_parameters=thaw(candidate.formula_parameters),
+        applicability=candidate.parameters.applicability_dict(),
+        package_parameters=candidate.parameters.package_dict(),
+        formula_parameters=candidate.parameters.formula_dict(),
     )
 
 
@@ -201,9 +199,14 @@ def _core_candidate(candidate: SpecificationCandidate) -> CoreCandidate:
         mark=candidate.mark,
         nomenclature_code=candidate.nomenclature_code,
         supply_unit=candidate.supply_unit,
-        applicability=candidate.applicability,
-        package_parameters=candidate.package_parameters,
-        formula_parameters=candidate.formula_parameters,
+        parameters=CatalogParameters.parse(
+            category=candidate.category,
+            applicability=candidate.applicability,
+            package_parameters=candidate.package_parameters,
+            formula_parameters=candidate.formula_parameters,
+            mark=candidate.mark,
+            nomenclature_code=candidate.nomenclature_code,
+        ),
     )
 
 

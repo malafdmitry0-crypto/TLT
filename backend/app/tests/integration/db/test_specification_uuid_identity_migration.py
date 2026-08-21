@@ -27,9 +27,7 @@ def _database_urls(database_name: str) -> tuple[str, str]:
 
 def _alembic(database_url: str, command: str, revision: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["DATABASE_URL"] = database_url.replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    env["DATABASE_URL"] = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return subprocess.run(
         ["alembic", command, revision],
         cwd=_BACKEND_ROOT,

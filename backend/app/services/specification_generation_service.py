@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
+from app.core.specification_metrics import DiagnosticMetric, specification_metrics
 from app.models.electrical_variant import ElectricalVariant
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
@@ -39,7 +41,7 @@ from app.services.specification_bom_builder import (
     BomBuildSuccess,
     materialize_specification_bom,
 )
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
 )
@@ -84,6 +86,7 @@ class SpecificationGenerationService:
         *,
         commit: bool = True,
     ) -> SpecificationGenerationResponse:
+        started_at = perf_counter()
         preflight = await SpecificationPreflightService(self.db).preflight_variants(
             project_id, principal, request
         )
@@ -141,6 +144,10 @@ class SpecificationGenerationService:
                 # infrastructure, or persistence error must roll back the whole
                 # request and reach the HTTP exception boundary as a 500.
                 await self.db.rollback()
+                specification_metrics.observe_rollback(
+                    scope="request",
+                    reason="unexpected_exception",
+                )
                 raise
 
         if recorded_any:
@@ -149,11 +156,17 @@ class SpecificationGenerationService:
             else:
                 await self.db.flush()
 
-        return SpecificationGenerationResponse(
+        response = SpecificationGenerationResponse(
             project_id=project_id,
             settings_version=settings_version,
             results=results,
         )
+        _observe_generation_metrics(response)
+        specification_metrics.observe_duration(
+            outcome=_overall_outcome(response),
+            seconds=perf_counter() - started_at,
+        )
+        return response
 
     async def _persist_outcome(
         self,
@@ -213,6 +226,7 @@ class SpecificationGenerationService:
             or original.input_fingerprint is None
             or current.input_fingerprint != original.input_fingerprint
         ):
+            specification_metrics.observe_conflict("preflight_fingerprint_mismatch")
             return SpecificationVariantGenerationResult(
                 electrical_variant_id=current.electrical_variant_id,
                 electrical_variant_name=current.electrical_variant_name,
@@ -271,6 +285,7 @@ class SpecificationGenerationService:
 
         variant = await self.db.get(ElectricalVariant, current.electrical_variant_id)
         if variant is None:
+            specification_metrics.observe_conflict("snapshot_owner_missing")
             return self._blocked(
                 current.electrical_variant_id,
                 current.electrical_variant_name,
@@ -565,3 +580,27 @@ def _snapshot_value(value: Any) -> Any:
     if isinstance(value, list | tuple):
         return [_snapshot_value(item) for item in value]
     return value
+
+
+def _observe_generation_metrics(response: SpecificationGenerationResponse) -> None:
+    for result in response.results:
+        specification_metrics.observe_outcome(
+            result.status.value,
+            (
+                DiagnosticMetric(
+                    phase="generation",
+                    code=diagnostic.code.value,
+                    kind=diagnostic.kind.value,
+                )
+                for diagnostic in result.diagnostics
+            ),
+        )
+
+
+def _overall_outcome(response: SpecificationGenerationResponse) -> str:
+    statuses = {result.status.value for result in response.results}
+    if statuses == {SpecificationGenerationStatus.GENERATED.value}:
+        return "generated"
+    if len(statuses) == 1:
+        return next(iter(statuses), "empty")
+    return "mixed"

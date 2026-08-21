@@ -11,26 +11,27 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-
-from app.formulas.specification.calculators import (
-    BOX_CONDITION_UNUSED,
+from heatcalc_specification_core.boxes import (
     SPEC_BOX_EX_RGR_MATRIX_MISSING,
+    box_row_from_catalog_parts,
+    calculate_box_quantity,
+    compute_d_ge_57,
+    evaluate_box_matrix,
+    evaluate_box_matrix_from_input,
+    row_conditions_match,
+    validate_box_matrix_ex_r_gr,
+)
+from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.common import floor_div
+from heatcalc_specification_core.types import (
+    BOX_CONDITION_UNUSED,
     BoxMatrixInput,
     BoxPipeInput,
     BoxRoundingMode,
     BoxRowConditions,
     BoxRowInput,
     FormulaInputError,
-    box_row_from_catalog_parts,
-    calculate_box_quantity,
-    compute_d_ge_57,
-    evaluate_box_matrix,
-    evaluate_box_matrix_from_input,
-    floor_div,
-    row_conditions_match,
-    validate_box_matrix_ex_r_gr,
 )
-from app.formulas.specification.catalog_conditions import match_condition, not_applicable
 
 GOLDENS_PATH = (
     Path(__file__).resolve().parents[2] / "fixtures" / "specification_normalized_goldens.json"
@@ -550,13 +551,10 @@ class TestPureLayerImports:
     def test_boxes_module_has_no_heavy_deps(self) -> None:
         import ast
 
-        path = (
-            Path(__file__).resolve().parents[3]
-            / "formulas"
-            / "specification"
-            / "calculators"
-            / "boxes.py"
-        )
+        import heatcalc_specification_core.boxes as boxes_module
+
+        assert boxes_module.__file__ is not None
+        path = Path(boxes_module.__file__)
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         forbidden = (
             "sqlalchemy",

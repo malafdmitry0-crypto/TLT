@@ -9,18 +9,26 @@ from pathlib import Path
 
 BACKEND_MUTANT_ROOTS = (
     Path("mutants/app/formulas/electrical"),
-    Path("mutants/packages/specification-core/src/heatcalc_specification_core"),
 )
 CORE_MUTANT_ROOTS = (Path("packages/heat-loss-core/mutants/src/heatcalc_heat_loss_core"),)
 ELECTRICAL_CORE_MUTANT_ROOTS = (
     Path("packages/electrical-core/mutants/src/heatcalc_electrical_core"),
 )
-MUTANT_ROOTS = BACKEND_MUTANT_ROOTS + CORE_MUTANT_ROOTS + ELECTRICAL_CORE_MUTANT_ROOTS
+SPECIFICATION_CORE_MUTANT_ROOTS = (
+    Path("packages/specification-core/mutants/src/heatcalc_specification_core"),
+)
+MUTANT_ROOTS = (
+    BACKEND_MUTANT_ROOTS
+    + CORE_MUTANT_ROOTS
+    + ELECTRICAL_CORE_MUTANT_ROOTS
+    + SPECIFICATION_CORE_MUTANT_ROOTS
+)
 DEFAULT_BACKEND_MIN_SCORE = 65.0
 DEFAULT_CORE_MIN_SCORE = 65.0
 # Electrical core follows the existing standalone-core 65% policy. CI/users
 # may raise it independently with MUTMUT_ELECTRICAL_CORE_MIN_SCORE.
 DEFAULT_ELECTRICAL_CORE_MIN_SCORE = DEFAULT_CORE_MIN_SCORE
+DEFAULT_SPECIFICATION_CORE_MIN_SCORE = DEFAULT_CORE_MIN_SCORE
 DEFAULT_MAX_TIMEOUTS = 12
 
 
@@ -53,8 +61,9 @@ def main() -> int:
     backend_counts = _status_counts(BACKEND_MUTANT_ROOTS)
     core_counts = _status_counts(CORE_MUTANT_ROOTS)
     electrical_core_counts = _status_counts(ELECTRICAL_CORE_MUTANT_ROOTS)
+    specification_core_counts = _status_counts(SPECIFICATION_CORE_MUTANT_ROOTS)
     scope = os.getenv("MUTMUT_SCOPE", "all")
-    if scope not in {"all", "backend", "core", "electrical-core"}:
+    if scope not in {"all", "backend", "core", "electrical-core", "specification-core"}:
         print(f"Unknown MUTMUT_SCOPE: {scope}")
         return 2
 
@@ -67,6 +76,12 @@ def main() -> int:
     core_min_score = float(os.getenv("MUTMUT_CORE_MIN_SCORE", DEFAULT_CORE_MIN_SCORE))
     electrical_core_min_score = float(
         os.getenv("MUTMUT_ELECTRICAL_CORE_MIN_SCORE", DEFAULT_ELECTRICAL_CORE_MIN_SCORE)
+    )
+    specification_core_min_score = float(
+        os.getenv(
+            "MUTMUT_SPECIFICATION_CORE_MIN_SCORE",
+            DEFAULT_SPECIFICATION_CORE_MIN_SCORE,
+        )
     )
     max_timeouts = int(os.getenv("MUTMUT_MAX_TIMEOUTS", DEFAULT_MAX_TIMEOUTS))
 
@@ -85,12 +100,19 @@ def main() -> int:
         electrical_core_counts,
         threshold=electrical_core_min_score,
     )
+    specification_core_line, specification_core_passed = _score_line(
+        "Specification core mutation score",
+        specification_core_counts,
+        threshold=specification_core_min_score,
+    )
     if scope in {"all", "backend"}:
         print(backend_line)
     if scope in {"all", "core"}:
         print(core_line)
     if scope in {"all", "electrical-core"}:
         print(electrical_core_line)
+    if scope in {"all", "specification-core"}:
+        print(specification_core_line)
     print(f"Mutation timeout limit: {max_timeouts}")
 
     timed_out = 0
@@ -104,6 +126,9 @@ def main() -> int:
     if scope in {"all", "electrical-core"}:
         timed_out += electrical_core_counts[-24]
         passed = passed and electrical_core_passed
+    if scope in {"all", "specification-core"}:
+        timed_out += specification_core_counts[-24]
+        passed = passed and specification_core_passed
     if not passed or timed_out > max_timeouts:
         return 1
     return 0

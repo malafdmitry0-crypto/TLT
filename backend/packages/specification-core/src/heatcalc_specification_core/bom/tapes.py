@@ -44,7 +44,7 @@ def build_tape_items(
     if aluminium_item is None:
         raise _missing("aluminium_selection_missing", "алюминиевой ленты")
     reel = _required_package_parameter(aluminium_item, "reel_length_m")
-    consumption = aluminium_item.formula_parameters.get("consumption_m_per_cable_m")
+    consumption = aluminium_item.parameters.consumption_m_per_cable_m
     if consumption is None:
         raise _parameter_missing(
             aluminium_item,
@@ -154,7 +154,7 @@ def _pick_by_temperature(
     for item in selected.values():
         if item.category != category:
             continue
-        raw = item.applicability.get("temperature_group")
+        raw = item.parameters.temperature_group
         if raw is not None and normalize_temperature_group(str(raw)) == expected:
             return item
     return None
@@ -165,7 +165,7 @@ def _pick_single(selected: Mapping[str, CatalogItem], category: str) -> CatalogI
 
 
 def _required_package_parameter(item: CatalogItem, field: str) -> object:
-    value = item.package_parameters.get(field)
+    value = getattr(item.parameters, field, None)
     if value is None:
         raise _parameter_missing(item, field, parameter_kind="package")
     return value

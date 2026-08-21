@@ -2,12 +2,13 @@
 
 import inspect
 
-import app.formulas.specification.catalog_identity as catalog_identity_module
-from app.formulas.specification.catalog_identity import (
+import heatcalc_specification_core.catalog_identity as catalog_identity_module
+from heatcalc_specification_core.catalog_identity import (
     cable_identity_from_result,
     resolve_accessory_rule,
     temperature_group_from_result,
 )
+
 from app.reference_data.loader import get_electrical_tt_bom_entry
 
 

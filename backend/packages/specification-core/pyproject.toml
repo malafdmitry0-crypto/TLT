@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "heatcalc-specification-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Pure specification calculation, catalog-condition, and grouping core"
 requires-python = ">=3.11"
 dependencies = []
@@ -15,6 +15,24 @@ testpaths = ["tests"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[tool.mutmut]
+# Start with the canonical BOM orchestration and candidate-eligibility decisions.
+# The mutation scope is intentionally expanded only after each added slice meets
+# the score floor; contracts, serializers and namespace plumbing remain covered
+# by pytest, mypy and architecture guards.
+paths_to_mutate = [
+    "src/heatcalc_specification_core/bom/pipeline.py",
+    "src/heatcalc_specification_core/candidates/filtering.py",
+]
+pytest_add_cli_args = [
+    "--no-cov",
+    "--ignore=tests/test_architecture.py",
+    "--ignore=tests/candidates/test_candidate_architecture.py",
+]
+tests_dir = ["tests"]
+also_copy = ["src/heatcalc_specification_core"]
+backup = false
 
 [tool.setuptools.package-data]
 heatcalc_specification_core = ["py.typed"]

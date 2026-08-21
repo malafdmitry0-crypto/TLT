@@ -231,9 +231,7 @@ async def test_uuid_preflight_isolates_variants_and_preserves_previous_specifica
     assert [item.total_objects for item in results] == [1, 1]
     assert results[0].status is SpecificationPreflightStatus.READY
     assert results[0].input_fingerprint is not None
-    assert all(
-        group.selected_catalog_item_id is not None for group in results[0].candidate_groups
-    )
+    assert all(group.selected_catalog_item_id is not None for group in results[0].candidate_groups)
     assert results[1].status is SpecificationPreflightStatus.BLOCKED
     assert results[1].contributing_objects == 0
     assert results[1].diagnostics[0].code is SpecificationDiagnosticCode.VARIANT_NOT_READY
@@ -299,9 +297,7 @@ async def _seed_ready_project(
     await import_and_activate_complete_specification_catalog(
         db_session,
         version_prefix="canon03",
-        high_temperature_connection_marks=(
-            {"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-1"}
-        ),
+        high_temperature_connection_marks=({"КСВ-1", "КСВ-2"} if multi_connection else {"КСВ-1"}),
     )
     calculation = ElectricalCalculation(
         id=uuid.uuid4(),

@@ -15,7 +15,7 @@ from app.reference_data.specification_catalog_case1_demo import (
     case1_demo_payload_checksum,
 )
 from app.schemas.specification_catalog import SpecificationCatalogAuthority
-from app.services.specification_catalog_service import SpecificationCatalogService
+from app.services.specification_catalog import SpecificationCatalogService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

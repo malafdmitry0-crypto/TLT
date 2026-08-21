@@ -147,7 +147,7 @@ def _pick_by_temperature(
     for item in selected.values():
         if item.category != category:
             continue
-        raw = item.applicability.get("temperature_group")
+        raw = item.parameters.temperature_group
         if raw is not None and normalize_temperature_group(str(raw)) == expected:
             return item
     return None
@@ -158,7 +158,7 @@ def _pick_single(selected: Mapping[str, CatalogItem], category: str) -> CatalogI
 
 
 def _required_parameter(item: CatalogItem, field: str) -> object:
-    value = item.package_parameters.get(field)
+    value = getattr(item.parameters, field, None)
     if value is None:
         raise BlockingBomError(
             (

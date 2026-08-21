@@ -40,6 +40,13 @@ FORBIDDEN_PARTS = {
     "tempfile",
 }
 MAX_MODULE_LINES = 400
+STRICT_CONTRACT_FILES = {
+    "bom/contracts.py",
+    "bom/snapshot.py",
+    "bom/snapshot_contracts.py",
+    "catalog/contracts.py",
+    "catalog/validation_contracts.py",
+}
 
 
 def _forbidden_module(module: str) -> bool:
@@ -85,3 +92,14 @@ def test_core_modules_stay_focused() -> None:
         if len(path.read_text(encoding="utf-8").splitlines()) > MAX_MODULE_LINES
     }
     assert oversized == {}
+
+
+def test_snapshot_and_catalog_contracts_do_not_use_untyped_mappings() -> None:
+    violations: list[str] = []
+    for relative in sorted(STRICT_CONTRACT_FILES):
+        source = (PACKAGE_ROOT / relative).read_text(encoding="utf-8")
+        for forbidden in ("Mapping[str, Any]", "dict[str, Any]", "from typing import Any"):
+            if forbidden in source:
+                violations.append(f"{relative}: {forbidden}")
+
+    assert violations == []

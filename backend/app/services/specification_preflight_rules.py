@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from heatcalc_specification_core.diagnostics import Diagnostic as CoreDiagnostic
@@ -73,7 +73,7 @@ class SpecificationPreflightAssignment:
 
 def canonical_fingerprint(payload: Any) -> str:
     """Compatibility export while canonical serialization is owned by core."""
-    return cast(str, _canonical_fingerprint(payload))
+    return _canonical_fingerprint(payload)
 
 
 def evaluate_specification_preflight(
@@ -177,7 +177,10 @@ def _core_result(result: Mapping[str, Any] | None) -> ElectricalResultSnapshot |
         canonical_mark if isinstance(canonical_mark, str) else None,
         dict(result),
     )
-    upstream_status = status if status in {"success", "stale", "failed"} else "unsupported"
+    upstream_status = cast(
+        Literal["success", "stale", "failed", "unsupported"],
+        status if status in {"success", "stale", "failed"} else "unsupported",
+    )
     return ElectricalResultSnapshot(
         upstream_status=upstream_status,
         production_eligible=result.get("production_eligible") is True,

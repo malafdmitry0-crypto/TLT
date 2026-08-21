@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import CurrentPrincipal
 from app.models.specification import Specification
 from app.models.user import User
-from app.services.specification_catalog_service import SpecificationCatalogService
+from app.services.specification_catalog import SpecificationCatalogService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

@@ -18,7 +18,7 @@ from app.schemas.specification_catalog import (
     SpecificationCatalogVersionResponse,
 )
 from app.services.audit_service import AuditService
-from app.services.specification_catalog_service import (
+from app.services.specification_catalog import (
     SpecificationCatalogService,
     SpecificationCatalogServiceError,
 )
@@ -111,9 +111,7 @@ async def get_specification_catalog(
     base = _version_response(resolved.version)
     return SpecificationCatalogDetailResponse(
         **base.model_dump(),
-        items=[
-            SpecificationCatalogItemSummary.model_validate(item) for item in resolved.items
-        ],
+        items=[SpecificationCatalogItemSummary.model_validate(item) for item in resolved.items],
     )
 
 

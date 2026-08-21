@@ -63,7 +63,7 @@ from app.services.electrical_assignment_service import ElectricalAssignmentServi
 from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_variant_service import ElectricalVariantService
 from app.services.project_service import ProjectService
-from app.services.specification_catalog_service import SpecificationCatalogService
+from app.services.specification_catalog import SpecificationCatalogService
 
 logger = logging.getLogger("seeds")
 logging.basicConfig(level=logging.INFO, format="%(message)s")

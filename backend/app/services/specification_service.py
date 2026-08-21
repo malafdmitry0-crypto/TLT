@@ -65,8 +65,7 @@ class SpecificationService:
         """
         status_value = str(getattr(status, "value", status))
         diagnostics_payload = [
-            d.model_dump(mode="json") if hasattr(d, "model_dump") else dict(d)
-            for d in diagnostics
+            d.model_dump(mode="json") if hasattr(d, "model_dump") else dict(d) for d in diagnostics
         ]
         groups_payload = [
             g.model_dump(mode="json") if hasattr(g, "model_dump") else dict(g)

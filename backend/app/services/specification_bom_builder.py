@@ -10,22 +10,29 @@ from typing import Any
 from uuid import UUID
 
 from heatcalc_specification_core.bom import (
-    CandidateGroup as CoreCandidateGroup,
-)
-from heatcalc_specification_core.bom import (
+    AssignmentRevision,
     CatalogIdentity,
     CatalogItem,
+    ElectricalResultRevision,
     GenerationFailure,
     GenerationInput,
     GenerationSuccess,
+    InputRevision,
+    ObjectRevision,
     ResolvedOptions,
     RevisionContext,
+    SectionPlanRevision,
     SpecificationCatalog,
     SpecificationContribution,
     run_specification,
 )
+from heatcalc_specification_core.bom import (
+    CandidateGroup as CoreCandidateGroup,
+)
+from heatcalc_specification_core.catalog import CatalogParameters
 from heatcalc_specification_core.catalog_identity import temperature_group_from_result
 from heatcalc_specification_core.common import normalize_temperature_group
+from heatcalc_specification_core.json_types import json_object
 from heatcalc_specification_core.types import FormulaInputError
 
 from app.schemas.specification import (
@@ -36,7 +43,7 @@ from app.schemas.specification import (
     SpecificationItem,
     SpecificationResolvedOptions,
 )
-from app.services.specification_catalog_service import ResolvedSpecificationCatalog
+from app.services.specification_catalog import ResolvedSpecificationCatalog
 
 
 @dataclass(frozen=True)
@@ -118,7 +125,7 @@ def materialize_specification_bom(
             )
             for item in outcome.items
         ],
-        snapshot=dict(outcome.snapshot),
+        snapshot=dict(outcome.snapshot.to_dict()),
     )
 
 
@@ -165,13 +172,70 @@ def _generation_input(
             variant_updated_at=variant_updated_at,
             settings_revision=int(snapshot_context.get("settings_revision", 0)),
             input_revisions=tuple(
-                _mapping(item) for item in _sequence(snapshot_context.get("input_revisions"))
+                _input_revision(_mapping(item))
+                for item in _sequence(snapshot_context.get("input_revisions"))
             ),
         ),
         preflight_fingerprint=preflight_fingerprint,
         generated_at=datetime.now(UTC),
         preflight_fingerprint_schema=fingerprint_schema,
         excluded_unassigned_object_ids=tuple(excluded_unassigned_object_ids),
+    )
+
+
+def _input_revision(value: Mapping[str, Any]) -> InputRevision:
+    object_value = _mapping(value.get("object"))
+    object_revision = ObjectRevision(
+        id=UUID(str(object_value.get("id"))),
+        version=int(object_value.get("version", 0)),
+    )
+    assignment_value = _mapping(value.get("assignment"))
+    assignment = (
+        AssignmentRevision(
+            id=UUID(str(assignment_value.get("id"))),
+            version=int(assignment_value.get("version", 0)),
+            object_version_snapshot=int(assignment_value.get("object_version_snapshot", 0)),
+            state=str(assignment_value.get("state", "")),
+            system_type=_optional_str(assignment_value.get("system_type")),
+        )
+        if assignment_value
+        else None
+    )
+    result_value = _mapping(value.get("electrical_result"))
+    electrical_result = (
+        ElectricalResultRevision(
+            id=UUID(str(result_value.get("id"))),
+            updated_at=_aware_datetime(result_value.get("updated_at")),
+            formula_version=_optional_str(result_value.get("formula_version")),
+            formula_fingerprint=_optional_str(result_value.get("formula_fingerprint")),
+            calculation_fingerprint=_optional_str(result_value.get("calculation_fingerprint")),
+            object_version=_optional_int(result_value.get("object_version")),
+            heat_result_version=_optional_int(result_value.get("heat_result_version")),
+            assignment_version=_optional_int(result_value.get("assignment_version")),
+        )
+        if result_value
+        else None
+    )
+    section_value = _mapping(value.get("section_plan_revision"))
+    section_plan_revision = (
+        SectionPlanRevision(
+            payload=json_object(section_value.get("payload", {})),
+            calculation_fingerprint=_optional_str(section_value.get("calculation_fingerprint")),
+            result_updated_at=(
+                _aware_datetime(section_value.get("result_updated_at"))
+                if section_value.get("result_updated_at") is not None
+                else None
+            ),
+        )
+        if section_value
+        else None
+    )
+    return InputRevision(
+        object=object_revision,
+        assignment=assignment,
+        electrical_result=electrical_result,
+        section_plan_revision=section_plan_revision,
+        excluded=bool(value.get("excluded", False)),
     )
 
 
@@ -195,9 +259,15 @@ def _catalog(catalog: ResolvedSpecificationCatalog) -> SpecificationCatalog:
                 mark=item.mark,
                 nomenclature_code=item.nomenclature_code,
                 supply_unit=item.supply_unit,
-                applicability=_mapping(item.applicability),
-                package_parameters=_mapping(item.package_parameters),
-                formula_parameters=_mapping(item.formula_parameters),
+                parameters=CatalogParameters.parse(
+                    category=item.category,
+                    applicability=_mapping(item.applicability),
+                    package_parameters=_mapping(item.package_parameters),
+                    formula_parameters=_mapping(item.formula_parameters),
+                    item_key=item.item_key,
+                    mark=item.mark,
+                    nomenclature_code=item.nomenclature_code,
+                ),
             )
             for item in catalog.items
         ),
@@ -370,6 +440,14 @@ def _aware_datetime(value: Any) -> datetime:
     if result.tzinfo is None or result.utcoffset() is None:
         raise ValueError("variant_revision.updated_at must be timezone-aware")
     return result
+
+
+def _optional_str(value: Any) -> str | None:
+    return str(value) if value is not None else None
+
+
+def _optional_int(value: Any) -> int | None:
+    return int(value) if value is not None else None
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
