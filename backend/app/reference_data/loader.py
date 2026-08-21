@@ -7,6 +7,7 @@
 import hashlib
 import json
 from collections.abc import Sequence
+from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -27,6 +28,41 @@ _ELECTRICAL_CATALOG_FILES = {
     "section": "section_catalog.json",
     "bom": "electrical_tt_bom_v1.json",
 }
+
+
+@lru_cache
+def _section_catalog_payload() -> dict[str, Any]:
+    try:
+        return dict(_load_json("section_catalog.json"))
+    except Exception:
+        return {"status": "missing", "rows": []}
+
+
+def clear_section_catalog_cache() -> None:
+    _section_catalog_payload.cache_clear()
+
+
+def section_catalog_registered() -> bool:
+    data = _section_catalog_payload()
+    rows = data.get("rows")
+    return data.get("status") == "registered" and isinstance(rows, list) and bool(rows)
+
+
+def section_catalog_meta() -> dict[str, Any]:
+    data = _section_catalog_payload()
+    return {
+        "status": data.get("status"),
+        "source": data.get("source"),
+        "source_checksum": data.get("source_checksum"),
+        "version": data.get("version"),
+        "schema_version": data.get("schema_version"),
+        "registered_at": data.get("registered_at"),
+    }
+
+
+def section_catalog_payload_snapshot() -> dict[str, Any]:
+    """Return an isolated copy of the bundled section catalog authority."""
+    return deepcopy(_section_catalog_payload())
 
 PIPE_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json+pipe_materials.json"
 TANK_HEAT_LOSS_MATERIALS_SOURCE = "reference_data/insulation.json"
@@ -535,6 +571,7 @@ def get_tlt_cable_by_mark(mark: str | None) -> dict[str, Any] | None:
 
 
 def clear_cache() -> None:
+    _section_catalog_payload.cache_clear()
     _climate.cache_clear()
     _climate_by_key.cache_clear()
     _climate_by_city_region.cache_clear()
@@ -559,6 +596,7 @@ def clear_cache() -> None:
 
 def preload_all() -> None:
     """Прогрев кеша при старте приложения."""
+    _section_catalog_payload()
     _climate()
     _climate_by_key()
     _climate_by_city_region()

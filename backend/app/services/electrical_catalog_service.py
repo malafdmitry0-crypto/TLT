@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
-from app.formulas.electrical.sections import section_catalog_meta, section_catalog_payload_snapshot
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_catalog_version import ElectricalCatalogVersion
@@ -27,6 +26,8 @@ from app.reference_data.loader import (
     electrical_tt_bom_metadata,
     list_electrical_tt_bom_entries,
     list_tt_cables,
+    section_catalog_meta,
+    section_catalog_payload_snapshot,
     tt_cables_source_checksum,
 )
 from app.schemas.electrical_catalog import (

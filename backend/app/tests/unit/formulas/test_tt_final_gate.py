@@ -3,40 +3,44 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
 
 import pytest
+from heatcalc_electrical_core.sections import SectionPlan
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical import tt_final_gate as final_gate_adapter
-from app.formulas.electrical.sections import SectionPlan
 from app.formulas.electrical.tt_final_gate import assert_electrical_tt_ready
 
 
 def _plan(**overrides) -> SectionPlan:
     base = SectionPlan(
         section_count=3,
-        section_length_m=67.0,
-        l_max_m=67.0,
-        l_tok_m=100.0,
-        l_ogr_m=67.0,
-        l_required_m=200.0,
-        l_fact_m=201.0,
-        i_dop_a=13.065,
-        i_st_ud_a_per_m=0.195,
-        start_current_a=39.195,
-        working_current_a=26.7,
-        start_current_per_section_a=13.065,
-        working_current_per_section_a=8.9,
-        power_per_section_w=2050.0,
-        total_power_w=6150.0,
-        l_excess_m=1.0,
-        order_cable_length_m=221.1,
-        catalog_source="test",
-        catalog_version="v1",
-        voltage_v=230.0,
-        cold_start_temp_c=-20.0,
+        section_length_m=Decimal("67"),
+        l_max_m=Decimal("67"),
+        l_tok_m=Decimal("100"),
+        l_ogr_m=Decimal("67"),
+        l_required_m=Decimal("200"),
+        l_fact_m=Decimal("201"),
+        i_dop_a=Decimal("13.065"),
+        i_st_ud_a_per_m=Decimal("0.195"),
+        start_current_a=Decimal("39.195"),
+        working_current_a=Decimal("26.7"),
+        start_current_per_section_a=Decimal("13.065"),
+        working_current_per_section_a=Decimal("8.9"),
+        power_per_section_w=Decimal("2050"),
+        total_power_w=Decimal("6150"),
+        l_excess_m=Decimal("1"),
+        order_cable_length_m=Decimal("221.1"),
+        voltage_v=Decimal("230"),
+        cold_start_temperature=Decimal("-20"),
+        i_dop_source="manual_input",
     )
-    return replace(base, **overrides) if overrides else base
+    decimal_overrides = {
+        key: Decimal(str(value)) if key not in {"section_count", "i_dop_source"} else value
+        for key, value in overrides.items()
+    }
+    return replace(base, **decimal_overrides) if decimal_overrides else base
 
 
 def _sections(

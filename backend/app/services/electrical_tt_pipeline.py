@@ -28,12 +28,13 @@ from app.formulas.electrical.outcome_errors import (
     raise_electrical_formula_domain_error,
     raise_electrical_formula_report,
 )
-from app.formulas.electrical.sections import section_catalog_meta, section_catalog_payload_snapshot
 from app.reference_data.loader import (
     get_electrical_tt_bom_entry,
     get_tt_cable_by_model,
     list_electrical_tt_bom_entries,
     list_tt_cables,
+    section_catalog_meta,
+    section_catalog_payload_snapshot,
     tt_cables_source_checksum,
 )
 from app.schemas.electrical_inputs import ResolvedElectricalInputs

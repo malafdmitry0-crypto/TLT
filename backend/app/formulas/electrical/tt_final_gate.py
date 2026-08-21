@@ -8,7 +8,7 @@ from typing import Any, Never
 
 from heatcalc_electrical_core import EqualSection, TTFormulaIssue, TTFormulaReport
 from heatcalc_electrical_core.final_gate import validate_final_physical_gate
-from heatcalc_electrical_core.sections import SectionPlan as CoreSectionPlan
+from heatcalc_electrical_core.sections import SectionPlan
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.decimal_math import decimal_value
@@ -16,33 +16,6 @@ from app.formulas.electrical.outcome_errors import (
     electrical_error_from_report,
     raise_electrical_formula_report,
 )
-from app.formulas.electrical.sections import SectionPlan
-
-
-def _core_plan(plan: SectionPlan) -> CoreSectionPlan:
-    """Project the app's provenance-bearing plan to the core physical DTO."""
-    return CoreSectionPlan(
-        section_count=plan.section_count,
-        section_length_m=decimal_value(plan.section_length_m),
-        l_max_m=decimal_value(plan.l_max_m),
-        l_tok_m=decimal_value(plan.l_tok_m),
-        l_ogr_m=decimal_value(plan.l_ogr_m),
-        l_required_m=decimal_value(plan.l_required_m),
-        l_fact_m=decimal_value(plan.l_fact_m),
-        i_dop_a=decimal_value(plan.i_dop_a),
-        i_st_ud_a_per_m=decimal_value(plan.i_st_ud_a_per_m),
-        start_current_a=decimal_value(plan.start_current_a),
-        working_current_a=decimal_value(plan.working_current_a),
-        start_current_per_section_a=decimal_value(plan.start_current_per_section_a),
-        working_current_per_section_a=decimal_value(plan.working_current_per_section_a),
-        power_per_section_w=decimal_value(plan.power_per_section_w),
-        total_power_w=decimal_value(plan.total_power_w),
-        l_excess_m=decimal_value(plan.l_excess_m),
-        order_cable_length_m=decimal_value(plan.order_cable_length_m),
-        voltage_v=decimal_value(plan.voltage_v),
-        cold_start_temperature=decimal_value(plan.cold_start_temp_c),
-        i_dop_source=plan.i_dop_source,
-    )
 
 
 def _mapping_error(index: int, field: str, value: object = None) -> Never:
@@ -154,7 +127,7 @@ def assert_electrical_tt_ready(
         voltage_v=decimal_value(voltage_v),
         required_power_per_meter_w=decimal_value(required_power_per_meter_w),
         installed_power_per_meter_w=decimal_value(installed_power_per_meter_w),
-        plan=_core_plan(plan),
+        plan=plan,
         sections=_core_sections(sections),
     )
     raise_electrical_formula_report(_legacy_physical_report(report))

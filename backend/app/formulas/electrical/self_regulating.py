@@ -37,8 +37,11 @@ from app.formulas.electrical.outcome_errors import (
     raise_electrical_formula_domain_error,
     raise_electrical_formula_report,
 )
-from app.formulas.electrical.sections import section_catalog_payload_snapshot
-from app.reference_data.loader import list_electrical_tt_bom_entries, list_tt_cables
+from app.reference_data.loader import (
+    list_electrical_tt_bom_entries,
+    list_tt_cables,
+    section_catalog_payload_snapshot,
+)
 from app.schemas.calculation import SelfRegulatingTTParams, SelfRegulatingTTResult
 
 MAX_SELF_REG_AUTO_THREADS = 3
