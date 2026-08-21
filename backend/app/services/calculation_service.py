@@ -494,7 +494,7 @@ class CalculationService:
             assignment_join,
         )
         if electrical_variant_id is not None:
-            system_type = ElectricalVariantObject.system_type
+            system_type: Any = ElectricalVariantObject.system_type
             ready_successful_calc = and_(
                 successful_calc,
                 ElectricalVariantObject.assignment_state == "ready",
@@ -614,7 +614,7 @@ class CalculationService:
 
         cached = await cache.aget("coefficients")
         if cached is not None:
-            return cached
+            return cast(dict[str, float], cached)
         result = await self.db.execute(select(CorrectionCoefficient))
         coeffs = {
             row.key: row.value
@@ -694,10 +694,14 @@ class CalculationService:
             "is_discontinued": bool(getattr(c, "is_discontinued", False)),
             "replacement_group": getattr(c, "replacement_group", None),
             "price_updated_at": (
-                c.price_updated_at.isoformat() if getattr(c, "price_updated_at", None) else None
+                price_updated_at.isoformat()
+                if (price_updated_at := c.price_updated_at) is not None
+                else None
             ),
             "stock_updated_at": (
-                c.stock_updated_at.isoformat() if getattr(c, "stock_updated_at", None) else None
+                stock_updated_at.isoformat()
+                if (stock_updated_at := c.stock_updated_at) is not None
+                else None
             ),
             "commercial_data_source": getattr(c, "commercial_data_source", None),
             "params": params,
@@ -1461,7 +1465,7 @@ class CalculationService:
             }
         except ElectricalFormulaError:
             metadata = await ElectricalCatalogService(self.db).metadata()
-            available = {
+            available: dict[str, dict[str, Any]] = {
                 catalog.kind: catalog.model_dump(mode="json") for catalog in metadata.catalogs
             }
             snapshots = {
@@ -2162,10 +2166,10 @@ class CalculationService:
             await self.db.execute(upsert_stmt)
             return []
 
-        upsert_stmt = upsert_stmt.returning(ElectricalCalculation)
+        returning_stmt = upsert_stmt.returning(ElectricalCalculation)
         orm_stmt = (
             select(ElectricalCalculation)
-            .from_statement(upsert_stmt)
+            .from_statement(returning_stmt)
             .execution_options(populate_existing=True)
         )
         result = await self.db.execute(orm_stmt)
@@ -4168,7 +4172,7 @@ class CalculationService:
             request_data=error_request_data,
         )
         if cable_type == "self_regulating_tt":
-            payload = {**payload, **await self._tt_error_provenance()}
+            cast(dict[str, Any], payload).update(await self._tt_error_provenance())
         rows = await self._bulk_upsert_electrical_calculations(
             [
                 {

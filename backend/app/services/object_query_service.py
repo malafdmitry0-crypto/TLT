@@ -9,6 +9,7 @@ from decimal import Decimal
 from functools import cmp_to_key
 from math import ceil
 from typing import Any, Literal
+from typing import cast as type_cast
 from uuid import UUID
 
 from sqlalchemy import Float, String, Text, and_, case, cast, func, literal, or_, select
@@ -117,11 +118,16 @@ def _result(key: str) -> Callable[[ProjectObject], Any]:
 
 
 def _param_m_as_mm(key: str) -> Callable[[ProjectObject], Any]:
-    return (
-        lambda obj: _to_float(obj.params.get(key)) * 1000
-        if _to_float(obj.params.get(key)) is not None
-        else None
-    )
+    def getter(obj: ProjectObject) -> float | None:
+        value = _to_float(obj.params.get(key))
+        return value * 1000 if value is not None else None
+
+    return getter
+
+
+def _optional_m_as_mm(value: Any) -> float | None:
+    number = _to_float(value)
+    return number * 1000 if number is not None else None
 
 
 def _placement(obj: ProjectObject) -> Any:
@@ -152,7 +158,7 @@ def _heat_loss_status(obj: ProjectObject) -> str:
 def _layer(obj: ProjectObject, index: int) -> dict[str, Any] | None:
     layers = obj.params.get("insulation_layers")
     if isinstance(layers, list) and index < len(layers) and isinstance(layers[index], dict):
-        return layers[index]
+        return type_cast(dict[str, Any], layers[index])
     return None
 
 
@@ -401,11 +407,7 @@ def _common_fields(object_type: str) -> list[FieldDef]:
             "δ ИЗ, мм",
             (object_type,),
             "number",
-            lambda obj: (
-                _to_float(_first_insulation_value(obj, "thickness")) * 1000
-                if _to_float(_first_insulation_value(obj, "thickness")) is not None
-                else None
-            ),
+            lambda obj: _optional_m_as_mm(_first_insulation_value(obj, "thickness")),
             unit="mm",
             filter_ops=("range",),
             sortable=True,
@@ -1191,7 +1193,7 @@ class ObjectQueryService:
         objects = list(objects_result.scalars().all())
         return ObjectQueryCapabilitiesResponse(
             version=1,
-            object_type=object_type,  # type: ignore[arg-type]
+            object_type=type_cast(Any, object_type),
             default_page_size=50,
             max_page_size=200,
             default_sort=ObjectQueryDefaultSort(key="sort_order", dir="asc"),
@@ -1722,7 +1724,7 @@ class ObjectQueryService:
             unit=field.unit,
             filter=ObjectQueryFieldFilterCapability(
                 enabled=field.filterable,
-                ops=list(field.filter_ops),  # type: ignore[arg-type]
+                ops=type_cast(Any, list(field.filter_ops)),
                 include_empty=field.filterable,
                 reason=None if field.filterable else field.filter_reason or "unsupported",
             ),

@@ -1,5 +1,6 @@
 """FastAPI-зависимости: текущий пользователь / гость / проверка роли."""
 
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal, cast
@@ -129,7 +130,10 @@ async def get_current_user_or_guest(
     )
 
 
-def require_role(allowed_roles: list[Role]):
+PrincipalDependency = Callable[..., Awaitable[CurrentPrincipal]]
+
+
+def require_role(allowed_roles: Sequence[Role]) -> PrincipalDependency:
     """Factory: проверяет, что у текущего принципала допустимая роль."""
 
     async def checker(
@@ -145,13 +149,13 @@ def require_role(allowed_roles: list[Role]):
     return checker
 
 
-def require_admin():
+def require_admin() -> PrincipalDependency:
     return require_role(["admin"])
 
 
-def require_employee():
+def require_employee() -> PrincipalDependency:
     return require_role(["employee", "admin"])
 
 
-def require_any():
+def require_any() -> PrincipalDependency:
     return require_role(["guest", "employee", "admin"])

@@ -238,12 +238,11 @@ def preview_validated_heat_formula(
 
     params_data = dict(params)
     if formula_type == "pipe":
-        validated = PipeHeatLossParams(**params_data)
+        return evaluate_validated_heat_loss(PipeHeatLossParams(**params_data)).model_dump()
     elif formula_type == "tank":
-        validated = TankHeatLossParams(**params_data)
+        return evaluate_validated_heat_loss(TankHeatLossParams(**params_data)).model_dump()
     else:
         raise ValueError(f"Unsupported heat-loss formula type: {formula_type}")
-    return evaluate_validated_heat_loss(validated).model_dump()
 
 
 def _num(value: Any, default: float | None = None) -> float | None:

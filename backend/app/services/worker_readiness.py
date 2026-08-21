@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import monotonic
+from typing import Any, cast
 
 from redis import Redis as SyncRedis
 from redis.asyncio import Redis
@@ -190,7 +191,7 @@ class WorkerHeartbeat:
                 redis.delete(worker_readiness_key(self.consumer))
             except Exception as exc:
                 logger.warning("Failed to clear worker readiness heartbeat: %s", exc)
-            redis.close()
+            cast(Any, redis).close()
 
 
 def worker_is_ready_sync(redis_url: str, consumer: str) -> bool:
@@ -203,4 +204,4 @@ def worker_is_ready_sync(redis_url: str, consumer: str) -> bool:
     try:
         return bool(redis.exists(worker_readiness_key(consumer)))
     finally:
-        redis.close()
+        cast(Any, redis).close()

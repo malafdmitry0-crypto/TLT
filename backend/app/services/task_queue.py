@@ -1,7 +1,8 @@
 """Redis Stream transport for durable background tasks."""
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Awaitable, Sequence
+from typing import Any, cast
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -54,8 +55,9 @@ class TaskQueue:
                 3.0,
                 (settings.WORKER_POLL_TIMEOUT_MS / 1000) + 2.0,
             )
+            redis_url = cast(str, self.redis_url)
             self._redis = Redis.from_url(
-                self.redis_url,
+                redis_url,
                 decode_responses=True,
                 socket_connect_timeout=3,
                 socket_timeout=socket_timeout,
@@ -92,12 +94,15 @@ class TaskQueue:
         block_ms: int | None = None,
     ) -> Sequence[tuple[str, list[tuple[str, dict[str, str]]]]]:
         await self.ensure_group()
-        return await self.redis.xreadgroup(
-            self.group,
-            consumer,
-            streams={self.stream: ">"},
-            count=count,
-            block=block_ms or settings.WORKER_POLL_TIMEOUT_MS,
+        return cast(
+            Sequence[tuple[str, list[tuple[str, dict[str, str]]]]],
+            await self.redis.xreadgroup(
+                self.group,
+                consumer,
+                streams={self.stream: ">"},
+                count=count,
+                block=block_ms or settings.WORKER_POLL_TIMEOUT_MS,
+            ),
         )
 
     async def ack(self, stream_id: str) -> None:
@@ -140,14 +145,17 @@ class TaskQueue:
         payload["dead_letter_reason"] = reason
         field_args = [item for pair in payload.items() for item in pair]
         dedupe_key = f"{settings.WORKER_DEAD_LETTER_STREAM}:dedupe:{stream_id}"
-        dead_id = await self.redis.eval(
-            _DEAD_LETTER_LUA,
-            2,
-            settings.WORKER_DEAD_LETTER_STREAM,
-            dedupe_key,
-            str(settings.WORKER_DEAD_LETTER_MAXLEN),
-            str(settings.WORKER_DEAD_LETTER_DEDUPE_TTL_SECONDS),
-            *field_args,
+        dead_id = await cast(
+            Awaitable[Any],
+            self.redis.eval(
+                _DEAD_LETTER_LUA,
+                2,
+                settings.WORKER_DEAD_LETTER_STREAM,
+                dedupe_key,
+                str(settings.WORKER_DEAD_LETTER_MAXLEN),
+                str(settings.WORKER_DEAD_LETTER_DEDUPE_TTL_SECONDS),
+                *field_args,
+            ),
         )
         logger.warning(
             "Task moved to dead-letter stream",
@@ -172,11 +180,14 @@ class TaskQueue:
         start: str = "+",
         end: str = "-",
     ) -> Sequence[tuple[str, dict[str, str]]]:
-        return await self.redis.xrevrange(
-            settings.WORKER_DEAD_LETTER_STREAM,
-            max=start,
-            min=end,
-            count=count,
+        return cast(
+            Sequence[tuple[str, dict[str, str]]],
+            await self.redis.xrevrange(
+                settings.WORKER_DEAD_LETTER_STREAM,
+                max=start,
+                min=end,
+                count=count,
+            ),
         )
 
     async def get_dead_letter(self, stream_id: str) -> tuple[str, dict[str, str]] | None:

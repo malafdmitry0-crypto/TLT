@@ -1,6 +1,7 @@
 """Сервис управления проектами."""
 
 import copy
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -823,7 +824,7 @@ class ProjectService:
             value = getattr(object_type, "value", object_type)
             types_by_project.setdefault(project_id, set()).add(str(value))
         for project in projects:
-            project.object_types = sorted(types_by_project.get(project.id, set()))
+            cast(Any, project).object_types = sorted(types_by_project.get(project.id, set()))
 
     def _check_access(self, project: Project, principal: CurrentPrincipal) -> None:
         if principal.role == "admin":

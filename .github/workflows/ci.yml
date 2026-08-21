@@ -73,6 +73,8 @@ jobs:
           cache-dependency-path: e2e/package-lock.json
       - name: Сборка образов
         run: docker compose build backend frontend
+      - name: Backend strict-mypy shrink-only ratchet
+        run: python3 scripts/backend-mypy-ratchet.py
       - name: Тегирование под demo-версию
         run: |
           docker tag heatcalc-backend:latest  heatcalc-backend:1.2.1-demo

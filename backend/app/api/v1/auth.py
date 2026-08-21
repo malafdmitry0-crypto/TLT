@@ -2,6 +2,7 @@
 
 import secrets
 from datetime import UTC, datetime
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -27,6 +28,11 @@ from app.services.audit_service import AuditService
 from app.services.auth_service import AuthError, AuthService
 
 router = APIRouter()
+CookieSameSite = Literal["lax", "strict", "none"]
+
+
+def _cookie_samesite() -> CookieSameSite:
+    return cast(CookieSameSite, settings.AUTH_COOKIE_SAMESITE)
 
 
 def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
@@ -38,7 +44,7 @@ def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         secure=settings.auth_cookie_secure,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
+        samesite=_cookie_samesite(),
         path="/",
     )
     if tokens.refresh_token:
@@ -48,7 +54,7 @@ def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
             max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
             httponly=True,
             secure=settings.auth_cookie_secure,
-            samesite=settings.AUTH_COOKIE_SAMESITE,
+            samesite=_cookie_samesite(),
             path=settings.API_V1_PREFIX + "/auth",
         )
     response.set_cookie(
@@ -57,7 +63,7 @@ def _set_auth_cookies(response: Response, tokens: TokenPair) -> None:
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         httponly=False,
         secure=settings.auth_cookie_secure,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
+        samesite=_cookie_samesite(),
         path="/",
     )
 
@@ -78,7 +84,7 @@ def _set_guest_cookies(response: Response, session_id: str) -> None:
         max_age=max_age,
         httponly=True,
         secure=settings.auth_cookie_secure,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
+        samesite=_cookie_samesite(),
         path="/",
     )
     response.set_cookie(
@@ -87,17 +93,20 @@ def _set_guest_cookies(response: Response, session_id: str) -> None:
         max_age=max_age,
         httponly=False,
         secure=settings.auth_cookie_secure,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
+        samesite=_cookie_samesite(),
         path="/",
     )
 
 
 async def _guest_project(db: AsyncSession, session_id: str) -> Project | None:
-    return await db.scalar(
+    return cast(
+        Project | None,
+        await db.scalar(
         select(Project)
         .where(Project.session_id == session_id)
         .order_by(Project.created_at.asc())
         .limit(1)
+        ),
     )
 
 
@@ -180,6 +189,9 @@ async def resolve_guest_session(
                 headers={"Retry-After": "3600"},
             )
         session = await AuthService(db).create_guest_session()
+
+    if session is None:  # pragma: no cover - create_guest_session contract
+        raise RuntimeError("Guest session creation returned no session")
 
     project = await _guest_project(db, session.session_id)
     if project is None:

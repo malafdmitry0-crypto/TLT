@@ -181,7 +181,7 @@ def _sql_calc_result_number(key: str) -> Any:
 
 
 def _sql_calc_result_path_text(*path: str) -> Any:
-    expression = ElectricalCalculation.results
+    expression: Any = ElectricalCalculation.results
     for key in path:
         expression = expression[key]
     return expression.astext
@@ -341,23 +341,19 @@ def _calc_provenance_summary(row: ElectricalQueryRow) -> str | None:
     if row.calc is None or not isinstance(row.calc.results, dict):
         return None
     results = row.calc.results
-    layout = results.get("layout") if isinstance(results.get("layout"), dict) else {}
-    provenance = results.get("provenance") if isinstance(results.get("provenance"), dict) else {}
+    def dict_value(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+    layout = dict_value(results.get("layout"))
+    provenance = dict_value(results.get("provenance"))
     input_sources = (
-        provenance.get("input_sources")
-        if isinstance(provenance.get("input_sources"), dict)
-        else results.get("input_sources")
-        if isinstance(results.get("input_sources"), dict)
-        else {}
+        dict_value(provenance.get("input_sources"))
+        or dict_value(results.get("input_sources"))
     )
     catalogs = (
-        provenance.get("catalogs")
-        if isinstance(provenance.get("catalogs"), dict)
-        else results.get("catalogs")
-        if isinstance(results.get("catalogs"), dict)
-        else {}
+        dict_value(provenance.get("catalogs")) or dict_value(results.get("catalogs"))
     )
-    section_catalog = catalogs.get("section") if isinstance(catalogs.get("section"), dict) else {}
+    section_catalog = dict_value(catalogs.get("section"))
     parts: list[str] = []
     thread_source = layout.get("thread_selection_source") or input_sources.get("thread_count")
     winding_source = input_sources.get("winding_pitch_mm") or input_sources.get(
@@ -1562,7 +1558,7 @@ class ElectricalQueryService:
             unit=field.unit,
             filter=ObjectQueryFieldFilterCapability(
                 enabled=field.filterable,
-                ops=list(field.filter_ops),  # type: ignore[arg-type]
+                ops=list(field.filter_ops),
                 include_empty=field.filterable,
                 reason=None if field.filterable else field.filter_reason or "unsupported",
             ),

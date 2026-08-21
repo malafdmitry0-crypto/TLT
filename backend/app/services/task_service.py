@@ -443,13 +443,13 @@ class TaskService:
             idempotency_key=idempotency_key,
         )
         explicit_idempotency = bool(idempotency_key)
-        existing = await self._find_active_by_dedupe(
+        active_task = await self._find_active_by_dedupe(
             dedupe_key,
             include_terminal=explicit_idempotency,
         )
-        if existing is not None:
+        if active_task is not None:
             self._require_matching_idempotency_binding(
-                existing,
+                active_task,
                 explicit_idempotency=explicit_idempotency,
                 task_type=TASK_ELECTRICAL_BATCH,
                 project_id=request.project_id,
@@ -457,7 +457,7 @@ class TaskService:
                 payload=payload,
             )
             await self.db.commit()
-            return self._mark_idempotency_replay(existing, replay=True)
+            return self._mark_idempotency_replay(active_task, replay=True)
         await self._enforce_active_task_limits(request.project_id, principal)
 
         task = BackgroundTask(
@@ -481,21 +481,21 @@ class TaskService:
             await self.db.commit()
         except IntegrityError:
             await self.db.rollback()
-            existing = await self._find_active_by_dedupe(
+            active_task = await self._find_active_by_dedupe(
                 dedupe_key,
                 include_terminal=explicit_idempotency,
             )
-            if existing is None:
+            if active_task is None:
                 raise
             self._require_matching_idempotency_binding(
-                existing,
+                active_task,
                 explicit_idempotency=explicit_idempotency,
                 task_type=TASK_ELECTRICAL_BATCH,
                 project_id=request.project_id,
                 electrical_variant_id=variant.id,
                 payload=payload,
             )
-            return self._mark_idempotency_replay(existing, replay=True)
+            return self._mark_idempotency_replay(active_task, replay=True)
         await self.db.refresh(task)
 
         queue = queue or TaskQueue()
@@ -1938,7 +1938,7 @@ class TaskService:
             percent = min(100.0, round((task.progress_current / total) * 100, 1))
         elif task.status in TERMINAL_STATUSES:
             percent = 100.0
-        result = None
+        result: BatchCalcResponse | BatchElectricalResponse | ReportExportTaskResult | None = None
         if task.result_payload is not None:
             if task.type == TASK_HEAT_LOSS_BATCH:
                 result = BatchCalcResponse(

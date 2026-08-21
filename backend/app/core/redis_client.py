@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import AbstractEventLoop
+from typing import cast
 
 from redis.asyncio import Redis
 
@@ -31,17 +32,22 @@ def get_redis() -> Redis:
     except RuntimeError:
         loop = None
     if _redis is None or (loop is not None and _redis_loop is not loop):
-        _redis = Redis.from_url(
-            settings.REDIS_URL,
-            decode_responses=True,
-            max_connections=settings.REDIS_MAX_CONNECTIONS,
-            socket_keepalive=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            retry_on_timeout=True,
-            health_check_interval=30,
+        client = cast(
+            Redis,
+            Redis.from_url(
+                settings.REDIS_URL,
+                decode_responses=True,
+                max_connections=settings.REDIS_MAX_CONNECTIONS,
+                socket_keepalive=True,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+                retry_on_timeout=True,
+                health_check_interval=30,
+            ),
         )
+        _redis = client
         _redis_loop = loop
+        return client
     return _redis
 
 

@@ -78,7 +78,7 @@ def _power_catalog_snapshot(
     catalog_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     rows = catalog_rows if catalog_rows is not None else list_tt_cables()
-    default = {"kind": "power", "payload_checksum": _stable_hash(rows)}
+    default: dict[str, Any] = {"kind": "power", "payload_checksum": _stable_hash(rows)}
     if catalog_rows is None:
         default.update(
             {

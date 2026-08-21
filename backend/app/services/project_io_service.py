@@ -19,10 +19,11 @@ import io
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from sqlalchemy import select
@@ -56,6 +57,11 @@ from app.services.project_service import (
     ProjectService,
 )
 from app.services.spreadsheet_safety import safe_spreadsheet_cell
+
+
+class _CsvWriter(Protocol):
+    def writerow(self, row: Iterable[Any], /) -> Any: ...
+
 
 logger = logging.getLogger("heatcalc.project_io")
 
@@ -112,7 +118,7 @@ class ProjectImportNameConflictError(ProjectImportError):
 # ----------------------------------------------------------------------------
 
 
-def _write_section(w: csv._writer, name: str) -> None:
+def _write_section(w: _CsvWriter, name: str) -> None:
     _write_row(w, ["[SECTION]", name])
 
 
@@ -120,12 +126,12 @@ def _safe_csv_cell(value: Any) -> Any:
     return safe_spreadsheet_cell(value)
 
 
-def _write_row(w: csv._writer, row: list[Any]) -> None:
+def _write_row(w: _CsvWriter, row: list[Any]) -> None:
     w.writerow([_safe_csv_cell(value) for value in row])
 
 
 def _dump_project_to_writer(
-    w: csv._writer,
+    w: _CsvWriter,
     project: Project,
     objects: list[ProjectObject],
     electrical: list[ElectricalCalculation],
@@ -1367,8 +1373,8 @@ async def _apply_project_data(
     imported_by_scope: dict[tuple[UUID, int], _ImportedElectricalRow] = {}
     for row in electrical_rows:
         key = row.get("object_key", "")
-        obj = obj_by_key.get(key)
-        if obj is None:
+        electrical_obj = obj_by_key.get(key)
+        if electrical_obj is None:
             continue  # расчёт ссылается на объект не из этого CSV
         variant_number = _legacy_variant_number(row, section="electrical")
         cable_mark = row.get("cable_mark", "").strip() or None
@@ -1387,7 +1393,7 @@ async def _apply_project_data(
         if isinstance(cable_snapshot, dict):
             cable_snapshot = {**cable_snapshot, "origin": "imported_project"}
         imported = _ImportedElectricalRow(
-            object=obj,
+            object=electrical_obj,
             variant_number=variant_number,
             cable_type=row.get("cable_type", "").strip() or "self_regulating",
             cable_type_source=cable_type_source,
@@ -1397,7 +1403,7 @@ async def _apply_project_data(
             params=_parse_json_or_empty(row.get("params", ""), {}),
             results=_parse_json_or_empty(row.get("results", ""), None),
         )
-        scope = (obj.id, variant_number)
+        scope = (electrical_obj.id, variant_number)
         if scope in imported_by_scope:
             raise ProjectImportError(
                 "Дублирующийся электрический расчёт для object_key="
@@ -1411,11 +1417,11 @@ async def _apply_project_data(
 
     for variant_number, variant in variants_by_slot.items():
         for obj in obj_by_key.values():
-            imported = imported_by_scope.get((obj.id, variant_number))
+            imported_match = imported_by_scope.get((obj.id, variant_number))
             system_type, assignment_state = _legacy_assignment_projection(
-                imported.cable_type if imported is not None else None,
-                imported.cable_mark if imported is not None else None,
-                imported.results if imported is not None else None,
+                imported_match.cable_type if imported_match is not None else None,
+                imported_match.cable_mark if imported_match is not None else None,
+                imported_match.results if imported_match is not None else None,
             )
             db.add(
                 ElectricalVariantObject(
@@ -1424,9 +1430,11 @@ async def _apply_project_data(
                     object_id=obj.id,
                     system_type=system_type,
                     assignment_state=assignment_state,
-                    requested_cable_type=(imported.cable_type if imported is not None else None),
+                    requested_cable_type=(
+                        imported_match.cable_type if imported_match is not None else None
+                    ),
                     object_version_snapshot=obj.version,
-                    diagnostics=_assignment_diagnostics(variant_number, imported),
+                    diagnostics=_assignment_diagnostics(variant_number, imported_match),
                 )
             )
     if variants_by_slot and obj_by_key:
@@ -1718,8 +1726,8 @@ async def _apply_project_data_v3(
             raise ProjectImportError(
                 f"electrical: неизвестный variant_key {variant_key!r}"
             )
-        obj = obj_by_key.get(object_key)
-        if obj is None:
+        calculation_obj = obj_by_key.get(object_key)
+        if calculation_obj is None:
             raise ProjectImportError(
                 f"electrical: неизвестный object_key {object_key!r}"
             )
@@ -1754,7 +1762,7 @@ async def _apply_project_data_v3(
         db.add(
             ElectricalCalculation(
                 project_id=project.id,
-                object_id=obj.id,
+                object_id=calculation_obj.id,
                 variant_number=legacy_number,
                 electrical_variant_id=variant.id,
                 cable_type=imported_type,

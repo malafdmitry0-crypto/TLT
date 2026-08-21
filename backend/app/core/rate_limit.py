@@ -17,9 +17,11 @@ import time
 from asyncio import AbstractEventLoop
 from collections import defaultdict, deque
 from threading import Lock
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 from fastapi import HTTPException, Request, status
+from redis import Redis as SyncRedis
+from redis.asyncio import Redis as AsyncRedis
 
 from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
@@ -102,13 +104,11 @@ class RedisRateLimiter:
         namespace: str = "default",
     ) -> None:
         # Импорт лениво, чтобы in-memory режим не требовал redis-pip
-        from redis import Redis as SyncRedis
-
         self._max = max_calls
         self._window = window_seconds
         self._namespace = namespace
         self._redis_url = redis_url
-        self._client = None
+        self._client: AsyncRedis | None = None
         self._client_loop: AbstractEventLoop | None = None
         self._sync_client = SyncRedis.from_url(
             redis_url,
@@ -123,21 +123,24 @@ class RedisRateLimiter:
     def _key(self, ip: str) -> str:
         return f"ratelimit:{self._namespace}:{ip}"
 
-    def _async_client(self):
-        from redis.asyncio import Redis as AsyncRedis
-
+    def _async_client(self) -> AsyncRedis:
         loop = asyncio.get_running_loop()
         if self._client is None or self._client_loop is not loop:
-            self._client = AsyncRedis.from_url(
-                self._redis_url,
-                decode_responses=True,
-                max_connections=settings.REDIS_MAX_CONNECTIONS,
-                socket_keepalive=True,
-                socket_connect_timeout=5,
-                retry_on_timeout=True,
-                health_check_interval=30,
+            client = cast(
+                AsyncRedis,
+                AsyncRedis.from_url(
+                    self._redis_url,
+                    decode_responses=True,
+                    max_connections=settings.REDIS_MAX_CONNECTIONS,
+                    socket_keepalive=True,
+                    socket_connect_timeout=5,
+                    retry_on_timeout=True,
+                    health_check_interval=30,
+                ),
             )
+            self._client = client
             self._client_loop = loop
+            return client
         return self._client
 
     def is_allowed(self, ip: str) -> bool:
@@ -147,13 +150,13 @@ class RedisRateLimiter:
         pipe = self._sync_client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
-        _, count = pipe.execute()
+        _, count = cast(Any, pipe).execute()
         if count >= self._max:
             return False
         pipe = self._sync_client.pipeline()
         pipe.zadd(key, {str(now_us): now_us})
         pipe.expire(key, self._window)
-        pipe.execute()
+        cast(Any, pipe).execute()
         return True
 
     async def ais_allowed(self, ip: str) -> bool:
@@ -164,13 +167,13 @@ class RedisRateLimiter:
         pipe = client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
-        _, count = await pipe.execute()
+        _, count = await cast(Any, pipe).execute()
         if count >= self._max:
             return False
         pipe = client.pipeline()
         pipe.zadd(key, {str(now_us): now_us})
         pipe.expire(key, self._window)
-        await pipe.execute()
+        await cast(Any, pipe).execute()
         return True
 
     def remaining(self, ip: str) -> int:
@@ -180,7 +183,7 @@ class RedisRateLimiter:
         pipe = self._sync_client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
-        _, count = pipe.execute()
+        _, count = cast(Any, pipe).execute()
         return max(0, self._max - int(count))
 
     async def aremaining(self, ip: str) -> int:
@@ -191,7 +194,7 @@ class RedisRateLimiter:
         pipe = client.pipeline()
         pipe.zremrangebyscore(key, 0, cutoff)
         pipe.zcard(key)
-        _, count = await pipe.execute()
+        _, count = await cast(Any, pipe).execute()
         return max(0, self._max - int(count))
 
     def reset(self, ip: str | None = None) -> None:

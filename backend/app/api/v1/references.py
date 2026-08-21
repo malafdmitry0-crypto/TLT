@@ -2,7 +2,8 @@
 
 import hashlib
 import json
-from typing import Literal
+from collections.abc import Callable
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
@@ -175,7 +176,7 @@ async def _cables_for_type(
     return [_extended_cable_payload(c) for c in result.scalars().all()]
 
 
-def _builtin_http_cache(name: str):
+def _builtin_http_cache(name: str) -> Callable[[Response], None]:
     def dependency(response: Response) -> None:
         response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
         response.headers["ETag"] = _BUILTIN_ETAGS[name]
@@ -188,7 +189,7 @@ def _builtin_http_cache(name: str):
 async def climate(
     _: CurrentPrincipal = Depends(require_any()),
     _cache_headers: None = Depends(_builtin_http_cache("climate")),
-):
+) -> list[dict[str, Any]]:
     return list_climate_cities()
 
 
@@ -197,7 +198,7 @@ async def insulation(
     response: Response,
     _: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[dict[str, object]]:
     payload = await _insulation_catalog(db)
     response.headers["Cache-Control"] = f"public, max-age={_HTTP_CACHE_SECONDS}"
     response.headers["ETag"] = _etag(payload)
@@ -209,7 +210,7 @@ async def insulation(
 async def pipe_materials(
     _: CurrentPrincipal = Depends(require_any()),
     _cache_headers: None = Depends(_builtin_http_cache("pipe-materials")),
-):
+) -> list[dict[str, Any]]:
     return list_pipe_materials()
 
 
@@ -218,7 +219,7 @@ async def pipe_materials(
 async def soil_conductivity(
     _: CurrentPrincipal = Depends(require_any()),
     _cache_headers: None = Depends(_builtin_http_cache("soil-conductivity")),
-):
+) -> list[dict[str, Any]]:
     return list_soil_conductivity()
 
 
@@ -229,7 +230,7 @@ async def soil_conductivity(
 async def tt_cables(
     _: CurrentPrincipal = Depends(require_any()),
     _cache_headers: None = Depends(_builtin_http_cache("tt-cables")),
-):
+) -> list[dict[str, Any]]:
     return list_tt_cables()
 
 
@@ -238,7 +239,7 @@ async def internal_references(
     response: Response,
     _: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     payload = {
         "climate": list_climate_cities(),
         "insulation": await _insulation_catalog(db),
@@ -262,7 +263,7 @@ async def cables(
     cable_type: ReferenceCableType = "self_regulating_tt",
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[dict[str, Any]]:
     if source in ("extended", "all") and principal.role not in ("employee", "admin"):
         raise HTTPException(
             status_code=403,
@@ -285,7 +286,7 @@ async def cables(
 async def cables_extended(
     _: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[dict[str, Any]]:
     result = await db.execute(select(CableExtended).where(CableExtended.is_active.is_(True)))
     return [_extended_cable_payload(c) for c in result.scalars().all()]
 
@@ -294,7 +295,7 @@ async def cables_extended(
 async def accessories(
     _: CurrentPrincipal = Depends(require_any()),
     _cache_headers: None = Depends(_builtin_http_cache("accessories")),
-):
+) -> list[dict[str, Any]]:
     return list_basic_accessories()
 
 
@@ -305,7 +306,7 @@ async def accessories(
 async def accessories_extended(
     _: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> list[dict[str, Any]]:
     result = await db.execute(
         select(AccessoryExtended).where(AccessoryExtended.is_active.is_(True))
     )

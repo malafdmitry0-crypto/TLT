@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import and_, func, or_
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.formulas.electrical.tt_contract import (
     ELECTRICAL_TT_FORMULA_FINGERPRINT,
@@ -11,7 +12,7 @@ from app.formulas.electrical.tt_contract import (
 from app.models.electrical_calculation import ElectricalCalculation
 
 
-def current_tt_result_sql_predicate():
+def current_tt_result_sql_predicate() -> ColumnElement[bool]:
     """True for non-TT rows or TT rows carrying every current v3 fingerprint."""
     results = ElectricalCalculation.results
     mark = func.coalesce(

@@ -19,7 +19,7 @@ from app.services.project_electrical_settings_service import (
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 
 router = APIRouter()
-_require_any = require_any()  # type: ignore[no-untyped-call]
+_require_any = require_any()
 
 
 @router.get(

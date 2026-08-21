@@ -9,7 +9,7 @@ import os
 import threading
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar, cast
 
 from app.core.config import settings
 from app.core.redis_client import get_redis
@@ -96,7 +96,7 @@ class _RedisBackend:
         raw = self._sync_client.get(self._key(key))
         if raw is None:
             return None
-        return json.loads(raw)
+        return json.loads(cast(str | bytes | bytearray, raw))
 
     def set(self, key: str, value: Any, ttl: int | None) -> None:
         payload = json.dumps(value, ensure_ascii=False, default=str)
@@ -198,18 +198,18 @@ class _Cache:
                 async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                     hit = await self.aget(key)
                     if hit is not None:
-                        return hit  # type: ignore[no-any-return]
-                    result = await fn(*args, **kwargs)
+                        return cast(T, hit)
+                    result = cast(T, await cast(Any, fn)(*args, **kwargs))
                     await self.aset(key, result, ttl)
                     return result
 
-                return async_wrapper  # type: ignore[return-value]
+                return cast(Callable[..., T], async_wrapper)
 
             @wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> T:
                 hit = self.get(key)
                 if hit is not None:
-                    return hit  # type: ignore[no-any-return]
+                    return cast(T, hit)
                 result = fn(*args, **kwargs)
                 self.set(key, result, ttl)
                 return result

@@ -1,5 +1,6 @@
 """Endpoints for asynchronous calculation tasks."""
 
+from typing import Never
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -30,7 +31,7 @@ from app.services.task_service import (
 router = APIRouter()
 
 
-def _raise_task_error(exc: Exception) -> None:
+def _raise_task_error(exc: Exception) -> Never:
     if isinstance(exc, ElectricalVariantServiceError):
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
     if isinstance(exc, TaskIdempotencyConflictError):
@@ -66,7 +67,7 @@ async def enqueue_heat_loss_batch_job(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     await enforce_principal_rate_limit(
         job_enqueue_limiter,
         principal,
@@ -121,7 +122,7 @@ async def enqueue_electrical_batch_job(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     await enforce_principal_rate_limit(
         job_enqueue_limiter,
         principal,
@@ -175,7 +176,7 @@ async def get_calc_task(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     try:
         task = await TaskService(db).get_task_for_principal(task_id, principal)
     except Exception as exc:
@@ -192,7 +193,7 @@ async def get_calc_task_result(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> BatchElectricalResponse | BatchCalcResponse | ReportExportTaskResult | None:
     try:
         task = await TaskService(db).get_task_for_principal(task_id, principal)
     except Exception as exc:
@@ -211,7 +212,7 @@ async def cancel_calc_task(
     task_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> CalculationTaskResponse:
     try:
         task = await TaskService(db).cancel_task(task_id, principal)
     except Exception as exc:

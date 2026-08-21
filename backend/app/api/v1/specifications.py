@@ -96,7 +96,7 @@ async def get_specification_readiness(
     ),
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationReadinessResponse:
     try:
         return await SpecificationReadinessService(db).get(
             project_id,
@@ -129,7 +129,7 @@ async def get_specification_for_variant(
     electrical_variant_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationResponse | None:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
         await ElectricalVariantService(db).require_variant_for_read(
@@ -169,7 +169,7 @@ async def get_catalog_selections_for_variant(
     electrical_variant_id: UUID,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationCatalogSelectionsResponse:
     try:
         await ProjectService(db).get_project_basic(project_id, principal)
         await ElectricalVariantService(db).require_variant_for_read(
@@ -220,7 +220,7 @@ async def put_catalog_selections_for_variant(
     data: SpecificationCatalogSelectionsPutRequest,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationCatalogSelectionsResponse:
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
         await ElectricalVariantService(db).require_variant_for_read(
@@ -291,7 +291,7 @@ async def save_specification_items_for_variant(
     data: SpecificationUpdateRequest,
     principal: CurrentPrincipal = Depends(require_employee()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationManualItemsResponse:
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)
         electrical_variant = await ElectricalVariantService(db).require_variant_for_read(
@@ -360,7 +360,7 @@ async def generate_specification(
     response: Response,
     principal: CurrentPrincipal = Depends(require_any()),
     db: AsyncSession = Depends(get_db),
-):
+) -> SpecificationGenerationResponse:
     """Canonical generate: SpecificationGenerationService only."""
     try:
         await ProjectService(db).get_project_for_write(project_id, principal)

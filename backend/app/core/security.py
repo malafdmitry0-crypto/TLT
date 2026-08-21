@@ -3,7 +3,7 @@
 import uuid
 import warnings
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import jwt
 from anyio import CapacityLimiter, to_thread
@@ -25,11 +25,11 @@ password_hash_limiter = CapacityLimiter(settings.AUTH_PASSWORD_HASH_MAX_CONCURRE
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return cast(str, pwd_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return cast(bool, pwd_context.verify(plain_password, hashed_password))
 
 
 async def hash_password_async(password: str) -> str:

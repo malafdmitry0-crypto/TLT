@@ -47,7 +47,7 @@ from app.services.electrical_variant_service import (
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 
 router = APIRouter()
-_require_any = require_any()  # type: ignore[no-untyped-call]
+_require_any = require_any()
 
 
 def _raise_service_error(exc: Exception) -> NoReturn:

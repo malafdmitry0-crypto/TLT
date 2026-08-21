@@ -890,7 +890,7 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
     if not first_line:
         raise ExcelImportError("CSV-файл пустой")
     counts = {d: first_line.count(d) for d in (";", ",", "\t")}
-    delimiter = max(counts, key=counts.get) if any(counts.values()) else ","
+    delimiter = max(counts, key=lambda item: counts[item]) if any(counts.values()) else ","
 
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     all_rows = list(reader)
@@ -909,8 +909,8 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
         )
 
     # Разделяем строки по типу
-    pipe_rows_raw: list[tuple[int, list]] = []
-    tank_rows_raw: list[tuple[int, list]] = []
+    pipe_rows_raw: list[tuple[int, list[str]]] = []
+    tank_rows_raw: list[tuple[int, list[str]]] = []
     for row_idx, row in enumerate(all_rows[1:], start=2):
         if all((v is None or str(v).strip() == "") for v in row):
             continue
@@ -923,7 +923,7 @@ def _parse_csv(content: bytes) -> list[tuple[str, list[dict[str, Any]]]]:
             tank_rows_raw.append((row_idx, row))
 
     def build_mapped(
-        rows_raw: list[tuple[int, list]], header_map: dict[str, str]
+        rows_raw: list[tuple[int, list[str]]], header_map: dict[str, str]
     ) -> list[dict[str, Any]]:
         # Определяем маппинг колонок общего header
         mapped_cols: list[tuple[int, str]] = []
@@ -1604,7 +1604,7 @@ def build_objects_xlsx(objects: list[Any]) -> bytes:
             shape_code = params.get("shape") or "cylindrical"
             shape = SHAPE_LABELS_RU.get(shape_code, shape_code)
 
-            def to_mm(k, _params=params):
+            def to_mm(k: str, _params: dict[str, Any] = params) -> Any:
                 return _to_export_mm(_params.get(k))
 
             def tank_layer_value(index: int, key: str, _layers: list[Any] = layer_list) -> Any:

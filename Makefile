@@ -7,7 +7,7 @@
         audit-mutation audit-business audit-user-flows audit-layout audit-accessibility \
         audit-warnings audit-backend audit-frontend audit-functional audit-deep \
         qa-agent-install qa-agent-typecheck qa-agent-test qa-agent-example qa-agent-tlt-ai-cases qa-agent-visual qa-agent-app-tests qa-agent-security \
-        lint lint-backend lint-frontend \
+        lint lint-backend lint-backend-mypy-ratchet lint-frontend \
         shell-backend shell-frontend shell-db \
         build clean ps db-perf-report \
         package package-backend package-frontend release
@@ -214,6 +214,9 @@ lint-backend: ## Lint backend (ruff)
 	$(COMPOSE_DEV) build backend
 	$(BACKEND_RUN) ruff check app
 	$(BACKEND_RUN) ruff format --check app
+
+lint-backend-mypy-ratchet: ## Enforce shrink-only strict-mypy production baseline
+	python3 scripts/backend-mypy-ratchet.py
 
 lint-backend-fix: ## Auto-fix backend lint issues
 	$(COMPOSE_DEV) build backend

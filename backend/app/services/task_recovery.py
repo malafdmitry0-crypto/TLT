@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import socket
 import uuid
+from collections.abc import Awaitable
+from typing import Any, cast
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
@@ -19,7 +23,12 @@ return 0
 
 
 class TaskRecoveryCoordinator:
-    def __init__(self, *, queue: TaskQueue | None = None, session_factory=None) -> None:
+    def __init__(
+        self,
+        *,
+        queue: TaskQueue | None = None,
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
+    ) -> None:
         self.queue = queue or TaskQueue()
         self.session_factory = session_factory or AsyncSessionLocal
         self.identity = f"{socket.gethostname()}:{uuid.uuid4().hex}"
@@ -38,11 +47,14 @@ class TaskRecoveryCoordinator:
             async with self.session_factory() as db:
                 return await TaskService(db).recover_stuck_tasks(queue=self.queue)
         finally:
-            await self.queue.redis.eval(
-                _RELEASE_LEADER_LUA,
-                1,
-                settings.WORKER_RECOVERY_LEADER_KEY,
-                self.identity,
+            await cast(
+                Awaitable[Any],
+                self.queue.redis.eval(
+                    _RELEASE_LEADER_LUA,
+                    1,
+                    settings.WORKER_RECOVERY_LEADER_KEY,
+                    self.identity,
+                ),
             )
 
     async def close(self) -> None:

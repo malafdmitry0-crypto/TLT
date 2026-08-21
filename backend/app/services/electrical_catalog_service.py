@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import func, select, tuple_, update
@@ -73,7 +73,14 @@ _BUNDLED_APPROVAL_REFERENCE = "case-1-review-10-2026-08-03"
 
 
 class ElectricalCatalogServiceError(Exception):
-    def __init__(self, code: str, message: str, *, status_code: int, details: dict | None = None):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        status_code: int,
+        details: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
@@ -123,7 +130,7 @@ def bundled_electrical_catalog_documents() -> (
     import_checksums = {
         kind: electrical_catalog_file_checksum(kind) for kind in _BUNDLED_CATALOG_ORDER
     }
-    versions = {
+    versions: dict[ElectricalCatalogKind, str] = {
         "power": _BUNDLED_POWER_VERSION,
         "section": _BUNDLED_SECTION_VERSION,
         "bom": _BUNDLED_BOM_VERSION,
@@ -673,10 +680,11 @@ class ElectricalCatalogService:
 
     @staticmethod
     def _static_fallback(kind: str) -> ElectricalCatalogVersionResponse:
+        typed_kind = cast(ElectricalCatalogKind, kind)
         now = None
         if kind == "power":
             rows = list_tt_cables()
-            raw = {
+            raw: dict[str, Any] = {
                 "version": "tt-power-case1-v2-provisional",
                 "status": "draft",
                 "source": "backend/app/reference_data/cables_tt.json",
@@ -706,15 +714,15 @@ class ElectricalCatalogService:
             payload = {"entries": list_electrical_tt_bom_entries()}
         return ElectricalCatalogVersionResponse(
             id=None,
-            kind=kind,  # type: ignore[arg-type]
+            kind=typed_kind,
             version=str(raw.get("version") or "unknown"),
-            status=raw["status"],  # type: ignore[arg-type]
+            status=raw["status"],
             source=str(raw.get("source") or ""),
             source_checksum=str(raw.get("source_checksum") or ""),
             import_checksum=None,
             payload_checksum=_canonical_checksum(payload),
             schema_version=int(raw.get("schema_version") or 1),
-            valid_row_count={"power": 14, "section": 126, "bom": 18}[kind],
+            valid_row_count={"power": 14, "section": 126, "bom": 18}[typed_kind],
             rejected_row_count=0,
             diagnostics=list(raw["diagnostics"]),
             production_approved=bool(raw["production_approved"]),
