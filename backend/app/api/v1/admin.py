@@ -3,10 +3,12 @@
 import hashlib
 import json
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Literal, Never
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from heatcalc_electrical_core import compute_tank_cable_length
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +23,6 @@ from app.electrical_input_validation import (
     ProcessTemperatureInputError,
     ensure_process_temperature,
 )
-from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.self_regulating import calc_self_regulating_tt
 from app.formulas.heat_loss.catalog_preparation import HeatLossPreparationError
 from app.models.background_task import BackgroundTask
@@ -729,8 +730,27 @@ async def formula_check(
             result = calc_self_regulating_tt(tt_params).model_dump()
         elif data.formula_type == "tank_cable_geometry":
             geometry_params = TankCableGeometryCheckParams(**params_data)
-            cable_length = compute_tank_cable_length(**geometry_params.model_dump())
-            result = {"cable_length": round(cable_length, 3)}
+            cable_length = compute_tank_cable_length(
+                shape=geometry_params.shape,
+                diameter=(
+                    Decimal(str(geometry_params.diameter))
+                    if geometry_params.diameter is not None
+                    else None
+                ),
+                length=(
+                    Decimal(str(geometry_params.length))
+                    if geometry_params.length is not None
+                    else None
+                ),
+                width=(
+                    Decimal(str(geometry_params.width))
+                    if geometry_params.width is not None
+                    else None
+                ),
+                heating_height=Decimal(str(geometry_params.heating_height)),
+                laying_step=Decimal(str(geometry_params.laying_step)),
+            )
+            result = {"cable_length": round(float(cable_length), 3)}
         else:
             raise HTTPException(status_code=422, detail="Неподдерживаемый тип формулы")
         await AuditService(db).try_record(

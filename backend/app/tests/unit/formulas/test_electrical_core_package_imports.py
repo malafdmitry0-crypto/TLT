@@ -9,9 +9,11 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[4]
 SHIM_DIRECTORY = BACKEND_ROOT / "app" / "formulas" / "electrical" / "core"
 REMOVED_TT_CONTRACT = BACKEND_ROOT / "app" / "formulas" / "electrical" / "tt_contract.py"
+REMOVED_CABLE_GEOMETRY = BACKEND_ROOT / "app" / "formulas" / "electrical" / "cable_geometry.py"
 FORBIDDEN_PREFIXES = {
     "app.formulas.electrical.core",
     "app.formulas.electrical.tt_contract",
+    "app.formulas.electrical.cable_geometry",
 }
 SCAN_SKIP_PARTS = {".git", "mutants", "__pycache__", ".venv", "dist", "build"}
 
@@ -85,6 +87,7 @@ def _executable_python_files() -> list[Path]:
 def test_backend_core_shim_directory_is_absent() -> None:
     assert not SHIM_DIRECTORY.exists()
     assert not REMOVED_TT_CONTRACT.exists()
+    assert not REMOVED_CABLE_GEOMETRY.exists()
 
 
 def test_executable_python_does_not_import_electrical_core_shim() -> None:

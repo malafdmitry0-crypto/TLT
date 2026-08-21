@@ -20,6 +20,7 @@ from heatcalc_electrical_core import (
     TTPreparationInput,
     run_tt_formula,
 )
+from heatcalc_electrical_core import compute_tank_cable_length as _core_tank_cable_length
 from heatcalc_electrical_core.geometry import compute_winding_factor as _core_winding_factor
 from heatcalc_electrical_core.geometry import max_winding_factor as _core_max_winding_factor
 from heatcalc_electrical_core.selection import (
@@ -30,7 +31,6 @@ from heatcalc_electrical_core.selection import (
 )
 
 from app.electrical_domain import ElectricalFormulaError
-from app.formulas.electrical.cable_geometry import compute_tank_cable_length
 from app.formulas.electrical.catalog_preparation import prepare_tt_catalog_bundle
 from app.formulas.electrical.decimal_math import decimal_value, round_result
 from app.formulas.electrical.outcome_errors import (
@@ -140,15 +140,17 @@ def calc_self_regulating_tt(
                 "Для резервуара обязательны форма, высота обогрева и шаг укладки",
             )
         layout: PipeLayout | TankLayout = TankLayout(
-            base_length_m=decimal_value(
-                compute_tank_cable_length(
-                    shape=params.tank_shape,
-                    diameter=params.tank_diameter,
-                    length=params.tank_length,
-                    width=params.tank_width,
-                    heating_height=params.heating_height,
-                    laying_step=params.laying_step,
-                )
+            base_length_m=_core_tank_cable_length(
+                shape=params.tank_shape,
+                diameter=(
+                    decimal_value(params.tank_diameter)
+                    if params.tank_diameter is not None
+                    else None
+                ),
+                length=(decimal_value(params.tank_length) if params.tank_length is not None else None),
+                width=(decimal_value(params.tank_width) if params.tank_width is not None else None),
+                heating_height=decimal_value(params.heating_height),
+                laying_step=decimal_value(params.laying_step),
             )
         )
     else:

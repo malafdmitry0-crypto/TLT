@@ -2,6 +2,8 @@
 
 from typing import Any, cast
 
+from heatcalc_electrical_core import TTFormulaDomainError, compute_tank_cable_length
+
 from app.electrical_domain import ElectricalFormulaError
 from app.electrical_input_validation import (
     PROCESS_TEMPERATURE_REQUIRED_CABLE_TYPES,
@@ -9,7 +11,7 @@ from app.electrical_input_validation import (
     ensure_process_temperature,
     required_process_temperature,
 )
-from app.formulas.electrical.cable_geometry import compute_tank_cable_length
+from app.formulas.electrical.decimal_math import decimal_value
 from app.models.project_object import ProjectObject
 from app.schemas.calculation import ElectricalRequest
 from app.services.calculation.contracts import PreparedElectricalTTCalculation
@@ -212,13 +214,25 @@ class ElectricalInputMapper:
         try:
             base_length = compute_tank_cable_length(
                 shape=shape,
-                diameter=cast(float | None, geometry.get("tank_diameter")),
-                length=cast(float | None, geometry.get("tank_length")),
-                width=cast(float | None, geometry.get("tank_width")),
-                heating_height=layout_values["heating_height"],
-                laying_step=layout_values["laying_step"],
+                diameter=(
+                    decimal_value(cast(float, geometry["tank_diameter"]))
+                    if "tank_diameter" in geometry
+                    else None
+                ),
+                length=(
+                    decimal_value(cast(float, geometry["tank_length"]))
+                    if "tank_length" in geometry
+                    else None
+                ),
+                width=(
+                    decimal_value(cast(float, geometry["tank_width"]))
+                    if "tank_width" in geometry
+                    else None
+                ),
+                heating_height=decimal_value(layout_values["heating_height"]),
+                laying_step=decimal_value(layout_values["laying_step"]),
             )
-        except ValueError as exc:
+        except TTFormulaDomainError as exc:
             raise ElectricalInputResolutionError(
                 "ELECTRICAL_INPUT_INVALID",
                 "Tank cable layout inputs are invalid",
@@ -226,7 +240,7 @@ class ElectricalInputMapper:
             ) from exc
         return {
             **geometry,
-            "base_length_m": base_length,
+            "base_length_m": float(base_length),
             "base_length_source": base_length_source,
             "input_sources": layout_sources,
         }
