@@ -89,14 +89,6 @@ def _climate_by_city_region() -> dict[tuple[str, str], dict[str, Any]]:
 
 
 @lru_cache
-def _climate_by_unique_city() -> dict[str, dict[str, Any]]:
-    buckets: dict[str, list[dict[str, Any]]] = {}
-    for entry in _climate():
-        buckets.setdefault(_normalized_text(entry.get("city") or entry["region"]), []).append(entry)
-    return {city: rows[0] for city, rows in buckets.items() if len(rows) == 1}
-
-
-@lru_cache
 def _insulation() -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _load_json("insulation.json")["materials"])
 
@@ -195,19 +187,11 @@ def get_climate_by_key(key: str | None) -> dict[str, Any] | None:
 
 
 def get_climate_by_city(city: str, *, region: str | None = None) -> dict[str, Any] | None:
-    """Возвращает климатические данные по городу.
-
-    Если передан регион, используется точная пара `region + city`. Если регион
-    не передан, city-only lookup допускается только для однозначных названий.
-    Это предотвращает выбор первой строки для городов-дубликатов.
-    """
+    """Возвращает климат только по точной паре `region + city`."""
     city_key = _normalized_text(city)
-    if not city_key:
+    if not city_key or not region:
         return None
-    if region:
-        entry = _climate_by_city_region().get((city_key, _normalized_text(region)))
-    else:
-        entry = _climate_by_unique_city().get(city_key)
+    entry = _climate_by_city_region().get((city_key, _normalized_text(region)))
     return _with_climate_key(entry) if entry is not None else None
 
 
@@ -219,8 +203,7 @@ def get_climate_entry(
 ) -> dict[str, Any] | None:
     """Возвращает конкретную строку климатического справочника.
 
-    Приоритет: стабильный `climate_key`, затем точная пара `region + city`,
-    затем legacy city-only lookup для однозначных городов.
+    Приоритет: стабильный `climate_key`, затем точная пара `region + city`.
     """
     if climate_key:
         entry = get_climate_by_key(climate_key)
@@ -232,10 +215,7 @@ def get_climate_entry(
             if entry is not None:
                 return entry
     if city:
-        entry = get_climate_by_city(city, region=region) if region else None
-        if entry is not None:
-            return entry
-        return get_climate_by_city(city)
+        return get_climate_by_city(city, region=region)
     return None
 
 
@@ -558,7 +538,6 @@ def clear_cache() -> None:
     _climate.cache_clear()
     _climate_by_key.cache_clear()
     _climate_by_city_region.cache_clear()
-    _climate_by_unique_city.cache_clear()
     _insulation.cache_clear()
     _insulation_by_material.cache_clear()
     get_insulation_conductivity_law.cache_clear()
@@ -583,7 +562,6 @@ def preload_all() -> None:
     _climate()
     _climate_by_key()
     _climate_by_city_region()
-    _climate_by_unique_city()
     _insulation()
     _insulation_by_material()
     _cables_tlt()

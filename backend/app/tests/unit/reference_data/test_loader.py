@@ -75,20 +75,24 @@ class TestListFunctions:
 
 class TestGetClimateByCity:
     def test_known_city_found(self):
-        msk = get_climate_by_city("Москва")
+        msk = get_climate_by_city("Москва", region="Московская область")
         assert msk is not None
         assert msk["city"] == "Москва"
 
     def test_case_insensitive(self):
-        assert get_climate_by_city("москва") is not None
-        assert get_climate_by_city("МОСКВА") is not None
-        assert get_climate_by_city("Москва  ") is not None  # trim
+        region = "Московская область"
+        assert get_climate_by_city("москва", region=region.lower()) is not None
+        assert get_climate_by_city("МОСКВА", region=region.upper()) is not None
+        assert get_climate_by_city("Москва  ", region=region) is not None  # trim
 
     def test_unknown_city_returns_none(self):
         assert get_climate_by_city("Атлантида") is None
 
-    def test_duplicate_city_requires_region_or_key(self):
+    def test_city_only_lookup_is_not_supported(self):
+        assert get_climate_by_city("Москва") is None
         assert get_climate_by_city("Октябрьское") is None
+
+    def test_exact_location_or_key_is_supported(self):
 
         hmao = get_climate_by_city(
             "Октябрьское",
@@ -114,12 +118,10 @@ class TestGetClimateByCity:
         assert entry["region"] == "Челябинская область"
         assert entry["t_0_92"] == pytest.approx(-32.0)
 
-    def test_climate_entry_falls_back_to_unique_city_when_region_is_stale(self):
+    def test_climate_entry_does_not_fall_back_to_city_when_region_is_stale(self):
         entry = get_climate_entry(city="Славгород", region="Могилёвская область")
 
-        assert entry is not None
-        assert entry["region"] == "Алтайский край"
-        assert entry["t_abs_min"] == pytest.approx(-48.0)
+        assert entry is None
 
     def test_climate_indexes_are_reused_after_first_lookup(self, monkeypatch):
         assert get_climate_entry(climate_key="Ярославская область|||Ярославль") is not None

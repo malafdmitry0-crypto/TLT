@@ -402,7 +402,9 @@ class TestClimatePolicy:
             {
                 "outer_diameter": 0.1,
                 "ambient_temperature": -10,
+                "climate_key": "Алтайский край|||Славгород",
                 "climate_city": "Славгород",
+                "climate_region": "Алтайский край",
             },
         )
         assert normalized["safety_factor"] == pytest.approx(1.1)
@@ -416,7 +418,9 @@ class TestClimatePolicy:
             {
                 "outer_diameter": 0.099,
                 "ambient_temperature": -10,
+                "climate_key": "Алтайский край|||Славгород",
                 "climate_city": "Славгород",
+                "climate_region": "Алтайский край",
             },
         )
         assert normalized["safety_factor"] == pytest.approx(1.12)
@@ -429,7 +433,9 @@ class TestClimatePolicy:
             "tank",
             {
                 "ambient_temperature": -10,
+                "climate_key": "Алтайский край|||Славгород",
                 "climate_city": "Славгород",
+                "climate_region": "Алтайский край",
             },
         )
         assert normalized["safety_factor"] == pytest.approx(1.1)
@@ -443,7 +449,9 @@ class TestClimatePolicy:
             {
                 "outer_diameter": 0.099,
                 "ambient_temperature": -10,
+                "climate_key": "Алтайский край|||Славгород",
                 "climate_city": "Славгород",
+                "climate_region": "Алтайский край",
                 "climate_temperature_basis": "t_0_92",
             },
         )
@@ -459,7 +467,9 @@ class TestClimatePolicy:
                 "outer_diameter": 0.108,
                 "ambient_temperature": -40,
                 "ambient_temperature_source": "manual",
+                "climate_key": "Алтайский край|||Славгород",
                 "climate_city": "Славгород",
+                "climate_region": "Алтайский край",
             },
         )
 
