@@ -27,6 +27,7 @@ def test_object_type_aliases_are_current_contract():
 
 
 def test_full_payload_validation_happens_without_database():
+    variant_id = str(uuid4())
     payload = ProjectImportPayload(
         project_key=None,
         name="P",
@@ -36,14 +37,14 @@ def test_full_payload_validation_happens_without_database():
         objects=[{"object_key": "o1", "type": "pipe", "params": "{}"}],
         variants=[
             {
-                "variant_key": "v1",
+                "variant_key": variant_id,
                 "name": "ЭР1",
                 "is_active": "true",
             }
         ],
         assignments=[
             {
-                "variant_key": "v1",
+                "variant_key": variant_id,
                 "object_key": "o1",
                 "assignment_state": "ready",
                 "system_type": "self_regulating",
@@ -51,7 +52,7 @@ def test_full_payload_validation_happens_without_database():
         ],
         electrical=[
             {
-                "variant_key": "v1",
+                "variant_key": variant_id,
                 "object_key": "o1",
                 "params": "{}",
                 "results": "{}",
@@ -59,6 +60,20 @@ def test_full_payload_validation_happens_without_database():
         ],
     )
     validate_project_payload(payload, role="employee")
+
+
+def test_numeric_only_variant_identity_is_rejected() -> None:
+    payload = ProjectImportPayload(
+        project_key=None,
+        name="P",
+        task_number=None,
+        description=None,
+        status="draft",
+        variants=[{"variant_key": "1", "name": "ЭР1", "is_active": "true"}],
+    )
+
+    with pytest.raises(ProjectImportError, match="должен быть UUID"):
+        validate_project_payload(payload, role="employee")
 
 
 def test_invalid_object_scope_rejected_before_persistence():

@@ -266,6 +266,7 @@ async def _assert_sparse_imported_graph(
         ).scalars()
     )
     assert all(calculation.electrical_variant_id is not None for calculation in calculations)
+    assert all(calculation.variant_number is None for calculation in calculations)
     calculation_by_scope = {
         (calculation.object_id, calculation.electrical_variant_id): calculation
         for calculation in calculations
@@ -808,12 +809,13 @@ class TestSingleExportImport:
             "\n"
             "[SECTION];electrical_variants\n"
             "variant_key;name;sort_order;is_active;copied_from_key\n"
-            "er-a;ЭР1;0;true;\n"
-            "er-b;ЭР2;1;false;\n"
+            "00000000-0000-0000-0000-0000000000a1;ЭР1;0;true;\n"
+            "00000000-0000-0000-0000-0000000000b2;ЭР2;1;false;\n"
             "\n"
             "[SECTION];specifications\n"
             "variant_key;electrical_variant_id;items;snapshot\n"
-            "er-a;er-b;[];{}\n"
+            "00000000-0000-0000-0000-0000000000a1;"
+            "00000000-0000-0000-0000-0000000000b2;[];{}\n"
         ).encode()
 
         response = await client.post(
@@ -841,12 +843,12 @@ class TestSingleExportImport:
             "\n"
             "[SECTION];electrical_variants\n"
             "variant_key;name;sort_order;is_active;copied_from_key\n"
-            "er-a;ЭР1;0;true;\n"
+            "00000000-0000-0000-0000-0000000000a1;ЭР1;0;true;\n"
             "\n"
             "[SECTION];specifications\n"
             "variant_key;electrical_variant_id;items;snapshot\n"
-            "er-a;;[];{}\n"
-            ";er-a;[];{}\n"
+            "00000000-0000-0000-0000-0000000000a1;;[];{}\n"
+            ";00000000-0000-0000-0000-0000000000a1;[];{}\n"
         ).encode()
 
         response = await client.post(

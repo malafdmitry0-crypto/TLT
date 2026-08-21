@@ -128,7 +128,7 @@ async def load_bulk_project_graphs(
             .order_by(
                 ElectricalCalculation.project_id,
                 ElectricalCalculation.object_id,
-                ElectricalCalculation.variant_number,
+                ElectricalCalculation.electrical_variant_id,
             ),
         ),
         (
@@ -259,9 +259,6 @@ async def _persist_variants(
             name_normalized=name.casefold(),
             sort_order=int((row.get("sort_order") or index) or index),
             is_active=is_active,
-            # Internal compatibility slot required by the current database FK.
-            # It is intentionally absent from the CSV contract.
-            legacy_variant_number=index + 1,
         )
         db.add(variant)
         variants[key] = variant
@@ -370,7 +367,6 @@ def _persist_electrical(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=obj.id,
-                variant_number=variant.legacy_variant_number,
                 electrical_variant_id=variant.id,
                 cable_type=(row.get("cable_type") or "").strip() or "self_regulating",
                 cable_type_source=cable_type_source,

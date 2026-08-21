@@ -277,6 +277,13 @@ def _validate_variants(rows: list[Row]) -> set[str]:
         key = (row.get("variant_key") or "").strip()
         if not key:
             raise ProjectImportError("В electrical_variants пустой variant_key")
+        try:
+            UUID(key)
+        except ValueError as exc:
+            raise ProjectImportError(
+                "electrical_variants.variant_key должен быть UUID; "
+                f"numeric/legacy identity не поддерживается: {key!r}"
+            ) from exc
         if key in variants:
             raise ProjectImportError(f"Дублирующийся variant_key: {key!r}")
         name = (row.get("name") or "").strip() or f"ЭР{index + 1}"
