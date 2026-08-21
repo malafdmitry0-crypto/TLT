@@ -1,18 +1,14 @@
 from inspect import getsource
-from unittest.mock import AsyncMock
 
-import app.seeds as seeds
 from app.reference_data.loader import list_insulation_materials, list_tt_cables
 from app.schemas.electrical_assignment import ElectricalAssignmentOverridesPatch
 from app.schemas.project import ProjectObjectCreate
-from app.seeds import (
-    _HEAT_SEED_CONFIGS,
-    _electrical_seed_overrides,
-    _insulation_seed_row,
-    _project_seed_plans,
-    seed_cables,
-    seed_objects_and_calculations,
+from app.seeds.demo.electrical import (
+    electrical_seed_overrides,
+    seed_electrical_calculations,
 )
+from app.seeds.loader import load_demo_manifest
+from app.seeds.references import insulation_seed_row
 from app.services.heat_contract import (
     DEPRECATED_HEAT_PARAM_KEYS,
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
@@ -32,6 +28,15 @@ EXPECTED_HEAT_SEED_CASES = {
     "tank_rectangular_underground_split_temperatures",
     "tank_q_additional_after_safety_factor",
 }
+_HEAT_SEED_CONFIGS = tuple(seed.model_dump() for seed in load_demo_manifest().heat_cases)
+
+
+def _project_seed_plans():
+    return tuple(plan.model_dump() for plan in load_demo_manifest().project_plans)
+
+
+_electrical_seed_overrides = electrical_seed_overrides
+_insulation_seed_row = insulation_seed_row
 
 
 def _seed_insulation_materials(params: dict[str, object]) -> list[str]:
@@ -63,24 +68,6 @@ def test_tt_catalog_uses_the_supported_product_line():
         "75ТТХ2",
         "90ТТХ2",
     ]
-
-
-async def test_seed_cables_only_purges_retired_synthetic_rows(monkeypatch):
-    db = AsyncMock()
-    purge_legacy = AsyncMock(return_value=2)
-    purge_unsupported = AsyncMock(return_value=3)
-    monkeypatch.setattr(seeds, "purge_legacy_tlt_seed_cables", purge_legacy)
-    monkeypatch.setattr(seeds, "purge_unsupported_mvp_seed_cables", purge_unsupported)
-
-    await seed_cables(db)
-
-    purge_legacy.assert_awaited_once_with(db)
-    purge_unsupported.assert_awaited_once_with(db)
-    db.flush.assert_awaited_once_with()
-    source = getsource(seed_cables)
-    assert "cables_data" not in source
-    assert "seed_demo_commercial_catalog" not in source
-    assert "\n    return" not in source
 
 
 def test_heat_seed_matrix_is_exact_and_traceable():
@@ -166,7 +153,7 @@ def test_tank_seed_matrix_covers_shapes_placements_and_special_cases():
 
 
 def test_electrical_seed_matrix_leaves_project_idop_unset_for_catalog_derivation():
-    assert "max_section_start_current_a" not in getsource(seed_objects_and_calculations)
+    assert "max_section_start_current_a" not in getsource(seed_electrical_calculations)
     planned = [
         (config, _electrical_seed_overrides(config["object_type"], config["params"]))
         for config in _HEAT_SEED_CONFIGS

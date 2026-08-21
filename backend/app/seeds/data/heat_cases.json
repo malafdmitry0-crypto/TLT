@@ -1,0 +1,330 @@
+[
+  {
+    "object_type": "pipe",
+    "seed_case": "pipe_indoor_manual_lambda_1_layer",
+    "name": "Труба indoor — ручная λ, 1 слой",
+    "params": {
+      "name": "Труба indoor — ручная λ, 1 слой",
+      "seed_case": "pipe_indoor_manual_lambda_1_layer",
+      "min_switch_temperature": -20.0,
+      "outer_diameter": 0.06,
+      "wall_thickness": 0.004,
+      "pipe_lambda": 45.0,
+      "pipe_length": 85.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.04,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "indoor",
+      "ambient_temperature": 15.0,
+      "process_temperature": 60.0,
+      "placement": "indoor",
+      "ambient_temperature_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual"
+    }
+  },
+  {
+    "object_type": "pipe",
+    "seed_case": "pipe_outdoor_reference_2_layers",
+    "name": "Труба outdoor — справочная λ, 2 слоя",
+    "params": {
+      "name": "Труба outdoor — справочная λ, 2 слоя",
+      "seed_case": "pipe_outdoor_reference_2_layers",
+      "min_switch_temperature": -20.0,
+      "outer_diameter": 0.114,
+      "wall_thickness": 0.006,
+      "pipe_material": "carbon_steel",
+      "pipe_length": 120.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.04,
+          "material": "mineral_wool_boards_120"
+        },
+        {
+          "thickness": 0.02,
+          "material": "expanded_perlite_sand_225"
+        }
+      ],
+      "insulation_temperature_basis": "outdoor_winter",
+      "ambient_temperature": -30.0,
+      "process_temperature": 80.0,
+      "placement": "outdoor",
+      "wind_speed": 5.0,
+      "ambient_temperature_source": "manual",
+      "wind_speed_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual"
+    }
+  },
+  {
+    "object_type": "pipe",
+    "seed_case": "pipe_underground_reference_3_layers",
+    "name": "Труба underground — грунт, 3 слоя",
+    "params": {
+      "name": "Труба underground — грунт, 3 слоя",
+      "seed_case": "pipe_underground_reference_3_layers",
+      "min_switch_temperature": -20.0,
+      "outer_diameter": 0.219,
+      "wall_thickness": 0.008,
+      "pipe_material": "carbon_steel",
+      "pipe_length": 250.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.04,
+          "material": "mineral_wool_boards_120"
+        },
+        {
+          "thickness": 0.03,
+          "material": "mineral_wool_boards_120"
+        },
+        {
+          "thickness": 0.02,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "channel",
+      "ground_temperature": 5.0,
+      "process_temperature": 70.0,
+      "placement": "underground",
+      "pipe_centerline_depth": 1.5,
+      "ground_type": "dry_sand",
+      "ground_conductivity": 1.5,
+      "ground_temperature_source": "manual",
+      "ground_conductivity_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual"
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_cylindrical_indoor",
+    "name": "Резервуар cylindrical indoor",
+    "params": {
+      "name": "Резервуар cylindrical indoor",
+      "seed_case": "tank_cylindrical_indoor",
+      "min_switch_temperature": -20.0,
+      "heating_height": 3.0,
+      "laying_step": 0.2,
+      "shape": "cylindrical",
+      "diameter": 2.0,
+      "height": 3.0,
+      "volume": 24.5,
+      "wall_thickness": 0.01,
+      "wall_lambda": 45.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.08,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "indoor",
+      "ambient_temperature": 15.0,
+      "process_temperature": 80.0,
+      "placement": "indoor",
+      "ambient_temperature_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_cylindrical_outdoor",
+    "name": "Резервуар cylindrical outdoor",
+    "params": {
+      "name": "Резервуар cylindrical outdoor",
+      "seed_case": "tank_cylindrical_outdoor",
+      "min_switch_temperature": -20.0,
+      "heating_height": 6.0,
+      "laying_step": 0.2,
+      "shape": "cylindrical",
+      "diameter": 2.8,
+      "height": 6.0,
+      "wall_thickness": 0.012,
+      "wall_lambda": 45.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.08,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "outdoor_winter",
+      "ambient_temperature": -35.0,
+      "process_temperature": 70.0,
+      "placement": "outdoor",
+      "wind_speed": 4.0,
+      "ambient_temperature_source": "manual",
+      "wind_speed_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_rectangular_indoor",
+    "name": "Резервуар rectangular indoor",
+    "params": {
+      "name": "Резервуар rectangular indoor",
+      "seed_case": "tank_rectangular_indoor",
+      "min_switch_temperature": -20.0,
+      "heating_height": 2.0,
+      "laying_step": 0.2,
+      "shape": "rectangular",
+      "length": 3.0,
+      "width": 2.0,
+      "height": 2.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.06,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "indoor",
+      "ambient_temperature": 15.0,
+      "process_temperature": 60.0,
+      "placement": "indoor",
+      "ambient_temperature_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_rectangular_outdoor",
+    "name": "Резервуар rectangular outdoor",
+    "params": {
+      "name": "Резервуар rectangular outdoor",
+      "seed_case": "tank_rectangular_outdoor",
+      "min_switch_temperature": -20.0,
+      "heating_height": 3.0,
+      "laying_step": 0.2,
+      "shape": "rectangular",
+      "length": 4.0,
+      "width": 2.0,
+      "height": 3.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.08,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "outdoor_winter",
+      "ambient_temperature": -25.0,
+      "process_temperature": 80.0,
+      "placement": "outdoor",
+      "wind_speed": 3.0,
+      "ambient_temperature_source": "manual",
+      "wind_speed_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_cylindrical_underground_split_temperatures",
+    "name": "Резервуар cylindrical underground — воздух/грунт",
+    "params": {
+      "name": "Резервуар cylindrical underground — воздух/грунт",
+      "seed_case": "tank_cylindrical_underground_split_temperatures",
+      "min_switch_temperature": -20.0,
+      "heating_height": 4.0,
+      "laying_step": 0.2,
+      "shape": "cylindrical",
+      "diameter": 2.0,
+      "height": 4.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.08,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "channel",
+      "ambient_temperature": -25.0,
+      "ground_temperature": 5.0,
+      "process_temperature": 70.0,
+      "placement": "underground",
+      "tank_buried_height": 1.5,
+      "ground_type": "dry_sand",
+      "ground_conductivity": 0.8,
+      "wind_speed": 0.0,
+      "ambient_temperature_source": "manual",
+      "ground_temperature_source": "manual",
+      "ground_conductivity_source": "manual",
+      "safety_factor": 1.15,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_rectangular_underground_split_temperatures",
+    "name": "Резервуар rectangular underground — воздух/грунт",
+    "params": {
+      "name": "Резервуар rectangular underground — воздух/грунт",
+      "seed_case": "tank_rectangular_underground_split_temperatures",
+      "min_switch_temperature": -20.0,
+      "heating_height": 3.0,
+      "laying_step": 0.2,
+      "shape": "rectangular",
+      "length": 4.0,
+      "width": 2.0,
+      "height": 3.0,
+      "insulation_layers": [
+        {
+          "thickness": 0.08,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "channel",
+      "ambient_temperature": -20.0,
+      "ground_temperature": 7.0,
+      "process_temperature": 75.0,
+      "placement": "underground",
+      "tank_buried_height": 1.0,
+      "ground_type": "dry_sand",
+      "ground_conductivity": 1.1,
+      "wind_speed": 0.0,
+      "ambient_temperature_source": "manual",
+      "ground_temperature_source": "manual",
+      "ground_conductivity_source": "manual",
+      "safety_factor": 1.1,
+      "safety_factor_source": "manual",
+      "q_additional": 0.0
+    }
+  },
+  {
+    "object_type": "tank",
+    "seed_case": "tank_q_additional_after_safety_factor",
+    "name": "Резервуар с дополнительными теплопотерями",
+    "params": {
+      "name": "Резервуар с дополнительными теплопотерями",
+      "seed_case": "tank_q_additional_after_safety_factor",
+      "min_switch_temperature": -20.0,
+      "heating_height": 2.5,
+      "laying_step": 0.2,
+      "shape": "cylindrical",
+      "diameter": 1.5,
+      "height": 2.5,
+      "insulation_layers": [
+        {
+          "thickness": 0.05,
+          "material": "mineral_wool_boards_120"
+        }
+      ],
+      "insulation_temperature_basis": "indoor",
+      "ambient_temperature": 20.0,
+      "process_temperature": 60.0,
+      "placement": "indoor",
+      "ambient_temperature_source": "manual",
+      "safety_factor": 1.2,
+      "safety_factor_source": "manual",
+      "q_additional": 250.0
+    }
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "email": "admin2@heatcalc.io",
+    "password": "Admin2pass!",
+    "full_name": "Иванов Сергей Петрович",
+    "role": "admin",
+    "is_active": true
+  },
+  {
+    "email": "petrov@heatcalc.io",
+    "password": "Employee1!",
+    "full_name": "Петров Андрей Владимирович",
+    "role": "employee",
+    "is_active": true
+  },
+  {
+    "email": "sidorova@heatcalc.io",
+    "password": "Employee2!",
+    "full_name": "Сидорова Елена Юрьевна",
+    "role": "employee",
+    "is_active": true
+  },
+  {
+    "email": "kuznetsov@heatcalc.io",
+    "password": "Employee3!",
+    "full_name": "Кузнецов Дмитрий Алексеевич",
+    "role": "employee",
+    "is_active": true
+  },
+  {
+    "email": "morozova@heatcalc.io",
+    "password": "Employee4!",
+    "full_name": "Морозова Наталья Ивановна",
+    "role": "employee",
+    "is_active": true
+  },
+  {
+    "email": "volkov@heatcalc.io",
+    "password": "Employee5!",
+    "full_name": "Волков Павел Сергеевич",
+    "role": "employee",
+    "is_active": true
+  }
+]

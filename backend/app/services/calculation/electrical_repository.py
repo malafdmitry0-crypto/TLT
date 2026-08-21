@@ -183,7 +183,8 @@ class ElectricalCalculationRepository:
         if all(row.get("electrical_variant_id") is not None for row in rows):
             update_values["electrical_variant_id"] = insert_stmt.excluded.electrical_variant_id
         upsert_stmt = insert_stmt.on_conflict_do_update(
-            index_elements=["object_id", "variant_number"],
+            index_elements=["object_id", "electrical_variant_id"],
+            index_where=ElectricalCalculation.electrical_variant_id.is_not(None),
             set_=update_values,
         )
         if not return_calcs:

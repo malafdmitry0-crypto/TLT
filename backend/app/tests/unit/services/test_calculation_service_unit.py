@@ -1444,6 +1444,7 @@ class TestCalcElectricalEligibility:
     async def test_invalid_heat_object_does_not_create_electrical_calculation(self):
         object_id = uuid.uuid4()
         project_id = uuid.uuid4()
+        electrical_variant_id = uuid.uuid4()
         scope_result = MagicMock()
         scope_result.one_or_none.return_value = SimpleNamespace(project_id=project_id)
         object_result = MagicMock()
@@ -1467,6 +1468,7 @@ class TestCalcElectricalEligibility:
                 ElectricalRequest(
                     object_id=object_id,
                     cable_type="self_regulating_tt",
+                    electrical_variant_id=electrical_variant_id,
                     data={},
                 )
             )

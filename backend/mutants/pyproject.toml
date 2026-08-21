@@ -64,7 +64,7 @@ source = ["app"]
 omit = [
     "app/tests/*",
     "app/main.py",
-    "app/seeds.py",                   # seed-скрипт первого запуска, не бизнес-логика
+    "app/seeds/*",                    # seed-скрипты первого запуска, не бизнес-логика
     "app/reports/word_generator.py",  # DOCX-рендер: покрыт integration-тестами отчётов
 ]
 

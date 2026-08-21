@@ -9,7 +9,7 @@ from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_catalog_version import ElectricalCatalogVersion
 from app.models.user import User
 from app.reference_data.loader import electrical_catalog_file_checksum, tt_cables_source_checksum
-from app.seeds import seed_electrical_catalogs
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.electrical_catalog_service import ElectricalCatalogService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")

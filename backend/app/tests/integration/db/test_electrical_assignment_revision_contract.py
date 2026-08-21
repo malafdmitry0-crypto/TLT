@@ -20,7 +20,7 @@ from app.schemas.specification import (
     SpecificationGenerationRequest,
     SpecificationPreflightStatus,
 )
-from app.seeds import seed_electrical_catalogs
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.calculation.container import CalculationContainer
 from app.services.specification_preflight_service import SpecificationPreflightService
 from app.tests.specification_catalog_fixtures import (

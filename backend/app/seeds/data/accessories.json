@@ -1,0 +1,12 @@
+[
+  {"category": "end_sleeve", "name": "Муфта концевая термоусаживаемая МКТ-10", "article": "МКТ-10", "params": {"ip": "IP68", "price": 780.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "end_sleeve", "name": "Муфта концевая термоусаживаемая МКТ-25", "article": "МКТ-25", "params": {"ip": "IP68", "price": 1120.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "junction_box", "name": "Муфта соединительная МСТ-10", "article": "МСТ-10", "params": {"ip": "IP55", "price": 940.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "junction_box", "name": "Коробка соединительная КС-1", "article": "КС-1", "params": {"max_cables": 4, "ip": "IP65", "price": 1850.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "thermostat", "name": "Термостат электронный ТЭ-1", "article": "ТЭ-1", "params": {"channels": 1, "price": 4200.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "thermostat", "name": "Термостат двухканальный ТЭ-2", "article": "ТЭ-2", "params": {"channels": 2, "price": 6900.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "fastener", "name": "Лента стальная перфорированная 20мм", "article": "ЛС-20", "params": {"width_mm": 20, "price": 65.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "fastener", "name": "Хомут пластиковый 200мм", "article": "ХП-200", "params": {"length_mm": 200, "price": 8.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "protection", "name": "Защитный кожух из оцинкованной стали 100мм", "article": "КЗ-100", "params": {"diameter_mm": 100, "price": 1450.0, "currency": "RUB", "commercial_data_source": "demo_seed"}},
+  {"category": "protection", "name": "Защитная сетка плетёная СЗП-50", "article": "СЗП-50", "params": {"cell_mm": 50, "price": 390.0, "currency": "RUB", "commercial_data_source": "demo_seed"}}
+]

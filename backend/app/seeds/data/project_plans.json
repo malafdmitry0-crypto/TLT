@@ -1,0 +1,1279 @@
+[
+  {
+    "project": "Трубопровод ДНС-1 (обогрев)",
+    "canonical": [
+      "pipe_outdoor_reference_2_layers"
+    ],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-101 выкидная линия",
+        "params": {
+          "name": "Т-101 выкидная линия",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.089,
+          "wall_thickness": 0.005,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 140,
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 70,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -35,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "num_local_elements": 4,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-102 линия к сепаратору",
+        "params": {
+          "name": "Т-102 линия к сепаратору",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.114,
+          "wall_thickness": 0.006,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 95,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 75,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -35,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-103 перемычка",
+        "params": {
+          "name": "Т-103 перемычка",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.057,
+          "wall_thickness": 0.004,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 40,
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 65,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -35,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-104 обвязка насоса",
+        "params": {
+          "name": "Т-104 обвязка насоса",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.159,
+          "wall_thickness": 0.006,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 60,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            },
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 80,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -35,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "num_local_elements": 6,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-105 дренаж",
+        "params": {
+          "name": "Т-105 дренаж",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.045,
+          "wall_thickness": 0.0035,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 25,
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -35,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      }
+    ]
+  },
+  {
+    "project": "Узел учёта нефти УУН-4",
+    "canonical": [],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-401 приборная линия",
+        "params": {
+          "name": "Т-401 приборная линия",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.032,
+          "wall_thickness": 0.003,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 18,
+          "insulation_layers": [
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 55,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 16,
+          "ambient_temperature_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-402 приборная линия",
+        "params": {
+          "name": "Т-402 приборная линия",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.032,
+          "wall_thickness": 0.003,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 22,
+          "insulation_layers": [
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 55,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 16,
+          "ambient_temperature_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-403 байпас",
+        "params": {
+          "name": "Т-403 байпас",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.076,
+          "wall_thickness": 0.004,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 35,
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 60,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 16,
+          "ambient_temperature_source": "manual",
+          "num_local_elements": 3,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-404 подвод к БИК",
+        "params": {
+          "name": "Т-404 подвод к БИК",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.057,
+          "wall_thickness": 0.004,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 28,
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 60,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 16,
+          "ambient_temperature_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-405 линия отбора проб",
+        "params": {
+          "name": "Т-405 линия отбора проб",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.025,
+          "wall_thickness": 0.003,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 12,
+          "insulation_layers": [
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 55,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 16,
+          "ambient_temperature_source": "manual"
+        }
+      }
+    ]
+  },
+  {
+    "project": "Площадка ПХГ-8",
+    "canonical": [],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-801 газопровод подземный",
+        "params": {
+          "name": "Т-801 газопровод подземный",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.219,
+          "wall_thickness": 0.008,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 320,
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            },
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "channel",
+          "process_temperature": 65,
+          "placement": "underground",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ground_temperature": 6.0,
+          "ground_temperature_source": "manual",
+          "ground_conductivity": 1.4,
+          "ground_conductivity_source": "manual",
+          "ground_type": "dry_sand",
+          "pipe_centerline_depth": 1.6
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-802 газопровод подземный",
+        "params": {
+          "name": "Т-802 газопровод подземный",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.273,
+          "wall_thickness": 0.008,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 210,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "channel",
+          "process_temperature": 65,
+          "placement": "underground",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ground_temperature": 6.0,
+          "ground_temperature_source": "manual",
+          "ground_conductivity": 1.4,
+          "ground_conductivity_source": "manual",
+          "ground_type": "dry_sand",
+          "pipe_centerline_depth": 1.8
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-803 вывод на площадку",
+        "params": {
+          "name": "Т-803 вывод на площадку",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.159,
+          "wall_thickness": 0.006,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 45,
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 70,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -28,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-804 линия метанола",
+        "params": {
+          "name": "Т-804 линия метанола",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.045,
+          "wall_thickness": 0.0035,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 90,
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -28,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "num_local_elements": 5,
+          "local_element_equiv_length": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "project": "Резервуарный парк РП-2",
+    "canonical": [
+      "tank_cylindrical_outdoor",
+      "tank_rectangular_outdoor"
+    ],
+    "volume": [
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-201 сырьевой",
+        "params": {
+          "name": "Р-201 сырьевой",
+          "min_switch_temperature": -20.0,
+          "heating_height": 8.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.1,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -32,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 6.0,
+          "height": 8.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-202 сырьевой",
+        "params": {
+          "name": "Р-202 сырьевой",
+          "min_switch_temperature": -20.0,
+          "heating_height": 8.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.1,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -32,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 6.0,
+          "height": 8.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-203 буферный",
+        "params": {
+          "name": "Р-203 буферный",
+          "min_switch_temperature": -20.0,
+          "heating_height": 4.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.08,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -32,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 55,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 3.0,
+          "height": 4.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-204 дренажная ёмкость",
+        "params": {
+          "name": "Р-204 дренажная ёмкость",
+          "min_switch_temperature": -20.0,
+          "heating_height": 2.0,
+          "laying_step": 0.2,
+          "shape": "rectangular",
+          "insulation_layers": [
+            {
+              "thickness": 0.08,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -32,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 50,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "length": 3.0,
+          "width": 2.0,
+          "height": 2.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      }
+    ]
+  },
+  {
+    "project": "Установка подготовки нефти УПН-6",
+    "canonical": [
+      "tank_rectangular_indoor",
+      "tank_q_additional_after_safety_factor"
+    ],
+    "volume": [
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-601 отстойник",
+        "params": {
+          "name": "Р-601 отстойник",
+          "min_switch_temperature": -20.0,
+          "heating_height": 3.0,
+          "laying_step": 0.2,
+          "shape": "rectangular",
+          "insulation_layers": [
+            {
+              "thickness": 0.08,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 18,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 70,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "length": 5.0,
+          "width": 3.0,
+          "height": 3.0
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-602 промежуточная ёмкость",
+        "params": {
+          "name": "Р-602 промежуточная ёмкость",
+          "min_switch_temperature": -20.0,
+          "heating_height": 3.5,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 18,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 65,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 2.5,
+          "height": 3.5
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-603 ёмкость реагента",
+        "params": {
+          "name": "Р-603 ёмкость реагента",
+          "min_switch_temperature": -20.0,
+          "heating_height": 1.8,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 18,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 45,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 120.0,
+          "diameter": 1.2,
+          "height": 1.8
+        }
+      }
+    ]
+  },
+  {
+    "project": "Производственная база ПБ-10",
+    "canonical": [
+      "tank_rectangular_underground_split_temperatures"
+    ],
+    "volume": [
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-1001 бак горячей воды",
+        "params": {
+          "name": "Р-1001 бак горячей воды",
+          "min_switch_temperature": -20.0,
+          "heating_height": 2.5,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 15,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 65,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 2.0,
+          "height": 2.5
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-1002 накопитель",
+        "params": {
+          "name": "Р-1002 накопитель",
+          "min_switch_temperature": -20.0,
+          "heating_height": 2.0,
+          "laying_step": 0.2,
+          "shape": "rectangular",
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 15,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 55,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "length": 2.5,
+          "width": 1.5,
+          "height": 2.0
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-1003 подземная ёмкость",
+        "params": {
+          "name": "Р-1003 подземная ёмкость",
+          "min_switch_temperature": -20.0,
+          "heating_height": 3.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.08,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "channel",
+          "ambient_temperature": -25,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 50,
+          "placement": "underground",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 2.5,
+          "height": 3.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "ground_temperature": 7.0,
+          "ground_temperature_source": "manual",
+          "ground_conductivity": 1.1,
+          "ground_conductivity_source": "manual",
+          "ground_type": "dry_sand",
+          "tank_buried_height": 2.0
+        }
+      }
+    ]
+  },
+  {
+    "project": "Насосная станция НС-3",
+    "canonical": [
+      "pipe_indoor_manual_lambda_1_layer",
+      "tank_cylindrical_indoor"
+    ],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-301 всасывающий",
+        "params": {
+          "name": "Т-301 всасывающий",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.219,
+          "wall_thickness": 0.008,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 55,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 65,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 14,
+          "ambient_temperature_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-302 напорный",
+        "params": {
+          "name": "Т-302 напорный",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.219,
+          "wall_thickness": 0.008,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 70,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 70,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 14,
+          "ambient_temperature_source": "manual",
+          "num_local_elements": 4,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-303 линия уплотнений",
+        "params": {
+          "name": "Т-303 линия уплотнений",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.032,
+          "wall_thickness": 0.003,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 15,
+          "insulation_layers": [
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "process_temperature": 55,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": 14,
+          "ambient_temperature_source": "manual"
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-301 бак утечек",
+        "params": {
+          "name": "Р-301 бак утечек",
+          "min_switch_temperature": -20.0,
+          "heating_height": 2.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 14,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 50,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 1.6,
+          "height": 2.0
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-302 бак масла",
+        "params": {
+          "name": "Р-302 бак масла",
+          "min_switch_temperature": -20.0,
+          "heating_height": 1.5,
+          "laying_step": 0.2,
+          "shape": "rectangular",
+          "insulation_layers": [
+            {
+              "thickness": 0.04,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "indoor",
+          "ambient_temperature": 14,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 45,
+          "placement": "indoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "length": 2.0,
+          "width": 1.2,
+          "height": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "project": "Компрессорная станция КС-5",
+    "canonical": [
+      "pipe_underground_reference_3_layers",
+      "tank_cylindrical_underground_split_temperatures"
+    ],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-501 технологический",
+        "params": {
+          "name": "Т-501 технологический",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.273,
+          "wall_thickness": 0.008,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 180,
+          "insulation_layers": [
+            {
+              "thickness": 0.07,
+              "material": "mineral_wool_boards_120"
+            },
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 75,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -30,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-502 технологический",
+        "params": {
+          "name": "Т-502 технологический",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.325,
+          "wall_thickness": 0.01,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 150,
+          "insulation_layers": [
+            {
+              "thickness": 0.07,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 75,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -30,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-503 линия конденсата",
+        "params": {
+          "name": "Т-503 линия конденсата",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.057,
+          "wall_thickness": 0.004,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 60,
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -30,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "num_local_elements": 3,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-501 сепаратор",
+        "params": {
+          "name": "Р-501 сепаратор",
+          "min_switch_temperature": -20.0,
+          "heating_height": 5.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.08,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -30,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 2.4,
+          "height": 5.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      }
+    ]
+  },
+  {
+    "project": "Факельная установка ФУ-7",
+    "canonical": [],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-701 жидкостная линия",
+        "params": {
+          "name": "Т-701 жидкостная линия",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.114,
+          "wall_thickness": 0.006,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 110,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 60,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -33,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-702 дренаж факела",
+        "params": {
+          "name": "Т-702 дренаж факела",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.076,
+          "wall_thickness": 0.004,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 85,
+          "insulation_layers": [
+            {
+              "thickness": 0.05,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 55,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -33,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual",
+          "num_local_elements": 4,
+          "local_element_equiv_length": 1.5
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-701 сепаратор факельный",
+        "params": {
+          "name": "Р-701 сепаратор факельный",
+          "min_switch_temperature": -20.0,
+          "heating_height": 6.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.09,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -33,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 55,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 3.2,
+          "height": 6.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-702 дренажная ёмкость",
+        "params": {
+          "name": "Р-702 дренажная ёмкость",
+          "min_switch_temperature": -20.0,
+          "heating_height": 2.0,
+          "laying_step": 0.2,
+          "shape": "rectangular",
+          "insulation_layers": [
+            {
+              "thickness": 0.07,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -33,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 50,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "length": 2.5,
+          "width": 1.8,
+          "height": 2.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      }
+    ]
+  },
+  {
+    "project": "Объект «Северный» (реконструкция)",
+    "canonical": [],
+    "volume": [
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-901 куст 1",
+        "params": {
+          "name": "Т-901 куст 1",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.089,
+          "wall_thickness": 0.005,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 210,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            },
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 65,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -40,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-902 куст 2",
+        "params": {
+          "name": "Т-902 куст 2",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.089,
+          "wall_thickness": 0.005,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 190,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            },
+            {
+              "thickness": 0.03,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "process_temperature": 65,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ambient_temperature": -40,
+          "ambient_temperature_source": "manual",
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      },
+      {
+        "object_type": "pipe",
+        "seed_case": "",
+        "name": "Т-903 подземный переход",
+        "params": {
+          "name": "Т-903 подземный переход",
+          "min_switch_temperature": -20.0,
+          "outer_diameter": 0.159,
+          "wall_thickness": 0.006,
+          "pipe_material": "carbon_steel",
+          "pipe_length": 75,
+          "insulation_layers": [
+            {
+              "thickness": 0.06,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "channel",
+          "process_temperature": 70,
+          "placement": "underground",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "ground_temperature": 6.0,
+          "ground_temperature_source": "manual",
+          "ground_conductivity": 1.4,
+          "ground_conductivity_source": "manual",
+          "ground_type": "dry_sand",
+          "pipe_centerline_depth": 2.0
+        }
+      },
+      {
+        "object_type": "tank",
+        "seed_case": "",
+        "name": "Р-901 ёмкость на кусте",
+        "params": {
+          "name": "Р-901 ёмкость на кусте",
+          "min_switch_temperature": -20.0,
+          "heating_height": 3.0,
+          "laying_step": 0.2,
+          "shape": "cylindrical",
+          "insulation_layers": [
+            {
+              "thickness": 0.09,
+              "material": "mineral_wool_boards_120"
+            }
+          ],
+          "insulation_temperature_basis": "outdoor_winter",
+          "ambient_temperature": -40,
+          "ambient_temperature_source": "manual",
+          "process_temperature": 55,
+          "placement": "outdoor",
+          "safety_factor": 1.1,
+          "safety_factor_source": "manual",
+          "q_additional": 0.0,
+          "diameter": 2.0,
+          "height": 3.0,
+          "wind_speed": 5.0,
+          "wind_speed_source": "manual"
+        }
+      }
+    ]
+  }
+]
