@@ -49,32 +49,6 @@ class ValidationReport:
     def fields(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(issue.field for issue in self.issues if issue.field is not None))
 
-    def to_legacy_error(self) -> "ProjectObjectParamsError":
-        """Adapt the internal report to the existing exception/error-JSON contract."""
-
-        if self.is_valid:
-            raise RuntimeError("Нельзя преобразовать валидный отчёт в ошибку")
-        unsupported = next(
-            (issue for issue in self.issues if issue.category == "unsupported"),
-            None,
-        )
-        if unsupported is not None:
-            return ProjectObjectParamsError(
-                unsupported.message,
-                code=unsupported.code,
-                fields=self.fields,
-                reason=unsupported.reason,
-            )
-        has_invalid = any(issue.code != "OBJECT_REQUIRED_FIELDS_MISSING" for issue in self.issues)
-        reason = next((issue.reason for issue in self.issues if issue.reason is not None), None)
-        return ProjectObjectParamsError(
-            "Проверьте параметры объекта" if has_invalid else "Заполните обязательные поля объекта",
-            code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
-            fields=self.fields,
-            reason=reason,
-        )
-
-
 @dataclass(frozen=True)
 class PreparedProjectObjectParams:
     """Normalized params, their report, and a trusted formula input when valid."""
@@ -106,6 +80,36 @@ class ProjectObjectParamsError(ValueError):
             self.fields = fields
         if reason is not None:
             self.reason = reason
+
+    @classmethod
+    def from_report(cls, report: ValidationReport) -> "ProjectObjectParamsError":
+        """Create the canonical domain error for an invalid validation report."""
+
+        if report.is_valid:
+            raise RuntimeError("Нельзя преобразовать валидный отчёт в ошибку")
+        unsupported = next(
+            (issue for issue in report.issues if issue.category == "unsupported"),
+            None,
+        )
+        if unsupported is not None:
+            return cls(
+                unsupported.message,
+                code=unsupported.code,
+                fields=report.fields,
+                reason=unsupported.reason,
+            )
+        has_invalid = any(
+            issue.code != "OBJECT_REQUIRED_FIELDS_MISSING" for issue in report.issues
+        )
+        reason = next((issue.reason for issue in report.issues if issue.reason is not None), None)
+        return cls(
+            "Проверьте параметры объекта"
+            if has_invalid
+            else "Заполните обязательные поля объекта",
+            code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
+            fields=report.fields,
+            reason=reason,
+        )
 
 
 LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS = frozenset(
@@ -272,7 +276,7 @@ def prepare_project_object_params(
     normalized = normalize_project_object_params(object_type, params)
     prepared = validate_and_canonicalize_project_object_params(object_type, normalized)
     if not prepared.report.is_valid:
-        raise prepared.report.to_legacy_error()
+        raise ProjectObjectParamsError.from_report(prepared.report)
     return prepared.params
 
 
@@ -367,7 +371,7 @@ def validate_project_object_params(
 
     prepared = validate_and_canonicalize_project_object_params(object_type, params)
     if not prepared.report.is_valid:
-        raise prepared.report.to_legacy_error()
+        raise ProjectObjectParamsError.from_report(prepared.report)
     if prepared.heat_params is None:  # pragma: no cover - guarded by report.is_valid
         raise RuntimeError("Валидный отчёт не содержит formula input")
     return prepared.heat_params

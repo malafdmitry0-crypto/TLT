@@ -475,7 +475,7 @@ async def evaluate_project_object_heat(
     canonical_params = prepared.params
     if not prepared.report.is_valid:
         return _invalid_project_object_heat_outcome(
-            prepared.report.to_legacy_error(),
+            ProjectObjectParamsError.from_report(prepared.report),
             object_type=object_type,
             params_to_persist=canonical_params,
         )

@@ -6,10 +6,38 @@ from app.services.project_object_params import (
     LEGACY_SPECIFICATION_OBJECT_PARAM_KEYS,
     LegacySpecificationObjectParamsError,
     ProjectObjectParamsError,
+    ValidationIssue,
+    ValidationReport,
     normalize_project_object_params,
     prepare_project_object_params,
     reject_legacy_specification_object_params,
 )
+
+
+def test_validation_report_crosses_domain_boundary_as_structured_error() -> None:
+    report = ValidationReport(
+        (
+            ValidationIssue(
+                code="OBJECT_PARAMS_INVALID",
+                field="wall_thickness",
+                message="Некорректная толщина",
+                reason="wall_exceeds_pipe_radius",
+            ),
+            ValidationIssue(
+                code="OBJECT_REQUIRED_FIELDS_MISSING",
+                field="pipe_length",
+                message="Заполните обязательное поле",
+            ),
+        )
+    )
+
+    error = ProjectObjectParamsError.from_report(report)
+
+    assert str(error) == "Проверьте параметры объекта"
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("wall_thickness", "pipe_length")
+    assert error.reason == "wall_exceeds_pipe_radius"
+    assert not hasattr(report, "to_legacy_error")
 
 
 def _outdoor_pipe(**overrides):
