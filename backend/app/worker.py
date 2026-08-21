@@ -17,7 +17,7 @@ from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis
 from app.reference_data.loader import preload_all
 from app.services.task_queue import TaskQueue
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 from app.services.worker_readiness import (
     WorkerHeartbeat,
     clear_worker_ready,

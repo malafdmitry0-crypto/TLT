@@ -54,7 +54,7 @@ from app.services.electrical_catalog_service import (
     ElectricalCatalogServiceError,
 )
 from app.services.task_queue import TaskQueue, TaskQueueError
-from app.services.task_service import TaskLimitError, TaskNotFoundError, TaskService
+from app.services.tasks import TaskLimitError, TaskNotFoundError, TaskService
 
 
 class FormulaCheckRequest(BaseModel):

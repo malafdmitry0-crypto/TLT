@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.models.background_task import BackgroundTask
 from app.models.guest_session import GuestSession
 from app.services.task_queue import TaskQueue
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -21,7 +21,7 @@ _CLAIM_AND_KILL = """
 import asyncio, os, signal, sys
 from uuid import UUID
 from app.core.database import AsyncSessionLocal
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 
 async def main():
     async with AsyncSessionLocal() as db:
@@ -36,7 +36,7 @@ _COMMIT_AND_KILL = """
 import asyncio, os, signal, sys
 from uuid import UUID
 from app.core.database import AsyncSessionLocal
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 
 async def main():
     task_id = UUID(sys.argv[1])

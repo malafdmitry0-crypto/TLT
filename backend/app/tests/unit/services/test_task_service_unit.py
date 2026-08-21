@@ -20,7 +20,7 @@ from app.services.calculation.errors import BatchCancelledError
 from app.services.calculation.heat_batch import HeatBatchCalculationService
 from app.services.electrical_assignment_service import ElectricalAssignmentService
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
-from app.services.task_service import (
+from app.services.tasks import (
     ELECTRICAL_VARIANT_NOT_FOUND,
     MAX_TASK_ERROR_MESSAGE_LENGTH,
     TASK_ELECTRICAL_BATCH,

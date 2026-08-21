@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.services.task_queue import TaskQueue
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 
 _RELEASE_LEADER_LUA = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then

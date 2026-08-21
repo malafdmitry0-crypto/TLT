@@ -13,7 +13,7 @@ from app.models.audit_event import AuditEvent
 from app.models.background_task import BackgroundTask
 from app.models.project import Project
 from app.schemas.calculation import HeatLossBatchJobRequest
-from app.services.task_service import TASK_HEAT_LOSS_BATCH, TaskService
+from app.services.tasks import TASK_HEAT_LOSS_BATCH, TaskService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

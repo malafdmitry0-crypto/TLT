@@ -14,7 +14,7 @@ from app.core.dependencies import CurrentPrincipal
 from app.schemas.report import ReportChapterMeta, ReportPreviewResponse
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
 from app.services.report_service import ReportError, ReportService
-from app.services.task_service import TaskAccessError, TaskLimitError, TaskNotFoundError
+from app.services.tasks import TaskAccessError, TaskLimitError, TaskNotFoundError
 
 
 def _request() -> Request:

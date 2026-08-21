@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models.background_task import BackgroundTask
 from app.models.guest_session import GuestSession
-from app.services.task_service import BatchProgress, TaskService
+from app.services.tasks import BatchProgress, TaskService
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

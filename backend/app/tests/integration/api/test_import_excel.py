@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.services.object_spreadsheet.templates import build_template_csv, build_template_xlsx
 from app.services.spreadsheet_schema import CSV_HEADERS
-from app.services.task_service import TaskService
+from app.services.tasks import TaskService
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 POLYURETHANE = "polyurethane_products_50"

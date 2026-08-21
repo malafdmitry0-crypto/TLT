@@ -404,7 +404,7 @@ async def import_excel(
         import_objects_from_excel,
     )
     from app.services.object_spreadsheet.parsing import ExcelImportError
-    from app.services.task_service import TaskLimitError, TaskService
+    from app.services.tasks import TaskLimitError, TaskService
 
     await enforce_principal_rate_limit(
         import_limiter,

@@ -26,7 +26,7 @@ from app.services.electrical_variant_service import (
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError, ProjectService
 from app.services.report_artifact_service import report_artifact_path
 from app.services.report_service import ReportError, ReportService
-from app.services.task_service import (
+from app.services.tasks import (
     TaskAccessError,
     TaskIdempotencyConflictError,
     TaskLimitError,

@@ -13,7 +13,7 @@ from app.models.background_task import BackgroundTask
 from app.models.coefficient import CorrectionCoefficient
 from app.models.user import User
 from app.services.audit_service import AuditService
-from app.services.task_service import TASK_ELECTRICAL_BATCH
+from app.services.tasks import TASK_ELECTRICAL_BATCH
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

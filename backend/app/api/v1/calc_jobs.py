@@ -20,7 +20,7 @@ from app.schemas.report import ReportExportTaskResult
 from app.services.audit_service import AuditService
 from app.services.electrical_variant_service import ElectricalVariantServiceError
 from app.services.project_service import ProjectAccessError, ProjectNotFoundError
-from app.services.task_service import (
+from app.services.tasks import (
     TaskAccessError,
     TaskIdempotencyConflictError,
     TaskLimitError,
