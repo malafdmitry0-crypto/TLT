@@ -107,6 +107,8 @@ jobs:
         working-directory: backend
         env:
           MUTMUT_SCOPE: specification-core
+          MUTMUT_SPECIFICATION_CORE_MIN_SCORE: "75"
+          MUTMUT_SPECIFICATION_CORE_MAX_TIMEOUTS: "0"
         run: python scripts/mutmut_score_gate.py
 
   frontend-dod:

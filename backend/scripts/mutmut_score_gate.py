@@ -7,9 +7,7 @@ import os
 from collections import Counter
 from pathlib import Path
 
-BACKEND_MUTANT_ROOTS = (
-    Path("mutants/app/formulas/electrical"),
-)
+BACKEND_MUTANT_ROOTS = (Path("mutants/app/formulas/electrical"),)
 CORE_MUTANT_ROOTS = (Path("packages/heat-loss-core/mutants/src/heatcalc_heat_loss_core"),)
 ELECTRICAL_CORE_MUTANT_ROOTS = (
     Path("packages/electrical-core/mutants/src/heatcalc_electrical_core"),
@@ -28,8 +26,9 @@ DEFAULT_CORE_MIN_SCORE = 65.0
 # Electrical core follows the existing standalone-core 65% policy. CI/users
 # may raise it independently with MUTMUT_ELECTRICAL_CORE_MIN_SCORE.
 DEFAULT_ELECTRICAL_CORE_MIN_SCORE = DEFAULT_CORE_MIN_SCORE
-DEFAULT_SPECIFICATION_CORE_MIN_SCORE = DEFAULT_CORE_MIN_SCORE
+DEFAULT_SPECIFICATION_CORE_MIN_SCORE = 75.0
 DEFAULT_MAX_TIMEOUTS = 12
+DEFAULT_SPECIFICATION_CORE_MAX_TIMEOUTS = 0
 
 
 def _status_counts(roots: tuple[Path, ...] | None = None) -> Counter[int]:
@@ -84,6 +83,12 @@ def main() -> int:
         )
     )
     max_timeouts = int(os.getenv("MUTMUT_MAX_TIMEOUTS", DEFAULT_MAX_TIMEOUTS))
+    specification_core_max_timeouts = int(
+        os.getenv(
+            "MUTMUT_SPECIFICATION_CORE_MAX_TIMEOUTS",
+            DEFAULT_SPECIFICATION_CORE_MAX_TIMEOUTS,
+        )
+    )
 
     backend_line, backend_passed = _score_line(
         "Backend formula mutation score",
@@ -114,6 +119,8 @@ def main() -> int:
     if scope in {"all", "specification-core"}:
         print(specification_core_line)
     print(f"Mutation timeout limit: {max_timeouts}")
+    if scope in {"all", "specification-core"}:
+        print("Specification core mutation timeout limit: " f"{specification_core_max_timeouts}")
 
     timed_out = 0
     passed = True
@@ -129,7 +136,11 @@ def main() -> int:
     if scope in {"all", "specification-core"}:
         timed_out += specification_core_counts[-24]
         passed = passed and specification_core_passed
-    if not passed or timed_out > max_timeouts:
+    specification_core_timeouts_passed = (
+        scope not in {"all", "specification-core"}
+        or specification_core_counts[-24] <= specification_core_max_timeouts
+    )
+    if not passed or timed_out > max_timeouts or not specification_core_timeouts_passed:
         return 1
     return 0
 

@@ -141,3 +141,19 @@ def test_specification_core_scope_is_independent(
     monkeypatch.setenv("MUTMUT_SCOPE", "specification-core")
 
     assert score_gate.main() == 0
+
+
+def test_specification_core_scope_rejects_any_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_gate = _load_score_gate()
+
+    def status_counts(roots: tuple[Path, ...] | None = None) -> Counter[int]:
+        if roots == score_gate.SPECIFICATION_CORE_MUTANT_ROOTS:
+            return Counter({1: 99, -24: 1})
+        return Counter()
+
+    monkeypatch.setattr(score_gate, "_status_counts", status_counts)
+    monkeypatch.setenv("MUTMUT_SCOPE", "specification-core")
+
+    assert score_gate.main() == 1
