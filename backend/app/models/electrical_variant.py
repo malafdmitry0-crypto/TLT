@@ -277,7 +277,6 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
                     NEW.version,
                     jsonb_strip_nulls(jsonb_build_object(
                         'migration_revision', '0027',
-                        'legacy_success', false,
                         'sections_status', 'not_ready',
                         'sections_error_code', 'ELECTRICAL_SECTIONS_NOT_READY'
                     ))

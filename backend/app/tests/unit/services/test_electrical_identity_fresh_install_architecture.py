@@ -6,7 +6,7 @@ from pathlib import Path
 
 _APP_ROOT = Path(__file__).resolve().parents[3]
 _BACKEND_ROOT = _APP_ROOT.parent
-_RETIRED_IDENTIFIERS = ("variant_number", "legacy_variant_number")
+_RETIRED_IDENTIFIERS = ("variant_number", "legacy_variant_number", "legacy_success")
 
 
 def _python_sources(root: Path) -> list[Path]:
