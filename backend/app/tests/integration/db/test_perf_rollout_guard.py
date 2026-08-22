@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import time
 
-from heatcalc_specification_core.connection_kit import calculate_connection_kits
-from heatcalc_specification_core.repair_kit import calculate_repair_kits
-from heatcalc_specification_core.sealant import calculate_sealant
+from heatcalc_specification_core.bom.kits import (
+    calculate_connection_kits,
+    calculate_repair_kits,
+    calculate_sealant,
+)
 
 from app.core.config import settings
 
