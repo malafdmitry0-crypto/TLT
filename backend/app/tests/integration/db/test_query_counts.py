@@ -1,10 +1,11 @@
 """Regression tests for DB query counts on large project paths."""
 
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import event, update
+from sqlalchemy import event, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core.dependencies import CurrentPrincipal
@@ -21,6 +22,7 @@ from app.schemas.project_display_settings import (
     ProjectDisplaySettingsPayload,
     ProjectDisplaySettingsUpdateRequest,
 )
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.calculation.container import CalculationContainer
 from app.services.electrical_query_service import ElectricalQueryService
 from app.services.object_query_service import ObjectQueryService
@@ -104,11 +106,32 @@ async def _seed_project(
     await db_session.flush()
 
     if with_electrical:
+        variant = ElectricalVariant(
+            project_id=project.id,
+            name="Query count ER",
+            name_normalized="query count er",
+            sort_order=0,
+            is_active=True,
+        )
+        db_session.add(variant)
+        await db_session.flush()
+        db_session.add_all(
+            ElectricalVariantObject(
+                project_id=project.id,
+                electrical_variant_id=variant.id,
+                object_id=obj.id,
+                system_type="self_regulating",
+                assignment_state="ready",
+                object_version_snapshot=obj.version,
+            )
+            for obj in objects
+        )
+        await db_session.flush()
         db_session.add_all(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=obj.id,
-                variant_number=1,
+                electrical_variant_id=variant.id,
                 cable_type="self_regulating",
                 cable_mark="HTM" if index % 5 != 0 else None,
                 params={},
@@ -125,12 +148,25 @@ async def _seed_project(
     return project, objects
 
 
+async def _seed_calculation_catalogs(
+    db_session: AsyncSession, admin_user: User
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
+
+
 async def _seed_valid_pipes_for_batch(
     db_session: AsyncSession,
     employee_user: User,
     *,
     count: int = 100,
-) -> Project:
+) -> tuple[Project, ElectricalVariant]:
     project = Project(name=f"BatchQueryCount-{count}", user_id=employee_user.id)
     db_session.add(project)
     await db_session.flush()
@@ -147,7 +183,6 @@ async def _seed_valid_pipes_for_batch(
         name_normalized="er1 batch query count",
         sort_order=0,
         is_active=True,
-        legacy_variant_number=1,
     )
     db_session.add(variant)
     await db_session.flush()
@@ -179,7 +214,17 @@ async def _seed_valid_pipes_for_batch(
         )
     )
     await db_session.commit()
-    return project
+    return project, variant
+
+
+async def _project_variant_id(
+    db_session: AsyncSession, project: Project
+) -> uuid.UUID:
+    variant_id = await db_session.scalar(
+        select(ElectricalVariant.id).where(ElectricalVariant.project_id == project.id)
+    )
+    assert variant_id is not None
+    return variant_id
 
 
 async def test_default_object_query_is_constant_query_count(
@@ -235,15 +280,20 @@ async def test_object_query_search_uses_sql_page_not_python_project_fallback(
 async def test_batch_electrical_uses_constant_select_count(
     db_session: AsyncSession,
     employee_user: User,
+    admin_user: User,
     test_engine: AsyncEngine,
 ):
-    project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
+    await _seed_calculation_catalogs(db_session, admin_user)
+    project, variant = await _seed_valid_pipes_for_batch(
+        db_session, employee_user, count=100
+    )
 
     with count_sql(test_engine) as statements:
         calculated, skipped, heat_loss_failed, errors, calcs = await CalculationContainer(
             db_session
         ).electrical_batch.calculate(
             project.id,
+            electrical_variant_id=variant.id,
             electrical_params={"selection_policy": "technical_minimum"},
         )
 
@@ -261,11 +311,16 @@ async def test_batch_electrical_uses_constant_select_count(
 async def test_batch_electrical_recalculation_uses_single_bulk_write(
     db_session: AsyncSession,
     employee_user: User,
+    admin_user: User,
     test_engine: AsyncEngine,
 ):
-    project = await _seed_valid_pipes_for_batch(db_session, employee_user, count=100)
+    await _seed_calculation_catalogs(db_session, admin_user)
+    project, variant = await _seed_valid_pipes_for_batch(
+        db_session, employee_user, count=100
+    )
     await CalculationContainer(db_session).electrical_batch.calculate(
         project.id,
+        electrical_variant_id=variant.id,
         electrical_params={"selection_policy": "technical_minimum"},
     )
 
@@ -274,6 +329,7 @@ async def test_batch_electrical_recalculation_uses_single_bulk_write(
             db_session
         ).electrical_batch.calculate(
             project.id,
+            electrical_variant_id=variant.id,
             electrical_params={"selection_policy": "technical_minimum"},
         )
 
@@ -317,7 +373,6 @@ async def test_objects_summary_is_constant_query_count_with_many_calculations(
         per_type=200,
         with_electrical=True,
     )
-
     with count_sql(test_engine) as statements:
         summary = await ProjectService(db_session).objects_summary(
             project.id, _principal(employee_user)
@@ -339,11 +394,17 @@ async def test_electrical_project_page_is_constant_query_count_with_many_objects
         per_type=200,
         with_electrical=True,
     )
+    variant_id = await _project_variant_id(db_session, project)
 
     with count_sql(test_engine) as statements:
         objects, calculations, summary, page_info = await CalculationContainer(
             db_session
-        ).electrical_summary.electrical_project_page(project.id, page=1, page_size=50)
+        ).electrical_summary.electrical_project_page(
+            project.id,
+            electrical_variant_id=variant_id,
+            page=1,
+            page_size=50,
+        )
 
     assert len(objects) == 50
     assert len(calculations) == 50
@@ -364,11 +425,13 @@ async def test_electrical_query_search_uses_sql_page_not_python_project_fallback
         per_type=200,
         with_electrical=True,
     )
+    variant_id = await _project_variant_id(db_session, project)
 
     with count_sql(test_engine) as statements:
         response = await ElectricalQueryService(db_session).query(
             ElectricalQueryRequest(
                 project_id=project.id,
+                electrical_variant_id=variant_id,
                 search={"text": "Pipe-1", "columns": ["object_name"]},
             ),
             _principal(employee_user),
@@ -376,7 +439,7 @@ async def test_electrical_query_search_uses_sql_page_not_python_project_fallback
 
     assert response.counts.total == 400
     assert response.counts.filtered > 0
-    _assert_query_count(statements, 7)
+    _assert_query_count(statements, 8)
     page_selects = [
         statement
         for statement in statements
@@ -405,7 +468,6 @@ async def test_electrical_query_assignment_projection_is_one_bounded_query(
             name_normalized=f"er{index + 1} query count",
             sort_order=index,
             is_active=index == 0,
-            legacy_variant_number=index + 1 if index < 4 else None,
         )
         for index in range(4)
     ]
@@ -461,9 +523,11 @@ async def test_electrical_query_sorted_next_page_uses_keyset_without_offset(
         per_type=200,
         with_electrical=True,
     )
+    variant_id = await _project_variant_id(db_session, project)
     first_page = await ElectricalQueryService(db_session).query(
         ElectricalQueryRequest(
             project_id=project.id,
+            electrical_variant_id=variant_id,
             page=1,
             page_size=50,
             sort={"key": "object_name", "dir": "asc"},
@@ -477,6 +541,7 @@ async def test_electrical_query_sorted_next_page_uses_keyset_without_offset(
         response = await ElectricalQueryService(db_session).query(
             ElectricalQueryRequest(
                 project_id=project.id,
+                electrical_variant_id=variant_id,
                 page=2,
                 page_size=50,
                 sort={"key": "object_name", "dir": "asc"},
@@ -490,7 +555,7 @@ async def test_electrical_query_sorted_next_page_uses_keyset_without_offset(
         )
 
     assert len(response.items) == 50
-    _assert_query_count(statements, 7)
+    _assert_query_count(statements, 8)
     page_selects = [
         statement
         for statement in statements
@@ -574,7 +639,6 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
             name=f"ЭР {project_index}",
             name_normalized=f"эр {project_index}",
             sort_order=0,
-            legacy_variant_number=1,
         )
         db_session.add(variant)
         await db_session.flush()
@@ -594,7 +658,6 @@ async def test_bulk_project_csv_export_uses_constant_query_count(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=obj.id,
-                variant_number=1,
                 electrical_variant_id=variant.id,
                 cable_type="self_regulating",
                 cable_mark="ТЛТ-30",
@@ -701,8 +764,14 @@ async def test_perf_indexes_are_declared_in_metadata():
             ),
         },
         "electrical_calculations": {
-            "ix_electrical_calculations_project_variant": ("project_id", "variant_number"),
-            "ix_electrical_calculations_object_variant": ("object_id", "variant_number"),
+            "ix_electrical_calculations_project_electrical_variant": (
+                "project_id",
+                "electrical_variant_id",
+            ),
+            "ux_electrical_calculations_object_electrical_variant": (
+                "object_id",
+                "electrical_variant_id",
+            ),
             "ix_electrical_calculations_cable_type_source": ("cable_type_source",),
         },
         "projects": {
@@ -724,6 +793,7 @@ async def test_perf_indexes_are_declared_in_metadata():
 
     electrical_indexes = Project.metadata.tables["electrical_calculations"].indexes
     assert any(
-        index.name == "ix_electrical_calculations_object_variant" and index.unique
+        index.name == "ux_electrical_calculations_object_electrical_variant"
+        and index.unique
         for index in electrical_indexes
     )

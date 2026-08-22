@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.electrical_calculation import ElectricalCalculation
-from app.models.electrical_variant import ElectricalVariant
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.guest_session import GuestSession
 from app.models.project import Project
 from app.models.project_object import ProjectObject
@@ -96,10 +96,31 @@ class TestCascadeDeletion:
         db_session.add(obj)
         await db_session.commit()
 
+        variant = ElectricalVariant(
+            project_id=proj.id,
+            name="Cascade calculation ER",
+            name_normalized="cascade calculation er",
+            sort_order=0,
+            is_active=True,
+        )
+        db_session.add(variant)
+        await db_session.flush()
+        db_session.add(
+            ElectricalVariantObject(
+                project_id=proj.id,
+                electrical_variant_id=variant.id,
+                object_id=obj.id,
+                system_type="self_regulating",
+                assignment_state="ready",
+                object_version_snapshot=obj.version,
+            )
+        )
+        await db_session.flush()
+
         calc = ElectricalCalculation(
             project_id=proj.id,
             object_id=obj.id,
-            variant_number=1,
+            electrical_variant_id=variant.id,
             cable_type="self_regulating",
             cable_mark="ТЛТ-25",
             params={},
@@ -132,7 +153,6 @@ class TestCascadeDeletion:
             name_normalized="cascade er",
             sort_order=0,
             is_active=True,
-            legacy_variant_number=None,
         )
         db_session.add(variant)
         await db_session.flush()

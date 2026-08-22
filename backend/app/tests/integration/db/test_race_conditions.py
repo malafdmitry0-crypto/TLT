@@ -11,15 +11,18 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
-from app.models.electrical_variant import ElectricalVariant
+from app.models.electrical_variant import ElectricalVariant, ElectricalVariantObject
 from app.models.guest_session import GuestSession
 from app.models.project import Project
 from app.models.project_electrical_settings import ProjectElectricalSettings
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
+from app.models.user import User
 from app.schemas.calculation import ElectricalRequest
 from app.schemas.specification import SpecificationItem
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.calculation.container import CalculationContainer
 from app.services.specification_service import SpecificationService
 
@@ -98,6 +101,48 @@ async def _create_tank_without_cable_layout(
     return obj
 
 
+async def _create_electrical_scope(
+    db_session: AsyncSession,
+    project_id: uuid.UUID,
+    obj: ProjectObject,
+) -> ElectricalVariant:
+    identity = uuid.uuid4()
+    variant = ElectricalVariant(
+        project_id=project_id,
+        name=f"Race ER {identity}",
+        name_normalized=f"race er {identity}",
+        sort_order=0,
+        is_active=True,
+    )
+    db_session.add(variant)
+    await db_session.flush()
+    db_session.add(
+        ElectricalVariantObject(
+            project_id=project_id,
+            electrical_variant_id=variant.id,
+            object_id=obj.id,
+            system_type="self_regulating",
+            assignment_state="ready",
+            object_version_snapshot=obj.version,
+        )
+    )
+    await db_session.commit()
+    return variant
+
+
+async def _seed_calculation_catalogs(
+    db_session: AsyncSession, admin_user: User
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
+
+
 class TestAtomicUpsertRaceConditions:
     async def test_parallel_specification_save_keeps_single_project_variant_row(
         self,
@@ -111,7 +156,6 @@ class TestAtomicUpsertRaceConditions:
             name_normalized="race er",
             sort_order=0,
             is_active=True,
-            legacy_variant_number=None,
         )
         db_session.add(variant)
         await db_session.commit()
@@ -156,9 +200,12 @@ class TestAtomicUpsertRaceConditions:
         self,
         test_engine: AsyncEngine,
         db_session: AsyncSession,
+        admin_user: User,
     ):
+        await _seed_calculation_catalogs(db_session, admin_user)
         project = await _create_guest_project(db_session, "Single electrical race")
         obj = await _create_valid_pipe(db_session, project.id)
+        variant = await _create_electrical_scope(db_session, project.id, obj)
         session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
         marks = ["15ТТВ2-СР", "30ТТВ2-СР", "45ТТВ2-СР", "60ТТВ2-СР"]
 
@@ -168,7 +215,7 @@ class TestAtomicUpsertRaceConditions:
                     ElectricalRequest(
                         object_id=obj.id,
                         cable_type="self_regulating_tt",
-                        variant_number=1,
+                        electrical_variant_id=variant.id,
                         data={
                             "required_power_per_meter": 20,
                             "cable_mark": mark,
@@ -189,7 +236,7 @@ class TestAtomicUpsertRaceConditions:
                 await db_session.execute(
                     select(ElectricalCalculation).where(
                         ElectricalCalculation.object_id == obj.id,
-                        ElectricalCalculation.variant_number == 1,
+                        ElectricalCalculation.electrical_variant_id == variant.id,
                     )
                 )
             )
@@ -205,16 +252,19 @@ class TestAtomicUpsertRaceConditions:
         self,
         test_engine: AsyncEngine,
         db_session: AsyncSession,
+        admin_user: User,
     ):
+        await _seed_calculation_catalogs(db_session, admin_user)
         project = await _create_guest_project(db_session, "Failed batch race")
         obj = await _create_tank_without_cable_layout(db_session, project.id)
+        variant = await _create_electrical_scope(db_session, project.id, obj)
         session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
         async def batch() -> tuple[int, int, int, list[dict], list[ElectricalCalculation]]:
             async with session_factory() as session:
                 return await CalculationContainer(session).electrical_batch.calculate(
                     project.id,
-                    variant_number=1,
+                    electrical_variant_id=variant.id,
                     return_calcs=False,
                 )
 
@@ -227,7 +277,7 @@ class TestAtomicUpsertRaceConditions:
             await db_session.execute(
                 select(func.count(ElectricalCalculation.id)).where(
                     ElectricalCalculation.object_id == obj.id,
-                    ElectricalCalculation.variant_number == 1,
+                    ElectricalCalculation.electrical_variant_id == variant.id,
                 )
             )
         ).scalar_one()
@@ -235,7 +285,7 @@ class TestAtomicUpsertRaceConditions:
             await db_session.execute(
                 select(ElectricalCalculation).where(
                     ElectricalCalculation.object_id == obj.id,
-                    ElectricalCalculation.variant_number == 1,
+                    ElectricalCalculation.electrical_variant_id == variant.id,
                 )
             )
         ).scalar_one()
