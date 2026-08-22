@@ -1,4 +1,4 @@
--r requirements.txt
+-r requirements-lock.txt
 # CVE GHSA-6w46-j5rx-g56g — symlink path traversal в pytest tmpdir. Фикс в 9.x.
 pytest==9.0.3
 pytest-asyncio==1.3.0

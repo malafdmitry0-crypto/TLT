@@ -20,7 +20,7 @@ WORKDIR /app
 # Апгрейд pip/wheel — закрывает CVE базового образа python:3.11-slim
 RUN pip install --no-cache-dir --upgrade pip wheel
 
-COPY requirements-dev.txt requirements.txt ./
+COPY requirements-dev.txt requirements-lock.txt ./
 RUN pip install -r requirements-dev.txt
 
 EXPOSE 8000

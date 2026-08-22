@@ -90,7 +90,7 @@ class TestUsers:
         )
         db = _mock_db(scalar=existing)
         await AdminService(db).update_user(existing.id, UserUpdate(password="newpassword12"))
-        # Хэш изменился (passlib не вернёт исходник)
+        # Хэш изменился: bcrypt использует новую соль для каждого вызова.
         assert existing.hashed_password != "oldhash"
         assert existing.hashed_password != "newpassword12"
 

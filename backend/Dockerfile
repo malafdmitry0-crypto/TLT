@@ -29,14 +29,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --upgrade pip wheel
 
 WORKDIR /build
-COPY requirements.txt .
+COPY requirements-lock.txt .
 COPY packages/heat-loss-core /build/packages/heat-loss-core
 COPY packages/electrical-core /build/packages/electrical-core
 COPY packages/specification-core /build/packages/specification-core
 # Собираем wheel-кэш — не оставляем gcc и build-essential в финальном образе.
 # BuildKit cache mount: pip-кэш переживает пересборки и параллелится между арками.
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked,id=pip-${TARGETARCH} \
-    pip wheel --wheel-dir /build/wheels -r requirements.txt \
+    pip wheel --wheel-dir /build/wheels -r requirements-lock.txt \
     && pip wheel --no-deps --no-build-isolation --wheel-dir /build/wheels \
         /build/packages/heat-loss-core \
     && pip wheel --no-deps --no-build-isolation --wheel-dir /build/wheels \
@@ -91,9 +91,9 @@ RUN pip install --no-cache-dir --upgrade pip wheel
 
 # Устанавливаем зависимости из заранее собранных wheel-ов (без gcc)
 COPY --from=builder /build/wheels /tmp/wheels
-COPY requirements.txt .
+COPY requirements-lock.txt .
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked,id=pip-runtime-${TARGETARCH} \
-    pip install --no-index --find-links=/tmp/wheels -r requirements.txt \
+    pip install --no-index --find-links=/tmp/wheels -r requirements-lock.txt \
     && pip install --no-index --find-links=/tmp/wheels heatcalc-heat-loss-core==0.2.0 \
     && pip install --no-index --find-links=/tmp/wheels heatcalc-electrical-core==0.1.0 \
     && pip install --no-index --find-links=/tmp/wheels heatcalc-specification-core==0.2.0 \

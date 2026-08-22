@@ -1,4 +1,4 @@
-fastapi==0.121.0
+fastapi==0.141.1
 orjson==3.11.6
 uvicorn[standard]==0.32.0
 sqlalchemy[asyncio]==2.0.35
@@ -12,14 +12,13 @@ email-validator==2.2.0
 # Заменили python-jose (unmaintained, тянет за собой уязвимый pyasn1<0.5.0)
 # на PyJWT — активно поддерживается, без транзитивной уязвимости.
 pyjwt[crypto]==2.13.0
-passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 # Версия 0.0.27 закрывает актуальный pip-audit advisory GHSA-pp6c-gr5w-3c5g.
 python-multipart==0.0.31
 python-docx==1.1.2
 openpyxl==3.1.5
-# CVE GHSA-983w-rhvv-gwmv — XSS в Floating Box. 68.0 совместим с pydyf>=0.11.
-weasyprint==68.0
+# Security fixes through the 2026-06 release; compatible with pydyf>=0.11.
+weasyprint==69.0
 pydyf==0.11.0
 # CVE GHSA-{q2x7-8rv6-6q7h,gmj6-6f8f-6699,cpwx-vrp4-4pq7} — sandbox bypass
 Jinja2==3.1.6
