@@ -591,21 +591,6 @@ formulas:
           rhoT: 0.021175
           cableLength: 120
 
-  - id: tlt_mineral_cable
-    expression: "Mineral cable calculation is not available in current backend version."
-    variables: [required_power_per_meter, pipe_length]
-    output: SelfRegulatingResult
-    sourceRefs:
-      - "backend/app/formulas/electrical/mineral.py:calc_mineral"
-    implementationRefs:
-      - "backend/app/formulas/electrical/mineral.py"
-    oracle:
-      status: not_implemented
-      notes:
-        - "Backend raises NotImplementedError; agent should classify use of this formula as unsupported, not failed math."
-    engineeringReview:
-      - "Frontend/backend should not expose this as a successful calculation path until a reference formula exists."
-
 algorithms:
   - id: tlt_climate_safety_factor
     description: "Resolve TNP climate design temperature and safety factor by object type and pipe diameter."

@@ -23,6 +23,13 @@ function testCase(requirementId: string, input: Record<string, unknown>): TestCa
 }
 
 describe('AlgorithmOracle', () => {
+  it('does not register retired mineral/skin cable algorithms and keeps resistive algorithms', () => {
+    const algorithmIds = registry().list().map((algorithm) => algorithm.id);
+
+    expect(algorithmIds.some((id) => /(?:mineral|skin)/i.test(id))).toBe(false);
+    expect(algorithmIds.some((id) => id.startsWith('tlt_resistive_'))).toBe(true);
+  });
+
   it('computes TLT tank cable length for cylindrical tanks', () => {
     const result = new AlgorithmOracle(registry()).evaluate(
       testCase('tlt_tank_cable_length', {
