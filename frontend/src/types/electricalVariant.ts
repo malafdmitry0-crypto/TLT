@@ -3,9 +3,7 @@ import type { ElectricalCalcSummary } from './calculationElectricalSummary';
 
 export type ElectricalSystemType =
   | 'self_regulating'
-  | 'resistive'
-  | 'skin'
-  | 'mineral';
+  | 'resistive';
 
 export type ElectricalSupportedSystemType = Extract<
   ElectricalSystemType,

@@ -54,8 +54,6 @@ function assignmentResponse(): ElectricalAssignmentListResponse {
         unassigned: 1,
         self_regulating: 2,
         resistive: 2,
-        skin: 0,
-        mineral: 0,
       },
       by_state: { unassigned: 1, ready: 0, unsupported: 0, stale: 4, error: 0 },
     },

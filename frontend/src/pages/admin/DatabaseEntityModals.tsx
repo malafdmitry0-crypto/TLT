@@ -58,8 +58,6 @@ export function DatabaseCableModal({
                 { value: 'self_regulating', label: 'ТЛТ' },
                 { value: 'single_core', label: 'ТТ Р1' },
                 { value: 'three_core', label: 'ТТ Р3' },
-                { value: 'mineral', label: 'Минеральный' },
-                { value: 'skin', label: 'Skin' },
               ]}
             />
           </Form.Item>

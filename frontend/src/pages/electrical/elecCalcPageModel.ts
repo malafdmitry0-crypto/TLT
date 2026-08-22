@@ -30,7 +30,7 @@ export type ElectricalBatchMutationArgs = {
 export type ElectricalNavigationState = {
   activeJobId?: string;
   /** Open this system tab after navigation (e.g. from Spec «Исправить»). */
-  systemView?: 'all' | 'unassigned' | 'self_regulating' | 'resistive' | 'skin' | 'mineral';
+  systemView?: 'all' | 'unassigned' | 'self_regulating' | 'resistive';
   electricalVariantId?: string;
 } | null;
 

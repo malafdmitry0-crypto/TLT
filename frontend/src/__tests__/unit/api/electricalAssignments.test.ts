@@ -63,8 +63,6 @@ describe('electrical assignment API', () => {
               unassigned: 0,
               self_regulating: 0,
               resistive: 0,
-              skin: 0,
-              mineral: 0,
             },
             by_state: { unassigned: 0, ready: 0, unsupported: 0, stale: 0, error: 0 },
           },

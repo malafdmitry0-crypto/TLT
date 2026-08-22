@@ -25,7 +25,7 @@ export interface Coefficient {
 
 export interface CableExtended {
   id: string;
-  cable_type: 'self_regulating' | 'single_core' | 'three_core' | 'mineral' | 'skin';
+  cable_type: 'self_regulating' | 'single_core' | 'three_core';
   brand: string;
   model: string;
   power_per_meter: number | null;

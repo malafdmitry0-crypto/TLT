@@ -16,8 +16,6 @@ export const ELECTRICAL_SYSTEM_VIEWS: Array<{
   { key: 'unassigned', label: 'Нераспределённые объекты' },
   { key: 'self_regulating', label: 'Самрег' },
   { key: 'resistive', label: 'Резистив' },
-  { key: 'skin', label: 'Скин' },
-  { key: 'mineral', label: 'Минеральный' },
 ];
 
 export function isUnassignedAssignment(

@@ -30,7 +30,6 @@ function toSystemSummaries(pageSummary: ElectricalPageSummary): ElectricalSystem
   return {
     self_regulating: bucket(summaries.self_regulating),
     resistive: bucket(summaries.resistive),
-    skin: bucket(summaries.skin),
     total: bucket(summaries.total),
   };
 }

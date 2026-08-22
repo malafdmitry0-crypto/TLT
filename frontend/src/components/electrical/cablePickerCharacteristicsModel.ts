@@ -33,8 +33,6 @@ const CABLE_TYPE_LABEL: Record<string, string> = {
   self_regulating_tt: 'ТТН/ТТВ/ТТХ',
   single_core: 'Одножильный',
   three_core: 'Трёхжильный',
-  mineral: 'Минеральная изоляция',
-  skin: 'Скин-система',
   resistive_single_core: 'Одножильный',
   resistive_three_core: 'Трёхжильный',
 };
@@ -120,8 +118,6 @@ const CABLE_FIELD_ORDER_BY_TYPE: Record<string, string[]> = {
   self_regulating_tt: ['cable_type', 'model', 'brand', 'series', 'nominal_power', 'max_product_temp'],
   single_core: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'resistance_ohm_km', 'resistance_per_meter', 'conductor_section_mm2', 'diameter_mm', 'nominal_section_length_m', 'mass_kg_km', 'min_bend_radius_mm', 'temperature_range', 'min_temperature', 'max_temperature'],
   three_core: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'resistance_ohm_km', 'resistance_per_meter', 'conductor_section_mm2', 'nominal_size_mm', 'diameter_mm', 'mass_kg_km', 'min_bend_radius_mm', 'temperature_range', 'min_temperature', 'max_temperature'],
-  mineral: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'min_temperature', 'max_temperature', 'conductor_section_mm2', 'nominal_size_mm', 'diameter_mm'],
-  skin: [...COMMON_CABLE_FIELD_ORDER, 'power_per_meter', 'min_temperature', 'max_temperature', 'max_length'],
 };
 
 function valueText(value: unknown) {

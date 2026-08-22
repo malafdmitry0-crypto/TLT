@@ -25,8 +25,6 @@ const SYSTEM_VIEWS = new Set<ElectricalSystemView>([
   'unassigned',
   'self_regulating',
   'resistive',
-  'skin',
-  'mineral',
 ]);
 
 function systemViewFromNavigation(state: unknown): ElectricalSystemView | null {

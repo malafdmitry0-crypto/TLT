@@ -81,7 +81,6 @@ describe('elecCalcCableCatalogModel', () => {
       conductor_cross_section: 2.5,
     })).toBe(true);
     expect(hasTechnicalData('single_core', { resistance_ohm_km: 120 })).toBe(false);
-    expect(hasTechnicalData('mineral', tltComplete)).toBe(false);
   });
 
   it('keeps technical status labels stable', () => {
@@ -182,14 +181,6 @@ describe('elecCalcCableCatalogModel', () => {
       },
     })).toEqual([singleCoreCable]);
 
-    expect(resolveCableRowsForType({
-      type: 'mineral',
-      availableCableTypes,
-      cables: [newExternalCable],
-      builtinCables: [],
-      ttCables: [ttCable],
-      effectiveSource: 'all',
-    })).toEqual([]);
   });
 
   it('resolves cable catalog statuses together', () => {

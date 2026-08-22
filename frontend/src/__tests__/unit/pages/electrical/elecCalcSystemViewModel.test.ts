@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ELECTRICAL_SYSTEM_VIEWS,
   filterObjectsBySystemView,
   objectMatchesSystemView,
 } from '@/pages/electrical/elecCalcSystemViewModel';
@@ -38,6 +39,15 @@ function asg(
 }
 
 describe('elecCalcSystemViewModel', () => {
+  it('exposes only current system views and keeps resistive extensibility', () => {
+    expect(ELECTRICAL_SYSTEM_VIEWS).toEqual([
+      { key: 'all', label: 'Все' },
+      { key: 'unassigned', label: 'Нераспределённые объекты' },
+      { key: 'self_regulating', label: 'Самрег' },
+      { key: 'resistive', label: 'Резистив' },
+    ]);
+  });
+
   it('filters objects by shared system view', () => {
     const objects = [obj('a'), obj('b'), obj('c')];
     const map = new Map([
@@ -54,7 +64,6 @@ describe('elecCalcSystemViewModel', () => {
       .toEqual(['b']);
     expect(filterObjectsBySystemView(objects, map, 'resistive').map((o) => o.id))
       .toEqual(['c']);
-    expect(filterObjectsBySystemView(objects, map, 'skin')).toEqual([]);
   });
 
   it('treats missing assignment as unassigned', () => {

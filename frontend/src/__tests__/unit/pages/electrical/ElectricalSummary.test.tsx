@@ -20,14 +20,6 @@ const systems: ElectricalSystemSummaries = {
     startCurrentA: 4.2,
     workingCurrentA: 3.6,
   },
-  skin: {
-    objectCount: 0,
-    cableLengthM: 0,
-    sectionCount: null,
-    powerW: 0,
-    startCurrentA: 0,
-    workingCurrentA: 0,
-  },
   total: {
     objectCount: 3,
     cableLengthM: 139.4,
@@ -46,7 +38,6 @@ describe('ElectricalSummary', () => {
     expect(screen.getByText('Самрег')).toBeInTheDocument();
     expect(screen.getByText('Итого')).toBeInTheDocument();
     expect(screen.queryByText('Резистив')).not.toBeInTheDocument();
-    expect(screen.queryByText('Скин')).not.toBeInTheDocument();
 
     // Objects
     expect(screen.getByTestId('elec-summary-self_regulating-objects')).toHaveTextContent('2');

@@ -18,7 +18,6 @@ export interface SystemSummaryBucket {
 export interface ElectricalSystemSummaries {
   self_regulating: SystemSummaryBucket;
   resistive: SystemSummaryBucket;
-  skin: SystemSummaryBucket;
   total: SystemSummaryBucket;
 }
 
@@ -69,7 +68,7 @@ type SummaryCardDef = {
   testId: string;
 };
 
-// E1 / FE-28: MVP summary shows Samreg + Total only (Resistive/Skin hidden).
+// E1 / FE-28: MVP summary shows Samreg + Total only (Resistive remains staged).
 const SUMMARY_CARDS: readonly SummaryCardDef[] = [
   { key: 'self_regulating', title: 'Самрег', testId: 'elec-summary-card-self_regulating' },
   { key: 'total', title: 'Итого', testId: 'elec-summary-card-total' },
@@ -106,7 +105,6 @@ export default function ElectricalSummary({
   const resolved: ElectricalSystemSummaries = systems ?? {
     self_regulating: EMPTY,
     resistive: EMPTY,
-    skin: EMPTY,
     total: {
       objectCount: calcedCount,
       cableLengthM: totalCableLength,

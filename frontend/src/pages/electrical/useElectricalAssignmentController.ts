@@ -55,8 +55,6 @@ const EMPTY_SYSTEM_COUNTS: ElectricalAssignmentSystemCounts = {
   unassigned: 0,
   self_regulating: 0,
   resistive: 0,
-  skin: 0,
-  mineral: 0,
 };
 
 const UNASSIGN_CONTENT =
@@ -371,7 +369,7 @@ export function useElectricalAssignmentController({
     mutation.reset();
   };
 
-  // E1 / FE-28: MVP type menu — Samreg only (no Resistive/Skin).
+  // E1 / FE-28: MVP type menu — Samreg only; Resistive remains staged.
   const typeMenuItems = [
     {
       key: 'self_regulating',

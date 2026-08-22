@@ -111,7 +111,7 @@ describe('elecCalcLayoutModel', () => {
     }))).toBe(true);
   });
 
-  it('blocks layout editing without a current successful mark or for non-editable cable types', () => {
+  it('blocks layout editing without a current successful mark', () => {
     expect(isElectricalLayoutCellEditable(editabilityOptions({
       calcByObjectId: {},
     }))).toBe(false);
@@ -120,12 +120,6 @@ describe('elecCalcLayoutModel', () => {
     }))).toBe(false);
     expect(isElectricalLayoutCellEditable(editabilityOptions({
       calcByObjectId: { 'object-1': calc({ results: { stale: true, selected_cable: 'ТЛТ-25' } }) },
-    }))).toBe(false);
-    expect(isElectricalLayoutCellEditable(editabilityOptions({
-      getCableTypeForObject: () => 'mineral',
-    }))).toBe(false);
-    expect(isElectricalLayoutCellEditable(editabilityOptions({
-      getCableTypeForObject: () => 'skin',
     }))).toBe(false);
   });
 
@@ -148,12 +142,6 @@ describe('elecCalcLayoutModel', () => {
     expect(validateElectricalLayoutCellCommit(commitOptions({
       calcByObjectId: {},
     }))).toEqual({ status: 'error', error: 'Сначала выполните электрорасчёт' });
-    expect(validateElectricalLayoutCellCommit(commitOptions({
-      getCableTypeForObject: () => 'mineral',
-    }))).toEqual({
-      status: 'error',
-      error: 'Для этого типа кабеля параметры укладки не редактируются в таблице',
-    });
   });
 
   it('validates winding pitch and preserves manual thread count when pitch changes', () => {
@@ -258,8 +246,6 @@ describe('elecCalcLayoutModel', () => {
     expect(maxThreadsForCableType('self_regulating_tt')).toBe(3);
     expect(maxThreadsForCableType('single_core')).toBe(3);
     expect(maxThreadsForCableType('three_core')).toBe(3);
-    expect(maxThreadsForCableType('mineral')).toBe(3);
-    expect(maxThreadsForCableType('skin')).toBe(3);
   });
 
   it('converts only positive pipe outer diameter from meters to millimeters', () => {

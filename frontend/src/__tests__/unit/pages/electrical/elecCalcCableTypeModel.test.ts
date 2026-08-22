@@ -22,8 +22,6 @@ describe('elecCalcCableTypeModel', () => {
     expect(isResistiveCableType('three_core')).toBe(true);
     expect(isResistiveCableType('self_regulating')).toBe(false);
     expect(isResistiveCableType('self_regulating_tt')).toBe(false);
-    expect(isResistiveCableType('mineral')).toBe(false);
-    expect(isResistiveCableType('skin')).toBe(false);
   });
 
   it('normalizes unavailable cable types to the MVP default', () => {

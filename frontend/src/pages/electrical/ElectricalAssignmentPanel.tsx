@@ -164,7 +164,7 @@ export default function ElectricalAssignmentPanel({
     onAssignedNeedCalc,
   });
 
-  // E1 / FE-28: MVP shows only Unassigned + Samreg (hide Resistive/Skin/Mineral tabs).
+  // E1 / FE-28: MVP shows only Unassigned + Samreg; Resistive remains staged.
   const visibleTabs = ELECTRICAL_SYSTEM_VIEWS.filter(
     (tab) => tab.key === 'unassigned' || tab.key === 'self_regulating',
   );
@@ -225,9 +225,7 @@ export default function ElectricalAssignmentPanel({
           size="small"
           activeKey={
             systemView === 'all'
-              || systemView === 'mineral'
               || systemView === 'resistive'
-              || systemView === 'skin'
               ? 'unassigned'
               : systemView
           }

@@ -28,17 +28,13 @@ export type CableTypeKey =
   | 'self_regulating'
   | 'self_regulating_tt'
   | 'single_core'
-  | 'three_core'
-  | 'mineral'
-  | 'skin';
+  | 'three_core';
 
 export const CABLE_TYPE_LABEL: Record<CableTypeKey, string> = {
   self_regulating: 'Саморегулирующийся',
   self_regulating_tt: 'ТТН/ТТВ/ТТХ',
   single_core: 'Однож. пост. мощн.',
   three_core: 'Трёхж. пост. мощн.',
-  mineral: 'С мин. изоляцией',
-  skin: 'Скин-система',
 };
 
 export const OBJECT_TYPE_LABEL: Record<string, string> = {

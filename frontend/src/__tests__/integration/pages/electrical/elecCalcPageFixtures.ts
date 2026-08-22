@@ -65,14 +65,11 @@ export function makeElectricalPage(
       const cableType = calculations.find((calc) => calc.object_id === obj.id)?.cable_type;
       const systemType = cableType === 'single_core' || cableType === 'three_core'
         ? 'resistive' as const
-        : cableType === 'skin' || cableType === 'mineral'
-          ? cableType
-          : 'self_regulating' as const;
+        : 'self_regulating' as const;
       return {
         object_id: obj.id,
         system_type: systemType,
-        assignment_state:
-          systemType === 'skin' || systemType === 'mineral' ? 'unsupported' : 'ready',
+        assignment_state: 'ready',
         version: 1,
       };
     }),

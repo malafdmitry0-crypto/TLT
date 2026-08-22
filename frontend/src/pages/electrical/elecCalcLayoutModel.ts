@@ -11,9 +11,7 @@ export type ElectricalLayoutCableType =
   | 'self_regulating'
   | 'self_regulating_tt'
   | 'single_core'
-  | 'three_core'
-  | 'mineral'
-  | 'skin';
+  | 'three_core';
 
 export const ELECTRICAL_LAYOUT_EDITABLE_COLUMNS = new Set(['winding_pitch_mm', 'number_of_threads']);
 
@@ -32,15 +30,13 @@ export function isElectricalLayoutCellEditable({
   projectSelected,
   isCableMarkPending,
   calcByObjectId,
-  getCableTypeForObject,
 }: ElectricalLayoutCellEditabilityOptions) {
   if (!ELECTRICAL_LAYOUT_EDITABLE_COLUMNS.has(columnKey)) return false;
   if (obj.object_type === 'tank' && columnKey === 'winding_pitch_mm') return false;
   if (!projectSelected || !obj.is_valid || isCableMarkPending) return false;
   const calc = currentElectricalCalc(calcByObjectId[obj.id]);
   if (!calc || !getCableMark(calc)) return false;
-  const cableType = getCableTypeForObject(obj.id);
-  return cableType !== 'mineral' && cableType !== 'skin';
+  return true;
 }
 
 export type ElectricalLayoutCellCommitValidationOptions = {
@@ -83,13 +79,6 @@ export function validateElectricalLayoutCellCommit({
   if (!calc || !mark) return { status: 'error', error: 'Сначала выполните электрорасчёт' };
 
   const cableType = getCableTypeForObject(obj.id);
-  if (cableType === 'mineral' || cableType === 'skin') {
-    return {
-      status: 'error',
-      error: 'Для этого типа кабеля параметры укладки не редактируются в таблице',
-    };
-  }
-
   const parsed = parseElectricalLayoutNumber(value);
   if (parsed === null) return { status: 'error', error: 'Введите число' };
   const layoutValues = calcLayoutValues(calc);

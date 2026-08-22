@@ -10,13 +10,6 @@ describe('buildAssignAutoCalcBatchPayload', () => {
     })).toBeNull();
   });
 
-  it('returns null for unsupported system', () => {
-    expect(buildAssignAutoCalcBatchPayload({
-      systemType: 'skin',
-      objectIds: ['a'],
-    })).toBeNull();
-  });
-
   it('builds resistive batch with single_core', () => {
     expect(buildAssignAutoCalcBatchPayload({
       systemType: 'resistive',

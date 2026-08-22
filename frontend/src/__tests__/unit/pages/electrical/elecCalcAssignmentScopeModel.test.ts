@@ -29,8 +29,7 @@ describe('elecCalcAssignmentScopeModel', () => {
     expect(electricalSystemForCableType('self_regulating_tt')).toBe('self_regulating');
     expect(electricalSystemForCableType('single_core')).toBe('resistive');
     expect(electricalSystemForCableType('three_core')).toBe('resistive');
-    expect(electricalSystemForCableType('skin')).toBeNull();
-    expect(electricalSystemForCableType('mineral')).toBeNull();
+    expect(electricalSystemForCableType(null)).toBeNull();
   });
 
   it('оставляет в explicit selected payload только совместимые назначения', () => {
@@ -71,7 +70,7 @@ describe('elecCalcAssignmentScopeModel', () => {
       'three_core',
     )).toBe('three_core');
     expect(preferredCableTypeForElectricalAssignment(
-      assignment('unsupported', 'skin', 'unsupported'),
+      assignment('unsupported', 'self_regulating', 'unsupported'),
       'self_regulating',
     )).toBeNull();
   });

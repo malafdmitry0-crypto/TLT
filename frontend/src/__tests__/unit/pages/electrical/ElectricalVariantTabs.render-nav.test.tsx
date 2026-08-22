@@ -40,8 +40,6 @@ function assignmentCounts(
       unassigned: state === 'unassigned' ? total : 0,
       self_regulating: state === 'unassigned' ? 0 : total,
       resistive: 0,
-      skin: 0,
-      mineral: 0,
     },
     by_state: {
       unassigned: 0,

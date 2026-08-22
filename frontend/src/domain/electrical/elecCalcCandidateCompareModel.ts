@@ -9,9 +9,7 @@ type CandidateCableTypeKey =
   | 'self_regulating'
   | 'self_regulating_tt'
   | 'single_core'
-  | 'three_core'
-  | 'mineral'
-  | 'skin';
+  | 'three_core';
 
 export type CandidateThreadSource = 'auto' | 'manual' | 'default' | 'previous_result';
 
@@ -20,8 +18,6 @@ const CANDIDATE_CABLE_TYPE_LABEL: Record<CandidateCableTypeKey, string> = {
   self_regulating_tt: 'ТТН/ТТВ/ТТХ',
   single_core: 'Однож. пост. мощн.',
   three_core: 'Трёхж. пост. мощн.',
-  mineral: 'С мин. изоляцией',
-  skin: 'Скин-система',
 };
 
 const CANDIDATE_CONNECTION_TYPE_LABEL: Record<string, string> = {

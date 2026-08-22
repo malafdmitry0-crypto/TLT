@@ -20,9 +20,7 @@ export type CableType =
   | 'self_regulating'
   | 'self_regulating_tt'
   | 'single_core'
-  | 'three_core'
-  | 'mineral'
-  | 'skin';
+  | 'three_core';
 
 export interface ElectricalBatchOptions {
   supplyVoltage?: number | null;

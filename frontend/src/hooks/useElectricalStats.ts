@@ -77,11 +77,10 @@ function emptyBucket(): SystemSummaryBucket {
   };
 }
 
-function systemKeyOf(calc: ElectricalCalcSummary): 'self_regulating' | 'resistive' | 'skin' | null {
+function systemKeyOf(calc: ElectricalCalcSummary): 'self_regulating' | 'resistive' | null {
   const t = String(calc.cable_type || '').toLowerCase();
   if (t === 'self_regulating' || t === 'self_regulating_tt' || t === '') return 'self_regulating';
   if (t === 'single_core' || t === 'three_core' || t === 'resistive') return 'resistive';
-  if (t === 'skin' || t === 'skin_effect') return 'skin';
   return null;
 }
 
@@ -173,20 +172,17 @@ export function useElectricalStats(
 
     const self_regulating = emptyBucket();
     const resistive = emptyBucket();
-    const skin = emptyBucket();
     for (const calc of successCalcs) {
       const key = systemKeyOf(calc);
       if (key === 'self_regulating') addToBucket(self_regulating, calc);
       else if (key === 'resistive') addToBucket(resistive, calc);
-      else if (key === 'skin') addToBucket(skin, calc);
-      else addToBucket(self_regulating, calc);
     }
     const total = emptyBucket();
     for (const calc of successCalcs) {
       addToBucket(total, calc);
     }
     // If no section catalog data at all, keep sectionCount null on buckets.
-    for (const b of [self_regulating, resistive, skin, total]) {
+    for (const b of [self_regulating, resistive, total]) {
       if (b.sectionCount === 0 && successCalcs.every((c) => {
         return sectionCount(c) === undefined;
       })) {
@@ -203,7 +199,7 @@ export function useElectricalStats(
       totalCableLength,
       totalPower,
       totalCurrent,
-      systemSummaries: { self_regulating, resistive, skin, total },
+      systemSummaries: { self_regulating, resistive, total },
     };
   }, [objects, elecCalcs, selectedLegacyVariantNumber]);
 }

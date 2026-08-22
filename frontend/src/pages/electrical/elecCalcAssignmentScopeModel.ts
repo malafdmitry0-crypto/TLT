@@ -77,11 +77,7 @@ export function electricalAssignmentAvailabilityReason(
   if (assignment.assignment_state === 'unassigned' || !assignment.system_type) {
     return 'Сначала назначьте объект в систему выбранного ЭР.';
   }
-  if (
-    assignment.assignment_state === 'unsupported'
-    || assignment.system_type === 'skin'
-    || assignment.system_type === 'mineral'
-  ) {
+  if (assignment.assignment_state === 'unsupported') {
     return 'Назначенный тип системы пока не поддерживает электрический расчёт.';
   }
   return null;

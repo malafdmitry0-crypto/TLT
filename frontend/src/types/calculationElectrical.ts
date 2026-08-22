@@ -21,9 +21,7 @@ export interface ElectricalRequest {
     | 'self_regulating'
     | 'self_regulating_tt'
     | 'single_core'
-    | 'three_core'
-    | 'mineral'
-    | 'skin';
+    | 'three_core';
   variant_number?: number;
   electrical_variant_id?: string;
   /** Optimistic concurrency for ER assignment (E8 / B6). */
@@ -153,7 +151,6 @@ export interface ElectricalPageSystemSummaryBucket {
 export interface ElectricalPageSystemSummaries {
   self_regulating: ElectricalPageSystemSummaryBucket;
   resistive: ElectricalPageSystemSummaryBucket;
-  skin: ElectricalPageSystemSummaryBucket;
   total: ElectricalPageSystemSummaryBucket;
 }
 
