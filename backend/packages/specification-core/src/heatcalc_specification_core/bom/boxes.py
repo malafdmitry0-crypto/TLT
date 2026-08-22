@@ -17,9 +17,37 @@ from heatcalc_specification_core.bom.contracts import (
     SpecificationDiagnostic,
 )
 from heatcalc_specification_core.bom.rows import FORMULA_FINGERPRINTS, item_from_catalog
-from heatcalc_specification_core.box_matrix import evaluate_box_matrix
-from heatcalc_specification_core.box_quantity import SPEC_BOX_EX_RGR_MATRIX_MISSING
+from heatcalc_specification_core.box_conditions import (
+    row_conditions_match,
+    validate_box_matrix_ex_r_gr,
+    validate_box_row_ex_r_gr,
+)
+from heatcalc_specification_core.box_matrix import (
+    box_row_from_catalog_parts,
+    evaluate_box_matrix,
+    evaluate_box_matrix_from_input,
+)
+from heatcalc_specification_core.box_quantity import (
+    SPEC_BOX_EX_RGR_MATRIX_MISSING,
+    calculate_box_quantity,
+    compute_d_ge_57,
+    normalize_box_rounding_mode,
+)
 from heatcalc_specification_core.types import BoxPipeInput, BoxRowInput, FormulaInputError
+
+__all__ = [
+    "SPEC_BOX_EX_RGR_MATRIX_MISSING",
+    "box_row_from_catalog_parts",
+    "build_box_items",
+    "calculate_box_quantity",
+    "compute_d_ge_57",
+    "evaluate_box_matrix",
+    "evaluate_box_matrix_from_input",
+    "normalize_box_rounding_mode",
+    "row_conditions_match",
+    "validate_box_matrix_ex_r_gr",
+    "validate_box_row_ex_r_gr",
+]
 
 
 def build_box_items(

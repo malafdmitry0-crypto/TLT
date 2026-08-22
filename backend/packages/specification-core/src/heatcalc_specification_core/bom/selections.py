@@ -15,6 +15,7 @@ from heatcalc_specification_core.bom.contracts import (
     GenerationFailure,
     SpecificationDiagnostic,
 )
+from heatcalc_specification_core.json_types import JsonValue
 
 _GROUP_KEY_RE = re.compile(r"^cg_([0-9a-f]{32})_[0-9a-f]{40}$")
 
@@ -137,7 +138,13 @@ def resolve_selected_items(
     return selected
 
 
-def _blocking(code: str, message: str, *, reason: str, **issue: object) -> SpecificationDiagnostic:
+def _blocking(
+    code: str,
+    message: str,
+    *,
+    reason: str,
+    **issue: JsonValue,
+) -> SpecificationDiagnostic:
     return SpecificationDiagnostic(
         code=code,
         kind=DiagnosticKind.BLOCKING,

@@ -54,6 +54,7 @@ def normalize_box_rounding_mode(value: BoxRoundingMode | str | Any) -> BoxRoundi
         value=value,
     )
 
+
 def calculate_box_quantity(
     section_count: Any,
     section_divider: Any,

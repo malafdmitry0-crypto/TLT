@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
-from heatcalc_specification_core.catalog.validation_contracts import (
-    CatalogContentItem,
-    CatalogValidationIssue,
-)
-from heatcalc_specification_core.catalog_conditions import (
+from heatcalc_specification_core.catalog.condition_contracts import ConditionInput
+from heatcalc_specification_core.catalog.conditions import (
     BOX_BOOLEAN_CONDITION_KEYS,
     BOX_CONDITION_KEYS,
     BOX_EX_KEY,
     BOX_R_GR_KEY,
     condition_mode,
+)
+from heatcalc_specification_core.catalog.validation_contracts import (
+    CatalogContentItem,
+    CatalogValidationIssue,
 )
 
 
@@ -88,11 +89,11 @@ def validate_box_matrix_authority(
     return issues
 
 
-def _condition_fingerprint(value: object) -> str:
+def _condition_fingerprint(value: ConditionInput) -> str:
     mode = condition_mode(value)
-    if mode == "match" and isinstance(value, dict):
+    if mode == "match" and isinstance(value, Mapping):
         return f"match:{value.get('operator')!s}:{value.get('value')!s}"
-    if mode == "not_applicable" and isinstance(value, dict):
+    if mode == "not_applicable" and isinstance(value, Mapping):
         return f"na:{value.get('decision_ref')!s}"
     if mode == "unresolved":
         return "unresolved"

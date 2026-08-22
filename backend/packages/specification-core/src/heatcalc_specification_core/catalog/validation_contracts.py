@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from heatcalc_specification_core.json_types import JsonObject, JsonValue, mutable_json
+from heatcalc_specification_core.json_types import JsonObject, JsonValue, json_object, mutable_json
 
 
 class CatalogCategory(StrEnum):
@@ -32,6 +32,11 @@ class CatalogContentItem:
     source_ref: str
     is_demo_source: bool = False
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "applicability", json_object(self.applicability))
+        object.__setattr__(self, "package_parameters", json_object(self.package_parameters))
+        object.__setattr__(self, "formula_parameters", json_object(self.formula_parameters))
+
 
 @dataclass(frozen=True, slots=True)
 class CatalogValidationIssue:
@@ -40,6 +45,9 @@ class CatalogValidationIssue:
     item_key: str | None = None
     category: str | None = None
     details: JsonObject = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "details", json_object(self.details))
 
     def to_dict(self) -> dict[str, JsonValue]:
         result: dict[str, JsonValue] = {"code": self.code, "reason": self.reason}

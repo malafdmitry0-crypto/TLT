@@ -5,37 +5,39 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from types import MappingProxyType
-from typing import Any, TypeAlias, cast
+from typing import overload
 from uuid import UUID
 
+from heatcalc_specification_core.candidates.condition_contracts import CandidateCondition
 from heatcalc_specification_core.catalog import CatalogParameters
-
-JsonMapping: TypeAlias = Mapping[str, Any]
-
-
-def freeze(value: Any) -> Any:
-    """Recursively freeze JSON-like values owned by candidate contracts."""
-    if isinstance(value, Mapping):
-        return MappingProxyType({str(key): freeze(item) for key, item in value.items()})
-    if isinstance(value, tuple | list):
-        return tuple(freeze(item) for item in value)
-    if isinstance(value, set | frozenset):
-        return frozenset(freeze(item) for item in value)
-    return value
+from heatcalc_specification_core.json_types import (
+    JsonObject,
+    JsonValue,
+    json_object,
+    mutable_json,
+)
 
 
-def thaw(value: Any) -> Any:
+@overload
+def thaw(value: JsonObject) -> dict[str, object]: ...
+
+
+@overload
+def thaw(value: JsonValue) -> object: ...
+
+
+def thaw(value: JsonValue) -> object:
     """Return mutable JSON-compatible data for application adapters."""
+    mutable = mutable_json(value)
     if isinstance(value, Mapping):
-        return {str(key): thaw(item) for key, item in value.items()}
-    if isinstance(value, tuple | frozenset):
-        return [thaw(item) for item in value]
-    return value
+        if not isinstance(mutable, dict):
+            raise TypeError("JSON object must thaw to a dictionary")
+        return mutable
+    return mutable
 
 
-def _frozen_mapping(value: Mapping[str, Any] | None = None) -> JsonMapping:
-    return cast(JsonMapping, freeze(value or {}))
+def _frozen_mapping(value: object | None = None) -> JsonObject:
+    return json_object(value or {})
 
 
 class CandidateDiagnosticCode(str, Enum):
@@ -61,8 +63,8 @@ class CandidateDiagnostic:
     code: CandidateDiagnosticCode
     kind: CandidateIssueKind
     message: str
-    issues: tuple[JsonMapping, ...] = ()
-    details: JsonMapping = field(default_factory=_frozen_mapping)
+    issues: tuple[JsonObject, ...] = ()
+    details: JsonObject = field(default_factory=_frozen_mapping)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "issues", tuple(_frozen_mapping(item) for item in self.issues))
@@ -116,14 +118,13 @@ class CandidateGroup:
     electrical_variant_id: UUID
     category: str
     object_type_section: str | None
-    conditions: JsonMapping
+    condition: CandidateCondition
     candidates: tuple[SpecificationCandidate, ...]
     selected_catalog_item_id: UUID | None
     selection_source: SelectionSource
     candidate_set_fingerprint: str | None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "conditions", _frozen_mapping(self.conditions))
         if not isinstance(self.candidates, tuple):
             raise TypeError("candidates must be a tuple")
 
@@ -145,8 +146,8 @@ def diagnostic(
     kind: CandidateIssueKind,
     message: str,
     *,
-    issues: Sequence[Mapping[str, Any]] = (),
-    details: Mapping[str, Any] | None = None,
+    issues: Sequence[JsonObject] = (),
+    details: JsonObject | None = None,
 ) -> CandidateDiagnostic:
     return CandidateDiagnostic(
         code=code,

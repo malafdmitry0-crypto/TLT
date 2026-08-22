@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from heatcalc_specification_core.bom.contracts import BomItem, CatalogItem
+from heatcalc_specification_core.json_types import JsonValue, json_object
 
 FORMULA_FINGERPRINTS: dict[str, str] = {
     "cable": "specification-calculators/cable@v1",
@@ -27,9 +28,9 @@ def item_from_catalog(
     catalog_version: str,
     electrical_variant_id: UUID,
     object_type_section: str,
-    extra_params: Mapping[str, object] | None = None,
+    extra_params: Mapping[str, JsonValue] | None = None,
 ) -> BomItem:
-    params: dict[str, object] = {
+    params: dict[str, JsonValue] = {
         "catalog_id": str(catalog_id),
         "catalog_version": catalog_version,
         "catalog_item_id": str(item.id),
@@ -48,7 +49,7 @@ def item_from_catalog(
         article=item.nomenclature_code,
         unit=item.supply_unit,
         quantity=quantity,
-        params=params,
+        params=json_object(params),
     )
 
 

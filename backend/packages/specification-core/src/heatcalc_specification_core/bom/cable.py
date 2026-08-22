@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from heatcalc_specification_core.bom.contracts import (
@@ -15,8 +17,62 @@ from heatcalc_specification_core.bom.contracts import (
     SpecificationDiagnostic,
 )
 from heatcalc_specification_core.bom.rows import FORMULA_FINGERPRINTS, item_from_catalog
-from heatcalc_specification_core.cable import calculate_cable_mark
-from heatcalc_specification_core.types import CableGroupInput, CableMarkInput
+from heatcalc_specification_core.common import (
+    sum_decimals,
+    to_non_negative_decimal,
+    to_non_negative_int,
+)
+from heatcalc_specification_core.types import (
+    CableGroupInput,
+    CableGroupResult,
+    CableMarkInput,
+    CableMarkResult,
+)
+
+
+def calculate_group_actual(
+    section_length_m: Any,
+    section_count: Any,
+) -> CableGroupResult:
+    """Calculate installed cable length for one equal-section group."""
+    length = to_non_negative_decimal(section_length_m, name="section_length_m")
+    count = to_non_negative_int(section_count, name="section_count")
+    return CableGroupResult(actual_installed_length_m=length * Decimal(count))
+
+
+def calculate_mark_actual(group_actuals: Sequence[Any]) -> Decimal:
+    """Sum installed lengths for one cable mark."""
+    return sum_decimals(
+        [
+            to_non_negative_decimal(item, name=f"group_actuals[{index}]")
+            for index, item in enumerate(group_actuals)
+        ]
+    )
+
+
+def calculate_mark_order(required_order_lengths_m: Sequence[Any]) -> Decimal:
+    """Sum order lengths for one cable mark without applying reserve again."""
+    return sum_decimals(
+        [
+            to_non_negative_decimal(item, name=f"required_order_lengths_m[{index}]")
+            for index, item in enumerate(required_order_lengths_m)
+        ]
+    )
+
+
+def calculate_cable_mark(inputs: CableMarkInput) -> CableMarkResult:
+    """Aggregate actual and order lengths for one cable mark."""
+    group_actuals = tuple(
+        calculate_group_actual(
+            group.section_length_m, group.section_count
+        ).actual_installed_length_m
+        for group in inputs.groups
+    )
+    return CableMarkResult(
+        l_mark_actual=sum_decimals(group_actuals),
+        l_mark_order=calculate_mark_order(inputs.order_lengths_m),
+        group_actuals=group_actuals,
+    )
 
 
 def build_cable_items(

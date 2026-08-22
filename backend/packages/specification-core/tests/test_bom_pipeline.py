@@ -25,7 +25,7 @@ from heatcalc_specification_core.bom import (
 )
 from heatcalc_specification_core.bom.selections import candidate_set_fingerprint
 from heatcalc_specification_core.catalog import CatalogParameters
-from heatcalc_specification_core.catalog_conditions import not_applicable
+from heatcalc_specification_core.catalog.conditions import not_applicable
 
 VARIANT_ID = UUID("00000000-0000-0000-0000-000000000101")
 CATALOG_ID = UUID("00000000-0000-0000-0000-000000000201")
@@ -185,9 +185,7 @@ def _input(*, groups: tuple[CandidateGroup, ...] | None = None) -> GenerationInp
         revision_context=RevisionContext(
             variant_updated_at=datetime(2026, 1, 2, 3, 4, tzinfo=UTC),
             settings_revision=7,
-            input_revisions=(
-                InputRevision(object=ObjectRevision(id=OBJECT_ID, version=4)),
-            ),
+            input_revisions=(InputRevision(object=ObjectRevision(id=OBJECT_ID, version=4)),),
         ),
         preflight_fingerprint=f"sha256:{'1' * 64}",
         generated_at=datetime(2026, 1, 2, 3, 5, tzinfo=UTC),
@@ -207,9 +205,7 @@ def test_full_pipeline_matches_existing_golden_quantities_and_snapshot() -> None
     assert by_category["box"].quantity == Decimal("3")
     assert all(item.source == "auto" for item in outcome.items)
     assert all(item.params["object_type_section"] == "pipe" for item in outcome.items)
-    assert all(
-        item.params["electrical_variant_id"] == str(VARIANT_ID) for item in outcome.items
-    )
+    assert all(item.params["electrical_variant_id"] == str(VARIANT_ID) for item in outcome.items)
     assert all(item.params["catalog_id"] == str(CATALOG_ID) for item in outcome.items)
 
     snapshot = outcome.snapshot.to_dict()

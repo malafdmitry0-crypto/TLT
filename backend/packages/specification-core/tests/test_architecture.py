@@ -47,6 +47,18 @@ STRICT_CONTRACT_FILES = {
     "catalog/contracts.py",
     "catalog/validation_contracts.py",
 }
+REMOVED_LEGACY_LEAF_MODULES = {
+    "aluminium_tape.py",
+    "boxes.py",
+    "cable.py",
+    "catalog_conditions.py",
+    "catalog_identity.py",
+    "connection_kit.py",
+    "fiberglass_tape.py",
+    "grouping.py",
+    "repair_kit.py",
+    "sealant.py",
+}
 
 
 def _forbidden_module(module: str) -> bool:
@@ -94,10 +106,39 @@ def test_core_modules_stay_focused() -> None:
     assert oversized == {}
 
 
+def test_legacy_leaf_modules_are_not_restored() -> None:
+    restored = sorted(
+        relative for relative in REMOVED_LEGACY_LEAF_MODULES if (PACKAGE_ROOT / relative).exists()
+    )
+
+    assert restored == []
+
+
 def test_snapshot_and_catalog_contracts_do_not_use_untyped_mappings() -> None:
     violations: list[str] = []
     for relative in sorted(STRICT_CONTRACT_FILES):
         source = (PACKAGE_ROOT / relative).read_text(encoding="utf-8")
+        for forbidden in ("Mapping[str, Any]", "dict[str, Any]", "from typing import Any"):
+            if forbidden in source:
+                violations.append(f"{relative}: {forbidden}")
+
+    assert violations == []
+
+
+def test_decision_boundaries_do_not_use_any() -> None:
+    boundary_sources = [
+        PACKAGE_ROOT / "diagnostics.py",
+        PACKAGE_ROOT / "bom" / "grouping.py",
+        PACKAGE_ROOT / "immutable_json.py",
+        PACKAGE_ROOT / "json_types.py",
+        *(PACKAGE_ROOT / "catalog").rglob("*.py"),
+        *(PACKAGE_ROOT / "candidates").rglob("*.py"),
+        *(PACKAGE_ROOT / "preflight").rglob("*.py"),
+    ]
+    violations: list[str] = []
+    for path in sorted(boundary_sources):
+        source = path.read_text(encoding="utf-8")
+        relative = path.relative_to(PACKAGE_ROOT)
         for forbidden in ("Mapping[str, Any]", "dict[str, Any]", "from typing import Any"):
             if forbidden in source:
                 violations.append(f"{relative}: {forbidden}")

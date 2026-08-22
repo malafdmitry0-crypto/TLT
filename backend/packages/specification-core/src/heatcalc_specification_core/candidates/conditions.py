@@ -1,85 +1,63 @@
-"""Derive deterministic category-condition slices from electrical results."""
+"""Derive deterministic category-condition slices from typed electrical results."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Sequence
 
-from heatcalc_specification_core.catalog_identity import temperature_group_from_result
-from heatcalc_specification_core.common import normalize_temperature_group
-from heatcalc_specification_core.types import FormulaInputError, TemperatureGroup
+from heatcalc_specification_core.candidates.condition_contracts import (
+    CableCondition,
+    CandidateCondition,
+    CandidateResultSnapshot,
+    InvalidCondition,
+    InvalidConditionReason,
+    TemperatureCondition,
+    UniversalCondition,
+)
 
 TEMP_FILTER_CATEGORIES = frozenset({"connection_kit", "repair_kit", "fiberglass_tape"})
 
 
 def conditions_for_categories(
-    results: Sequence[Mapping[str, Any]],
-) -> dict[str, list[dict[str, Any]]]:
-    cable_identities: set[tuple[str, str]] = set()
-    temperature_groups: set[str] = set()
-    for result in results:
-        identity = cable_identity(result)
-        if identity is not None:
-            cable_identities.add(identity)
-        temperature_group = normalized_temperature_group(result)
-        if temperature_group is not None:
-            temperature_groups.add(temperature_group.value)
+    results: Sequence[CandidateResultSnapshot],
+) -> dict[str, list[CandidateCondition]]:
+    cable_identities = {
+        result.cable_identity for result in results if result.cable_identity is not None
+    }
+    temperature_groups = {
+        result.temperature_group for result in results if result.temperature_group is not None
+    }
 
-    invalid_cable_identity = any(cable_identity(result) is None for result in results)
-    invalid_temperature_group = any(
-        normalized_temperature_group(result) is None for result in results
-    )
+    invalid_cable_identity = any(result.cable_identity is None for result in results)
+    invalid_temperature_group = any(result.temperature_group is None for result in results)
 
-    conditions: dict[str, list[dict[str, Any]]] = {}
+    conditions: dict[str, list[CandidateCondition]] = {}
     if invalid_cable_identity:
-        conditions["cable"] = [{"_invalid_cable_identity": True}]
+        conditions["cable"] = [InvalidCondition(InvalidConditionReason.CABLE_IDENTITY_UNRESOLVED)]
     elif cable_identities:
         conditions["cable"] = [
-            {"mark": mark, "nomenclature_code": code} for mark, code in sorted(cable_identities)
+            CableCondition(identity.mark, identity.nomenclature_code)
+            for identity in sorted(
+                cable_identities,
+                key=lambda item: (item.mark, item.nomenclature_code),
+            )
         ]
     else:
-        conditions["cable"] = [{"_invalid_cable_identity": True}]
+        conditions["cable"] = [InvalidCondition(InvalidConditionReason.CABLE_IDENTITY_UNRESOLVED)]
 
     if invalid_temperature_group:
         for category in sorted(TEMP_FILTER_CATEGORIES):
-            conditions[category] = [{"_invalid_temperature_group": True}]
+            conditions[category] = [
+                InvalidCondition(InvalidConditionReason.TEMPERATURE_GROUP_UNRESOLVED)
+            ]
     elif temperature_groups:
         for category in sorted(TEMP_FILTER_CATEGORIES):
             conditions[category] = [
-                {"temperature_group": group} for group in sorted(temperature_groups)
+                TemperatureCondition(group) for group in sorted(temperature_groups)
             ]
     else:
         for category in sorted(TEMP_FILTER_CATEGORIES):
-            conditions[category] = [{}]
+            conditions[category] = [UniversalCondition()]
 
-    conditions["sealant"] = [{}]
-    conditions["aluminium_tape"] = [{}]
+    conditions["sealant"] = [UniversalCondition()]
+    conditions["aluminium_tape"] = [UniversalCondition()]
     return conditions
-
-
-def cable_identity(result: Mapping[str, Any]) -> tuple[str, str] | None:
-    cable = result.get("cable")
-    mark: Any = None
-    code: Any = None
-    if isinstance(cable, Mapping):
-        mark = cable.get("mark") or cable.get("full_mark")
-        code = cable.get("nomenclature_code")
-    if not isinstance(mark, str) or not mark.strip():
-        mark = result.get("cable_mark")
-    if not isinstance(code, str) or not code.strip():
-        code = result.get("nomenclature_code")
-    if not isinstance(mark, str) or not mark.strip():
-        return None
-    if not isinstance(code, str) or not code.strip():
-        return None
-    return mark.strip(), code.strip()
-
-
-def normalized_temperature_group(result: Mapping[str, Any]) -> TemperatureGroup | None:
-    raw = temperature_group_from_result(dict(result))
-    if raw is None:
-        return None
-    try:
-        return normalize_temperature_group(raw)
-    except FormulaInputError:
-        return None

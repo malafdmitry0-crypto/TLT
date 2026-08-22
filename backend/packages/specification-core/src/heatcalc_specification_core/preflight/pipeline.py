@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 from uuid import UUID
 
 from heatcalc_specification_core.diagnostics import (
@@ -13,6 +12,7 @@ from heatcalc_specification_core.diagnostics import (
     PreflightStatus,
     status_for,
 )
+from heatcalc_specification_core.json_types import JsonObject
 
 from .contracts import (
     PreflightAssignment,
@@ -33,9 +33,9 @@ def prepare_specification(
     exclude_unassigned_confirmed: bool,
     electrical_variant_name: str | None = None,
     project_id: UUID | None = None,
-    resolved_options: Mapping[str, Any] | None = None,
+    resolved_options: JsonObject | None = None,
     catalog_selections: Mapping[str, UUID] | None = None,
-    candidate_groups: Sequence[Mapping[str, Any]] = (),
+    candidate_groups: Sequence[JsonObject] = (),
     additional_diagnostics: Sequence[Diagnostic] = (),
 ) -> PreflightOutcome:
     """Prepare one ER from fully loaded immutable application snapshots."""
@@ -139,7 +139,7 @@ def _diagnostic(
     kind: IssueKind,
     message: str,
     *,
-    issues: tuple[Mapping[str, Any], ...] = (),
-    details: Mapping[str, Any] | None = None,
+    issues: tuple[JsonObject, ...] = (),
+    details: JsonObject | None = None,
 ) -> Diagnostic:
-    return Diagnostic(code.value, kind, message, issues, details or {})
+    return Diagnostic(code, kind, message, issues, details or {})

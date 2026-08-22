@@ -102,9 +102,7 @@ class GenerationSnapshot:
             "catalog_selections": {
                 key: {
                     "catalog_item_id": (
-                        str(value.catalog_item_id)
-                        if value.catalog_item_id is not None
-                        else None
+                        str(value.catalog_item_id) if value.catalog_item_id is not None else None
                     ),
                     "selection_source": value.selection_source,
                     "candidate_set_fingerprint": value.candidate_set_fingerprint,
@@ -204,9 +202,7 @@ def _input_revision(value: InputRevision) -> dict[str, object]:
     if value.section_plan_revision is not None:
         result["section_plan_revision"] = {
             "payload": mutable_json(value.section_plan_revision.payload),
-            "calculation_fingerprint": (
-                value.section_plan_revision.calculation_fingerprint
-            ),
+            "calculation_fingerprint": (value.section_plan_revision.calculation_fingerprint),
             "result_updated_at": (
                 _datetime(value.section_plan_revision.result_updated_at)
                 if value.section_plan_revision.result_updated_at is not None

@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 from uuid import UUID
 
+from heatcalc_specification_core.candidates.condition_contracts import (
+    CandidateCondition,
+    CandidateResultSnapshot,
+    InvalidCondition,
+    InvalidConditionReason,
+    UniversalCondition,
+)
 from heatcalc_specification_core.candidates.conditions import conditions_for_categories
 from heatcalc_specification_core.candidates.contracts import (
     CandidateBuildResult,
@@ -41,7 +47,7 @@ def build_candidate_groups(
     *,
     electrical_variant_id: UUID,
     catalog: CandidateCatalog,
-    contributing_results: Sequence[Mapping[str, Any]],
+    contributing_results: Sequence[CandidateResultSnapshot],
     catalog_selections: Mapping[str, UUID] | None = None,
     object_type_section: str | None = None,
 ) -> CandidateBuildResult:
@@ -57,12 +63,12 @@ def build_candidate_groups(
     diagnostics: list[CandidateDiagnostic] = []
 
     for category in SELECTION_CATEGORIES:
-        slices = conditions_by_category.get(category) or [{}]
-        for conditions in slices:
+        slices = conditions_by_category.get(category) or [UniversalCondition()]
+        for condition in slices:
             invalid = _invalid_condition_diagnostic(
                 electrical_variant_id=electrical_variant_id,
                 category=category,
-                conditions=conditions,
+                condition=condition,
             )
             if invalid is not None:
                 diagnostics.append(invalid)
@@ -71,18 +77,18 @@ def build_candidate_groups(
             candidates = filter_candidates(
                 catalog=catalog,
                 category=category,
-                conditions=conditions,
+                condition=condition,
             )
             group_key = stable_group_key(
                 electrical_variant_id=electrical_variant_id,
                 category=category,
-                conditions=conditions,
+                condition=condition,
                 object_type_section=object_type_section,
             )
             selected, source, group_diagnostics = resolve_selection(
                 group_key=group_key,
                 category=category,
-                conditions=conditions,
+                condition=condition,
                 candidates=candidates,
                 selections=selections,
                 electrical_variant_id=electrical_variant_id,
@@ -95,7 +101,7 @@ def build_candidate_groups(
                     electrical_variant_id=electrical_variant_id,
                     category=category,
                     object_type_section=object_type_section,
-                    conditions=conditions,
+                    condition=condition,
                     candidates=candidates,
                     selected_catalog_item_id=selected,
                     selection_source=source,
@@ -120,9 +126,11 @@ def _invalid_condition_diagnostic(
     *,
     electrical_variant_id: UUID,
     category: str,
-    conditions: Mapping[str, Any],
+    condition: CandidateCondition,
 ) -> CandidateDiagnostic | None:
-    if conditions.get("_invalid_cable_identity"):
+    if not isinstance(condition, InvalidCondition):
+        return None
+    if condition.reason is InvalidConditionReason.CABLE_IDENTITY_UNRESOLVED:
         return diagnostic(
             CandidateDiagnosticCode.CABLE_NOMENCLATURE_MISSING,
             CandidateIssueKind.BLOCKING,
@@ -138,7 +146,7 @@ def _invalid_condition_diagnostic(
                 "category": category,
             },
         )
-    if conditions.get("_invalid_temperature_group"):
+    if condition.reason is InvalidConditionReason.TEMPERATURE_GROUP_UNRESOLVED:
         return diagnostic(
             CandidateDiagnosticCode.FORMULA_INPUT_INVALID,
             CandidateIssueKind.BLOCKING,

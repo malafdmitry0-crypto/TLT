@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 from heatcalc_specification_core.diagnostics import Diagnostic, PreflightStatus
+from heatcalc_specification_core.json_types import JsonObject, json_object
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,7 +37,14 @@ class PreflightCatalog:
     is_complete: bool
     authority: str
     items: tuple[PreflightCatalogItem, ...]
-    completeness_issues: tuple[Mapping[str, Any], ...] = ()
+    completeness_issues: tuple[JsonObject, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "completeness_issues",
+            tuple(json_object(item) for item in self.completeness_issues),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +71,15 @@ class ElectricalResultSnapshot:
     formula_version: str | None = None
     formula_fingerprint: str | None = None
     calculation_fingerprint: str | None = None
-    catalog_fingerprints: Mapping[str, Mapping[str, Any]] | None = None
+    catalog_fingerprints: JsonObject | None = None
+
+    def __post_init__(self) -> None:
+        if self.catalog_fingerprints is not None:
+            object.__setattr__(
+                self,
+                "catalog_fingerprints",
+                json_object(self.catalog_fingerprints),
+            )
 
 
 @dataclass(frozen=True, slots=True)

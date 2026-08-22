@@ -1,20 +1,18 @@
-"""Discriminated applicability conditions for the standalone specification core.
-
-Scalar ``\"unused\"`` is rejected. Three modes only:
-
-* ``match`` — operator + typed value (no decision_ref)
-* ``not_applicable`` — non-empty owner decision_ref only
-* ``unresolved`` — draft-only; always makes the catalog incomplete
-
-R_gr operators are schema-constrained; thresholds come from owner documents,
-not from developer-chosen defaults.
-"""
+"""Discriminated applicability conditions for specification catalogs."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import TypeGuard
+
+from heatcalc_specification_core.catalog.condition_contracts import (
+    ConditionInput,
+    ConditionKind,
+    ConditionValidationIssue,
+)
+from heatcalc_specification_core.json_types import JsonObject, JsonValue, json_object
 
 _DECISION_REF_RE = re.compile(r"^SPEC-OWNER-[A-Z0-9-]+/.+")
 _EX_RGR_DECISION_PREFIX = "SPEC-OWNER-EX-RGR/"
@@ -25,9 +23,6 @@ _CASE1_DEMO_DECISION_REFS = frozenset(
         "DEMO-CASE1-EX-RGR-NOT-APPLICABLE-v1",
     }
 )
-
-# Operators accepted for R_gr match once the owner document supplies them.
-# Empty values are never invented here.
 _R_GR_MATCH_OPERATORS = frozenset({"eq", "lte", "gte", "lt", "gt"})
 _BOOL_MATCH_OPERATORS = frozenset({"eq"})
 
@@ -44,15 +39,19 @@ BOX_R_GR_KEY = "R_gr"
 BOX_CONDITION_KEYS = (*BOX_BOOLEAN_CONDITION_KEYS, BOX_EX_KEY, BOX_R_GR_KEY)
 
 
-def is_condition_object(value: Any) -> bool:
-    return isinstance(value, dict) and "mode" in value
+def is_condition_object(value: ConditionInput) -> TypeGuard[JsonObject]:
+    return isinstance(value, Mapping) and "mode" in value
 
 
-def condition_mode(value: Any) -> str | None:
-    if not isinstance(value, dict):
+def condition_mode(value: ConditionInput) -> str | None:
+    if not isinstance(value, Mapping):
         return None
     mode = value.get("mode")
     return str(mode) if mode is not None else None
+
+
+def _details(**values: JsonValue) -> JsonObject:
+    return json_object(values)
 
 
 def _issue(
@@ -60,17 +59,17 @@ def _issue(
     reason: str,
     *,
     field: str | None = None,
-    details: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    issue: dict[str, Any] = {"code": code, "reason": reason}
-    if field is not None:
-        issue["field"] = field
-    if details:
-        issue["details"] = details
-    return issue
+    details: JsonObject | None = None,
+) -> ConditionValidationIssue:
+    return ConditionValidationIssue(
+        code=code,
+        reason=reason,
+        field=field,
+        details=details or {},
+    )
 
 
-def _decimal_string(value: Any) -> str | None:
+def _decimal_string(value: ConditionInput) -> str | None:
     if isinstance(value, bool) or value is None:
         return None
     try:
@@ -79,24 +78,22 @@ def _decimal_string(value: Any) -> str | None:
         return None
     if not result.is_finite() or result < 0:
         return None
-    # Canonical Decimal string for storage comparison.
-    return format(result.normalize(), "f") if result == result.to_integral_value() else format(
-        result, "f"
+    return (
+        format(result.normalize(), "f")
+        if result == result.to_integral_value()
+        else format(result, "f")
     )
 
 
 def validate_condition_shape(
-    value: Any,
+    value: ConditionInput,
     *,
     field: str,
-    kind: str,
-) -> list[dict[str, Any]]:
-    """Validate one condition cell. ``kind`` is ``bool``, ``ex``, or ``r_gr``."""
-    issues: list[dict[str, Any]] = []
+    kind: ConditionKind,
+) -> tuple[ConditionValidationIssue, ...]:
+    issues: list[ConditionValidationIssue] = []
 
-    if value == "unused" or (
-        isinstance(value, str) and value.strip().lower() == "unused"
-    ):
+    if value == "unused" or (isinstance(value, str) and value.strip().lower() == "unused"):
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING"
@@ -106,7 +103,7 @@ def validate_condition_shape(
                 field=field,
             )
         )
-        return issues
+        return tuple(issues)
 
     if isinstance(value, bool | int | float | Decimal) or value is None:
         issues.append(
@@ -116,12 +113,12 @@ def validate_condition_shape(
                 else "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                 "condition_must_be_discriminated_object",
                 field=field,
-                details={"got_type": type(value).__name__},
+                details=_details(got_type=type(value).__name__),
             )
         )
-        return issues
+        return tuple(issues)
 
-    if not isinstance(value, dict):
+    if not isinstance(value, Mapping):
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING"
@@ -129,10 +126,10 @@ def validate_condition_shape(
                 else "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                 "condition_must_be_discriminated_object",
                 field=field,
-                details={"got_type": type(value).__name__},
+                details=_details(got_type=type(value).__name__),
             )
         )
-        return issues
+        return tuple(issues)
 
     mode = value.get("mode")
     if mode not in {"match", "not_applicable", "unresolved"}:
@@ -141,10 +138,10 @@ def validate_condition_shape(
                 "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                 "condition_mode_invalid",
                 field=field,
-                details={"mode": mode},
+                details=_details(mode=mode),
             )
         )
-        return issues
+        return tuple(issues)
 
     extra_keys = set(value) - {"mode", "operator", "value", "decision_ref"}
     if extra_keys:
@@ -153,7 +150,7 @@ def validate_condition_shape(
                 "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                 "condition_unknown_fields",
                 field=field,
-                details={"fields": sorted(extra_keys)},
+                details=_details(fields=tuple(sorted(extra_keys))),
             )
         )
 
@@ -175,13 +172,9 @@ def validate_condition_shape(
                 )
             )
         issues.append(
-            _issue(
-                "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
-                "condition_unresolved",
-                field=field,
-            )
+            _issue("SPEC_ACCESSORY_CATALOG_INCOMPLETE", "condition_unresolved", field=field)
         )
-        return issues
+        return tuple(issues)
 
     if mode == "not_applicable":
         if value.get("operator") is not None or value.get("value") is not None:
@@ -214,7 +207,7 @@ def validate_condition_shape(
                     else "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                     "not_applicable_decision_ref_invalid",
                     field=field,
-                    details={"decision_ref": decision_ref},
+                    details=_details(decision_ref=decision_ref),
                 )
             )
         elif (
@@ -227,12 +220,11 @@ def validate_condition_shape(
                     "SPEC_BOX_EX_RGR_MATRIX_MISSING",
                     "ex_rgr_decision_ref_namespace_invalid",
                     field=field,
-                    details={"decision_ref": decision_ref},
+                    details=_details(decision_ref=decision_ref),
                 )
             )
-        return issues
+        return tuple(issues)
 
-    # mode == match
     if value.get("decision_ref") is not None:
         issues.append(
             _issue(
@@ -251,7 +243,7 @@ def validate_condition_shape(
                 field=field,
             )
         )
-        return issues
+        return tuple(issues)
 
     if kind in {"bool", "ex"}:
         if operator not in _BOOL_MATCH_OPERATORS:
@@ -262,7 +254,7 @@ def validate_condition_shape(
                     else "SPEC_BOX_EX_RGR_MATRIX_MISSING",
                     "match_operator_invalid_for_boolean",
                     field=field,
-                    details={"operator": operator},
+                    details=_details(operator=operator),
                 )
             )
         if raw_value is not True and raw_value is not False:
@@ -273,23 +265,22 @@ def validate_condition_shape(
                     else "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
                     "boolean_match_value_invalid",
                     field=field,
-                    details={"value": raw_value},
+                    details=_details(value=raw_value),
                 )
             )
-        return issues
+        return tuple(issues)
 
-    # R_gr
     if operator not in _R_GR_MATCH_OPERATORS:
         issues.append(
             _issue(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING",
                 "r_gr_match_operator_not_owner_approved",
                 field=field,
-                details={
-                    "operator": operator,
-                    "allowed_operators": sorted(_R_GR_MATCH_OPERATORS),
-                    "owner_decision": "SPEC-OWNER-EX-RGR",
-                },
+                details=_details(
+                    operator=operator,
+                    allowed_operators=tuple(sorted(_R_GR_MATCH_OPERATORS)),
+                    owner_decision="SPEC-OWNER-EX-RGR",
+                ),
             )
         )
     if _decimal_string(raw_value) is None:
@@ -298,10 +289,10 @@ def validate_condition_shape(
                 "SPEC_BOX_EX_RGR_MATRIX_MISSING",
                 "r_gr_match_value_invalid",
                 field=field,
-                details={"value": raw_value},
+                details=_details(value=raw_value),
             )
         )
-    return issues
+    return tuple(issues)
 
 
 def material_approval_reference_ok(source_ref: str) -> bool:
@@ -309,21 +300,15 @@ def material_approval_reference_ok(source_ref: str) -> bool:
 
 
 def evaluate_condition_for_match(
-    value: Any,
+    value: ConditionInput,
     *,
     actual_bool: bool | None = None,
     actual_decimal: Decimal | None = None,
-    kind: str,
+    kind: ConditionKind,
 ) -> bool | None:
-    """Return True/False if condition applies, None if not_applicable (skipped).
-
-    Raises ValueError for unresolved/legacy/invalid shapes (caller maps to FormulaInputError).
-    """
-    if value == "unused" or (
-        isinstance(value, str) and value.strip().lower() == "unused"
-    ):
+    if value == "unused" or (isinstance(value, str) and value.strip().lower() == "unused"):
         raise ValueError("legacy_unused_condition_rejected")
-    if not isinstance(value, dict):
+    if not isinstance(value, Mapping):
         raise ValueError("condition_must_be_discriminated_object")
     mode = value.get("mode")
     if mode == "not_applicable":
@@ -338,7 +323,6 @@ def evaluate_condition_for_match(
         if operator != "eq" or not isinstance(expected, bool) or actual_bool is None:
             raise ValueError("boolean_match_invalid")
         return actual_bool is expected
-    # r_gr
     if actual_decimal is None:
         return False
     if operator not in _R_GR_MATCH_OPERATORS:
@@ -357,15 +341,13 @@ def evaluate_condition_for_match(
     raise ValueError("r_gr_match_operator_not_owner_approved")
 
 
-def match_condition(*, operator: str = "eq", value: Any) -> dict[str, Any]:
-    """Test/fixture helper for match-mode conditions."""
+def match_condition(*, operator: str = "eq", value: JsonValue) -> dict[str, JsonValue]:
     return {"mode": "match", "operator": operator, "value": value}
 
 
-def not_applicable(decision_ref: str) -> dict[str, Any]:
-    """Test/fixture helper for explicit owner not_applicable dispositions."""
+def not_applicable(decision_ref: str) -> dict[str, JsonValue]:
     return {"mode": "not_applicable", "decision_ref": decision_ref}
 
 
-def unresolved() -> dict[str, Any]:
+def unresolved() -> dict[str, JsonValue]:
     return {"mode": "unresolved"}

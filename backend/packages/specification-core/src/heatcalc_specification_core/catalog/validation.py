@@ -6,38 +6,61 @@ from collections.abc import Sequence
 from decimal import Decimal, InvalidOperation
 
 from heatcalc_specification_core.catalog.box_validation import validate_box_matrix_authority
-from heatcalc_specification_core.catalog.validation_contracts import (
-    CatalogCategory,
-    CatalogContentItem,
-    CatalogValidation,
-    CatalogValidationIssue,
-)
-from heatcalc_specification_core.catalog_conditions import (
+from heatcalc_specification_core.catalog.condition_contracts import ConditionKind
+from heatcalc_specification_core.catalog.conditions import (
     BOX_BOOLEAN_CONDITION_KEYS,
     BOX_EX_KEY,
     BOX_R_GR_KEY,
     material_approval_reference_ok,
     validate_condition_shape,
 )
-from heatcalc_specification_core.json_types import JsonObject, json_object
+from heatcalc_specification_core.catalog.validation_contracts import (
+    CatalogCategory,
+    CatalogContentItem,
+    CatalogValidation,
+    CatalogValidationIssue,
+)
+from heatcalc_specification_core.json_types import JsonObject
 
 REQUIRED_MARKS: dict[CatalogCategory, frozenset[str]] = {
     CatalogCategory.CABLE: frozenset(
         {
-            "10ТТН2-СТ", "17ТТН2-СТ", "25ТТН2-СТ", "31ТТН2-СТ",
-            "10ТТН2-СР", "17ТТН2-СР", "25ТТН2-СР", "31ТТН2-СР",
-            "15ТТВ2-СР", "30ТТВ2-СР", "45ТТВ2-СР", "60ТТВ2-СР",
-            "15ТТХ2-СР", "30ТТХ2-СР", "45ТТХ2-СР", "60ТТХ2-СР",
-            "75ТТХ2-СР", "90ТТХ2-СР",
+            "10ТТН2-СТ",
+            "17ТТН2-СТ",
+            "25ТТН2-СТ",
+            "31ТТН2-СТ",
+            "10ТТН2-СР",
+            "17ТТН2-СР",
+            "25ТТН2-СР",
+            "31ТТН2-СР",
+            "15ТТВ2-СР",
+            "30ТТВ2-СР",
+            "45ТТВ2-СР",
+            "60ТТВ2-СР",
+            "15ТТХ2-СР",
+            "30ТТХ2-СР",
+            "45ТТХ2-СР",
+            "60ТТХ2-СР",
+            "75ТТХ2-СР",
+            "90ТТХ2-СР",
         }
     ),
     CatalogCategory.CONNECTION_KIT: frozenset({"КСН-1", "КСН-2", "КСВ-1", "КСВ-2"}),
     CatalogCategory.REPAIR_KIT: frozenset({"КСР-1", "КСР-2"}),
     CatalogCategory.BOX: frozenset(
         {
-            "СКВ 1201", "СКВ 1202", "СКВ 1201-С", "СКВ 1201-С1",
-            "СКВ 1202-С", "СКВ 1202-С1", "СКВ 1601", "СКВ 1602",
-            "СКВ 1601-С", "СКВ 1601-С1", "СКВ 1602-С", "СКВ 1602-С1",
+            "СКВ 1201",
+            "СКВ 1202",
+            "СКВ 1201-С",
+            "СКВ 1201-С1",
+            "СКВ 1202-С",
+            "СКВ 1202-С1",
+            "СКВ 1601",
+            "СКВ 1602",
+            "СКВ 1601-С",
+            "СКВ 1601-С1",
+            "СКВ 1602-С",
+            "СКВ 1602-С1",
         }
     ),
 }
@@ -106,9 +129,7 @@ def validate_catalog_content(items: Sequence[CatalogContentItem]) -> CatalogVali
             CatalogValidationIssue(
                 "SPEC_ACCESSORY_CATALOG_ITEM_MISSING",
                 "fiberglass_temperature_groups_incomplete",
-                details={
-                    "missing_groups": tuple(sorted(TEMPERATURE_GROUPS - fiberglass_groups))
-                },
+                details={"missing_groups": tuple(sorted(TEMPERATURE_GROUPS - fiberglass_groups))},
             )
         )
     issues.extend(validate_box_matrix_authority(by_category[CatalogCategory.BOX]))
@@ -159,9 +180,15 @@ def _validate_material(
     issues: list[CatalogValidationIssue],
 ) -> None:
     if not item.nomenclature_code.strip():
-        issues.append(_issue("SPEC_ACCESSORY_CATALOG_ITEM_MISSING", "material_nomenclature_code_missing", item))
+        issues.append(
+            _issue(
+                "SPEC_ACCESSORY_CATALOG_ITEM_MISSING", "material_nomenclature_code_missing", item
+            )
+        )
     if not item.supply_unit.strip():
-        issues.append(_issue("SPEC_ACCESSORY_CATALOG_ITEM_MISSING", "material_supply_unit_missing", item))
+        issues.append(
+            _issue("SPEC_ACCESSORY_CATALOG_ITEM_MISSING", "material_supply_unit_missing", item)
+        )
     if not material_approval_reference_ok(item.source_ref) and not item.is_demo_source:
         issues.append(
             _issue(
@@ -179,23 +206,37 @@ def _validate_box(
 ) -> None:
     for key in BOX_BOOLEAN_CONDITION_KEYS:
         if key not in item.applicability:
-            issues.append(_issue("SPEC_ACCESSORY_CATALOG_INCOMPLETE", f"box_condition_{key}_missing_or_invalid", item))
+            issues.append(
+                _issue(
+                    "SPEC_ACCESSORY_CATALOG_INCOMPLETE",
+                    f"box_condition_{key}_missing_or_invalid",
+                    item,
+                )
+            )
         else:
             _attach_condition_issues(item, key, "bool", issues)
     if BOX_EX_KEY not in item.applicability:
-        issues.append(_issue("SPEC_BOX_EX_RGR_MATRIX_MISSING", "authoritative_Ex_condition_missing", item))
+        issues.append(
+            _issue("SPEC_BOX_EX_RGR_MATRIX_MISSING", "authoritative_Ex_condition_missing", item)
+        )
     else:
         _attach_condition_issues(item, BOX_EX_KEY, "ex", issues)
     if BOX_R_GR_KEY not in item.applicability:
-        issues.append(_issue("SPEC_BOX_EX_RGR_MATRIX_MISSING", "authoritative_R_gr_condition_missing", item))
+        issues.append(
+            _issue("SPEC_BOX_EX_RGR_MATRIX_MISSING", "authoritative_R_gr_condition_missing", item)
+        )
     else:
         _attach_condition_issues(item, BOX_R_GR_KEY, "r_gr", issues)
     divider = _require_decimal(item, "section_divider", issues, source=item.formula_parameters)
     minimum = _require_decimal(item, "min_quantity", issues, source=item.formula_parameters)
     if minimum is not None and minimum != minimum.to_integral_value():
-        issues.append(_issue("SPEC_FORMULA_INPUT_INVALID", "box_min_quantity_must_be_integer", item))
+        issues.append(
+            _issue("SPEC_FORMULA_INPUT_INVALID", "box_min_quantity_must_be_integer", item)
+        )
     if divider is not None and divider != divider.to_integral_value():
-        issues.append(_issue("SPEC_FORMULA_INPUT_INVALID", "box_section_divider_must_be_integer", item))
+        issues.append(
+            _issue("SPEC_FORMULA_INPUT_INVALID", "box_section_divider_must_be_integer", item)
+        )
     if item.formula_parameters.get("rounding_mode") not in {"up", "down"}:
         issues.append(_issue("SPEC_FORMULA_INPUT_INVALID", "box_rounding_mode_invalid", item))
 
@@ -203,18 +244,17 @@ def _validate_box(
 def _attach_condition_issues(
     item: CatalogContentItem,
     field: str,
-    kind: str,
+    kind: ConditionKind,
     issues: list[CatalogValidationIssue],
 ) -> None:
-    for raw in validate_condition_shape(item.applicability.get(field), field=field, kind=kind):
-        details = raw.get("details")
+    for issue in validate_condition_shape(item.applicability.get(field), field=field, kind=kind):
         issues.append(
             CatalogValidationIssue(
-                code=str(raw["code"]),
-                reason=str(raw["reason"]),
+                code=issue.code,
+                reason=issue.reason,
                 item_key=item.item_key,
                 category=item.category.value,
-                details=json_object(details) if isinstance(details, dict) else {},
+                details=issue.details,
             )
         )
 
@@ -239,7 +279,9 @@ def _require_decimal(
                 item,
                 details={
                     "parameter_group": (
-                        "formula_parameters" if source is item.formula_parameters else "package_parameters"
+                        "formula_parameters"
+                        if source is item.formula_parameters
+                        else "package_parameters"
                     )
                 },
             )

@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
-from heatcalc_specification_core.aluminium_tape import calculate_aluminium_tape
 from heatcalc_specification_core.bom.contracts import (
     BlockingBomError,
     BomItem,
@@ -18,9 +18,146 @@ from heatcalc_specification_core.bom.contracts import (
     SpecificationDiagnostic,
 )
 from heatcalc_specification_core.bom.rows import FORMULA_FINGERPRINTS, item_from_catalog
-from heatcalc_specification_core.common import normalize_temperature_group
-from heatcalc_specification_core.fiberglass_tape import calculate_fiberglass_tape
-from heatcalc_specification_core.types import AluminiumObjectInput, FiberglassObjectInput
+from heatcalc_specification_core.common import (
+    FIBERGLASS_PITCH_M,
+    FIBERGLASS_RESERVE,
+    FIBERGLASS_WRAP_FACTOR,
+    MM_TO_M,
+    PI,
+    ceil_div,
+    normalize_temperature_group,
+    require_positive_divider,
+    sum_decimals,
+    to_non_negative_decimal,
+    to_positive_decimal,
+)
+from heatcalc_specification_core.json_types import JsonValue
+from heatcalc_specification_core.types import (
+    AluminiumObjectInput,
+    AluminiumObjectResult,
+    AluminiumTapeInput,
+    AluminiumTapeResult,
+    FiberglassObjectInput,
+    FiberglassObjectResult,
+    FiberglassTapeInput,
+    FiberglassTapeResult,
+)
+
+
+def calculate_fiberglass_object_length(
+    outer_diameter_mm: Any,
+    actual_installed_length_m: Any,
+) -> FiberglassObjectResult:
+    """Calculate fiberglass length for one pipe, including reserve once."""
+    diameter = to_positive_decimal(outer_diameter_mm, name="outer_diameter_mm")
+    length = to_non_negative_decimal(actual_installed_length_m, name="actual_installed_length_m")
+    circumference = (PI * diameter * FIBERGLASS_WRAP_FACTOR) / MM_TO_M
+    return FiberglassObjectResult(
+        required_length_m=(circumference * (length / FIBERGLASS_PITCH_M)) * FIBERGLASS_RESERVE
+    )
+
+
+def calculate_fiberglass_reels_from_total(
+    total_required_length_m: Any,
+    reel_length_m: Any,
+) -> int:
+    total = to_non_negative_decimal(total_required_length_m, name="total_required_length_m")
+    reel = require_positive_divider(reel_length_m, name="reel_length_m")
+    return ceil_div(total, reel, divider_name="reel_length_m")
+
+
+def calculate_fiberglass_tape(
+    objects: Sequence[FiberglassObjectInput | dict[str, Any]],
+    reel_length_m: Any,
+) -> FiberglassTapeResult:
+    object_lengths = tuple(
+        calculate_fiberglass_object_length(
+            obj.outer_diameter_mm
+            if isinstance(obj, FiberglassObjectInput)
+            else obj["outer_diameter_mm"],
+            obj.actual_installed_length_m
+            if isinstance(obj, FiberglassObjectInput)
+            else obj["actual_installed_length_m"],
+        ).required_length_m
+        for obj in objects
+    )
+    total = sum_decimals(object_lengths)
+    reel = require_positive_divider(reel_length_m, name="reel_length_m")
+    return FiberglassTapeResult(
+        quantity=ceil_div(total, reel, divider_name="reel_length_m"),
+        total_required_length_m=total,
+        object_lengths_m=object_lengths,
+        reel_length_m=reel,
+    )
+
+
+def calculate_fiberglass_tape_from_input(inputs: FiberglassTapeInput) -> FiberglassTapeResult:
+    return calculate_fiberglass_tape(inputs.objects, inputs.reel_length_m)
+
+
+def calculate_aluminium_object_length(
+    actual_installed_length_m: Any,
+    consumption_m_per_cable_m: Any,
+) -> AluminiumObjectResult:
+    length = to_non_negative_decimal(actual_installed_length_m, name="actual_installed_length_m")
+    consumption = to_non_negative_decimal(
+        consumption_m_per_cable_m, name="consumption_m_per_cable_m"
+    )
+    return AluminiumObjectResult(required_length_m=length * consumption)
+
+
+def calculate_aluminium_reels_from_total(
+    total_required_length_m: Any,
+    reel_length_m: Any,
+) -> int:
+    total = to_non_negative_decimal(total_required_length_m, name="total_required_length_m")
+    reel = require_positive_divider(reel_length_m, name="reel_length_m")
+    return ceil_div(total, reel, divider_name="reel_length_m")
+
+
+def calculate_aluminium_tape(
+    objects: Sequence[AluminiumObjectInput | dict[str, Any]],
+    reel_length_m: Any,
+) -> AluminiumTapeResult:
+    object_lengths = tuple(
+        calculate_aluminium_object_length(
+            obj.actual_installed_length_m
+            if isinstance(obj, AluminiumObjectInput)
+            else obj["actual_installed_length_m"],
+            obj.consumption_m_per_cable_m
+            if isinstance(obj, AluminiumObjectInput)
+            else obj["consumption_m_per_cable_m"],
+        ).required_length_m
+        for obj in objects
+    )
+    total = sum_decimals(object_lengths)
+    reel = require_positive_divider(reel_length_m, name="reel_length_m")
+    return AluminiumTapeResult(
+        quantity=ceil_div(total, reel, divider_name="reel_length_m"),
+        total_required_length_m=total,
+        object_lengths_m=object_lengths,
+        reel_length_m=reel,
+    )
+
+
+def calculate_aluminium_from_scalar(
+    actual_installed_length_m: Any,
+    consumption_m_per_cable_m: Any,
+    reel_length_m: Any,
+) -> AluminiumTapeResult:
+    return calculate_aluminium_tape(
+        (
+            AluminiumObjectInput(
+                actual_installed_length_m=actual_installed_length_m,
+                consumption_m_per_cable_m=consumption_m_per_cable_m,
+            ),
+        ),
+        reel_length_m,
+    )
+
+
+def calculate_aluminium_tape_from_input(inputs: AluminiumTapeInput) -> AluminiumTapeResult:
+    return calculate_aluminium_tape(inputs.objects, inputs.reel_length_m)
 
 
 def build_tape_items(
@@ -191,7 +328,7 @@ def _parameter_missing(item: CatalogItem, field: str, *, parameter_kind: str) ->
 
 
 def _missing(reason: str, label: str, temp: str | None = None) -> BlockingBomError:
-    issue: dict[str, object] = {"reason": reason}
+    issue: dict[str, JsonValue] = {"reason": reason}
     if temp is not None:
         issue["temperature_group"] = temp
     suffix = f" для temperature_group={temp}" if temp is not None else ""

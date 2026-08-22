@@ -7,7 +7,6 @@ import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 from uuid import UUID
 
 
@@ -19,7 +18,7 @@ def canonical_decimal(value: Decimal) -> str:
     return "0" if normalized.is_zero() else format(normalized, "f")
 
 
-def normalize_json(value: Any) -> Any:
+def normalize_json(value: object) -> object:
     """Normalize the supported immutable value domain for canonical JSON."""
     if isinstance(value, UUID):
         return str(value)
@@ -40,7 +39,7 @@ def normalize_json(value: Any) -> Any:
     raise TypeError(f"fingerprint payload contains unsupported type: {type(value).__name__}")
 
 
-def canonical_fingerprint(payload: Any) -> str:
+def canonical_fingerprint(payload: object) -> str:
     """Return SHA-256 over canonical JSON; ambiguous floats are rejected."""
     encoded = json.dumps(
         normalize_json(payload),

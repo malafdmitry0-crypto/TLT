@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 from heatcalc_specification_core.immutable_json import canonical_fingerprint
+from heatcalc_specification_core.json_types import JsonObject
 
 from .contracts import CatalogIdentity, PreflightAssignment
 
@@ -19,9 +20,9 @@ def preflight_fingerprint(
     electrical_variant_id: UUID,
     assignments: Sequence[PreflightAssignment],
     catalog: CatalogIdentity,
-    resolved_options: Mapping[str, Any] | None,
+    resolved_options: JsonObject | None,
     catalog_selections: Mapping[str, UUID],
-    candidate_groups: Sequence[Mapping[str, Any]],
+    candidate_groups: Sequence[JsonObject],
     excluded_unassigned_object_ids: Sequence[UUID],
 ) -> str:
     rows = [
@@ -29,7 +30,7 @@ def preflight_fingerprint(
         for row in sorted(assignments, key=lambda item: str(item.object_id))
         if row.assignment_state != "unassigned"
     ]
-    payload: dict[str, Any] = {
+    payload: dict[str, object] = {
         "fingerprint_schema": FINGERPRINT_SCHEMA,
         "electrical_variant_id": electrical_variant_id,
         "specification_catalog": {
@@ -54,7 +55,7 @@ def preflight_fingerprint(
     return canonical_fingerprint(payload)
 
 
-def _fingerprint_row(row: PreflightAssignment) -> dict[str, Any]:
+def _fingerprint_row(row: PreflightAssignment) -> dict[str, object]:
     result = row.result
     return {
         "assignment": {

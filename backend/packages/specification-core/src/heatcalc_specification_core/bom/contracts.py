@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Literal, TypeAlias
 from uuid import UUID
 
 from heatcalc_specification_core.catalog import CatalogParameters
-from heatcalc_specification_core.json_types import JsonObject
+from heatcalc_specification_core.json_types import JsonObject, json_object
 
 if TYPE_CHECKING:
     from heatcalc_specification_core.bom.snapshot_contracts import GenerationSnapshot
@@ -193,6 +193,9 @@ class BomItem:
     params: JsonObject
     source: Literal["auto"] = "auto"
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "params", json_object(self.params))
+
 
 @dataclass(frozen=True, slots=True)
 class SpecificationDiagnostic:
@@ -201,6 +204,10 @@ class SpecificationDiagnostic:
     message: str
     issues: tuple[JsonObject, ...] = ()
     details: JsonObject = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "issues", tuple(json_object(item) for item in self.issues))
+        object.__setattr__(self, "details", json_object(self.details))
 
 
 @dataclass(frozen=True, slots=True)

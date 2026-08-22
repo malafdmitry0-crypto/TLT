@@ -3,20 +3,27 @@ from __future__ import annotations
 from collections.abc import Mapping
 from uuid import UUID
 
+import pytest
 from heatcalc_specification_core.candidates import (
+    CableCondition,
     CandidateCatalog,
     CandidateCatalogItem,
     CandidateCatalogVersion,
     CandidateDiagnosticCode,
     CandidateIssueKind,
+    CandidateResultSnapshot,
     SelectionSource,
+    TemperatureCondition,
     build_candidate_groups,
     candidate_groups_fingerprint_payload,
     candidate_set_fingerprint,
     catalog_selections_for_variant,
+    condition_from_json,
+    condition_json,
     stable_group_key,
 )
 from heatcalc_specification_core.catalog import CatalogParameters
+from heatcalc_specification_core.types import TemperatureGroup
 
 VARIANT_ID = UUID("10000000-0000-0000-0000-000000000001")
 OTHER_VARIANT_ID = UUID("20000000-0000-0000-0000-000000000002")
@@ -77,11 +84,19 @@ def _catalog(*, multiple_connection_kits: bool = False) -> CandidateCatalog:
     )
 
 
-def _result(*, temperature_group: str = "high") -> dict[str, object]:
-    return {
+def _result(
+    *, temperature_group: str | None = "high", include_code: bool = True
+) -> CandidateResultSnapshot:
+    payload: dict[str, object] = {
         "cable": {"mark": "30ТТВ2-СР", "nomenclature_code": "001-002-002"},
-        "temperature_group": temperature_group,
     }
+    if temperature_group is not None:
+        payload["temperature_group"] = temperature_group
+    if not include_code:
+        cable = payload["cable"]
+        assert isinstance(cable, dict)
+        cable.pop("nomenclature_code")
+    return CandidateResultSnapshot.from_mapping(payload)
 
 
 def test_single_candidates_auto_select_and_boxes_stay_out() -> None:
@@ -166,26 +181,20 @@ def test_multi_candidate_requires_explicit_member_and_rejects_foreign_item() -> 
 
 
 def test_exact_cable_identity_and_explicit_temperature_group_are_fail_closed() -> None:
-    missing_code = _result()
-    cable = missing_code["cable"]
-    assert isinstance(cable, dict)
-    cable.pop("nomenclature_code")
     cable_failure = build_candidate_groups(
         electrical_variant_id=VARIANT_ID,
         catalog=_catalog(),
-        contributing_results=[missing_code],
+        contributing_results=[_result(include_code=False)],
     )
     assert any(
         item.code is CandidateDiagnosticCode.CABLE_NOMENCLATURE_MISSING
         for item in cable_failure.diagnostics
     )
 
-    missing_temperature = _result()
-    missing_temperature.pop("temperature_group")
     temperature_failure = build_candidate_groups(
         electrical_variant_id=VARIANT_ID,
         catalog=_catalog(),
-        contributing_results=[missing_temperature],
+        contributing_results=[_result(temperature_group=None)],
     )
     assert {
         diagnostic.details["category"]
@@ -198,17 +207,17 @@ def test_selection_scope_isolated_but_malformed_and_unknown_scopes_fail_closed()
     own_key = stable_group_key(
         electrical_variant_id=VARIANT_ID,
         category="connection_kit",
-        conditions={"temperature_group": "MEDIUM_HIGH"},
+        condition=TemperatureCondition(TemperatureGroup.MEDIUM_HIGH),
     )
     other_key = stable_group_key(
         electrical_variant_id=OTHER_VARIANT_ID,
         category="connection_kit",
-        conditions={"temperature_group": "MEDIUM_HIGH"},
+        condition=TemperatureCondition(TemperatureGroup.MEDIUM_HIGH),
     )
     outside_key = stable_group_key(
         electrical_variant_id=UUID("90000000-0000-0000-0000-000000000009"),
         category="connection_kit",
-        conditions={"temperature_group": "MEDIUM_HIGH"},
+        condition=TemperatureCondition(TemperatureGroup.MEDIUM_HIGH),
     )
     selected = _catalog().items[1].id
 
@@ -257,11 +266,11 @@ def test_fingerprints_and_payload_are_deterministic() -> None:
     assert stable_group_key(
         electrical_variant_id=VARIANT_ID,
         category="cable",
-        conditions={"mark": "30ТТВ2-СР", "nomenclature_code": "001-002-002"},
+        condition=CableCondition("30ТТВ2-СР", "001-002-002"),
     ) == stable_group_key(
         electrical_variant_id=VARIANT_ID,
         category="cable",
-        conditions={"nomenclature_code": "001-002-002", "mark": "30ТТВ2-СР"},
+        condition=CableCondition("30ТТВ2-СР", "001-002-002"),
     )
 
 
@@ -293,3 +302,32 @@ def test_empty_contributing_results_has_no_groups_or_diagnostics() -> None:
     )
     assert built.groups == ()
     assert built.diagnostics == ()
+
+
+def test_candidate_snapshot_and_condition_are_typed_and_detached_from_input() -> None:
+    source: dict[str, object] = {
+        "cable": {"mark": " 30ТТВ2-СР ", "nomenclature_code": " 001-002-002 "},
+        "cable_snapshot": {"technical": {"temperature_group": "medium-high"}},
+    }
+
+    snapshot = CandidateResultSnapshot.from_mapping(source)
+    assert snapshot.cable_identity is not None
+    assert snapshot.cable_identity.mark == "30ТТВ2-СР"
+    assert snapshot.cable_identity.nomenclature_code == "001-002-002"
+    assert snapshot.temperature_group is TemperatureGroup.MEDIUM_HIGH
+
+    condition = condition_from_json(
+        {"mark": snapshot.cable_identity.mark, "nomenclature_code": "001-002-002"}
+    )
+    frozen = condition_json(condition)
+    cable = source["cable"]
+    assert isinstance(cable, dict)
+    cable["mark"] = "changed"
+    assert frozen == {"mark": "30ТТВ2-СР", "nomenclature_code": "001-002-002"}
+
+
+def test_candidate_condition_parser_rejects_partial_and_unknown_shapes() -> None:
+    with pytest.raises(ValueError, match="requires mark"):
+        condition_from_json({"mark": "30ТТВ2-СР"})
+    with pytest.raises(ValueError, match="unknown candidate condition"):
+        condition_from_json({"temperature_group": "not-a-group"})

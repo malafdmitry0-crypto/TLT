@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 from heatcalc_specification_core.diagnostics import DiagnosticCode, PreflightStatus
 from heatcalc_specification_core.immutable_json import canonical_fingerprint
+from heatcalc_specification_core.json_types import json_object
 from heatcalc_specification_core.preflight import (
     CatalogIdentity,
     ElectricalResultSnapshot,
@@ -165,3 +166,19 @@ def test_canonical_fingerprint_normalizes_decimal_zero_and_rejects_floats() -> N
     )
     with pytest.raises(ValueError, match="ambiguous float"):
         canonical_fingerprint({"value": 1.0})
+
+
+def test_preflight_catalog_recursively_freezes_completeness_issues() -> None:
+    nested = ["missing"]
+    issue: dict[str, object] = {"reason": "catalog_incomplete", "fields": nested}
+    catalog = replace(
+        _catalog(),
+        is_complete=False,
+        completeness_issues=(json_object(issue),),
+    )
+
+    nested.append("mutated")
+
+    assert catalog.completeness_issues == (
+        {"reason": "catalog_incomplete", "fields": ("missing",)},
+    )

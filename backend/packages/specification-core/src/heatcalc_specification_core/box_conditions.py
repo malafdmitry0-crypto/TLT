@@ -11,7 +11,8 @@ from heatcalc_specification_core.box_quantity import (
     _N_SEC_GE_THRESHOLD,
     SPEC_BOX_EX_RGR_MATRIX_MISSING,
 )
-from heatcalc_specification_core.catalog_conditions import evaluate_condition_for_match
+from heatcalc_specification_core.catalog.condition_contracts import ConditionKind
+from heatcalc_specification_core.catalog.conditions import evaluate_condition_for_match
 from heatcalc_specification_core.common import (
     to_non_negative_decimal,
     to_non_negative_int,
@@ -253,7 +254,14 @@ def row_conditions_match(
         ex=ex,
         l_k2i_m=l_k2i,
     )
-    def _eval(raw: Any, *, field: str, kind: str, actual_bool: bool | None = None) -> bool:
+
+    def _eval(
+        raw: Any,
+        *,
+        field: str,
+        kind: ConditionKind,
+        actual_bool: bool | None = None,
+    ) -> bool:
         if raw is None:
             return True
         _reject_legacy_unused(

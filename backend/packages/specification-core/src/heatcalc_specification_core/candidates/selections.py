@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any
 from uuid import UUID
 
+from heatcalc_specification_core.candidates.condition_contracts import (
+    CandidateCondition,
+    condition_json,
+)
 from heatcalc_specification_core.candidates.contracts import (
     CandidateCatalog,
     CandidateDiagnostic,
@@ -44,7 +47,7 @@ def resolve_selection(
     *,
     group_key: str,
     category: str,
-    conditions: Mapping[str, Any],
+    condition: CandidateCondition,
     candidates: Sequence[SpecificationCandidate],
     selections: Mapping[str, UUID],
     electrical_variant_id: UUID,
@@ -66,14 +69,14 @@ def resolve_selection(
                         {
                             "reason": "no_matching_catalog_item",
                             "category": category,
-                            "conditions": dict(conditions),
+                            "conditions": condition_json(condition),
                             "group_key": group_key,
                         },
                     ),
                     details={
                         "electrical_variant_id": str(electrical_variant_id),
                         "category": category,
-                        "conditions": dict(conditions),
+                        "conditions": condition_json(condition),
                         "catalog_id": str(catalog.version.id),
                         "catalog_version": catalog.version.version,
                     },
@@ -114,7 +117,7 @@ def resolve_selection(
                         "electrical_variant_id": str(electrical_variant_id),
                         "group_key": group_key,
                         "category": category,
-                        "conditions": dict(conditions),
+                        "conditions": condition_json(condition),
                         "catalog_id": str(catalog.version.id),
                         "catalog_version": catalog.version.version,
                     },

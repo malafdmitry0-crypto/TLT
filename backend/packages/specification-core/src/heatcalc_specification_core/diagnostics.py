@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+
+from heatcalc_specification_core.json_types import JsonObject, json_object
 
 
 class IssueKind(StrEnum):
@@ -40,11 +40,15 @@ class DiagnosticCode(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Diagnostic:
-    code: str
+    code: DiagnosticCode
     kind: IssueKind
     message: str
-    issues: tuple[Mapping[str, Any], ...] = ()
-    details: Mapping[str, Any] = field(default_factory=dict)
+    issues: tuple[JsonObject, ...] = ()
+    details: JsonObject = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "issues", tuple(json_object(item) for item in self.issues))
+        object.__setattr__(self, "details", json_object(self.details))
 
 
 def status_for(diagnostics: tuple[Diagnostic, ...] | list[Diagnostic]) -> PreflightStatus:

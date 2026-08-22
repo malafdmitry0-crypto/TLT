@@ -8,8 +8,14 @@ from heatcalc_specification_core.catalog import (
     CatalogContentItem,
     validate_catalog_content,
 )
+from heatcalc_specification_core.catalog.condition_contracts import ConditionValidationIssue
+from heatcalc_specification_core.catalog.conditions import (
+    match_condition,
+    not_applicable,
+    validate_condition_shape,
+)
 from heatcalc_specification_core.catalog.validation import REQUIRED_MARKS
-from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.json_types import json_object
 
 
 def _item(
@@ -28,9 +34,9 @@ def _item(
         mark=mark,
         nomenclature_code=f"CODE-{item_key}",
         supply_unit="шт.",
-        applicability=applicability or {},
-        package_parameters=package or {},
-        formula_parameters=formula or {},
+        applicability=json_object(applicability or {}),
+        package_parameters=json_object(package or {}),
+        formula_parameters=json_object(formula or {}),
         source_ref="approval:SPEC-OWNER-MATERIALS/catalog-test",
     )
 
@@ -45,9 +51,7 @@ def _complete_catalog() -> list[CatalogContentItem]:
                 f"connection-{index}",
                 CatalogCategory.CONNECTION_KIT,
                 mark,
-                applicability={
-                    "temperature_group": "LOW" if index < 2 else "MEDIUM_HIGH"
-                },
+                applicability={"temperature_group": "LOW" if index < 2 else "MEDIUM_HIGH"},
                 package={"sections_per_kit": str(index % 2 + 1)},
             )
         )
@@ -57,9 +61,7 @@ def _complete_catalog() -> list[CatalogContentItem]:
                 f"repair-{index}",
                 CatalogCategory.REPAIR_KIT,
                 mark,
-                applicability={
-                    "temperature_group": "LOW" if index == 0 else "MEDIUM_HIGH"
-                },
+                applicability={"temperature_group": "LOW" if index == 0 else "MEDIUM_HIGH"},
                 package={"cable_length_per_kit_m": "150"},
             )
         )
@@ -132,6 +134,27 @@ def test_complete_catalog_passes_pure_validation() -> None:
 
     assert result.is_complete is True
     assert result.issues == ()
+
+
+def test_catalog_validation_accepts_recursively_immutable_json() -> None:
+    items = _complete_catalog()
+    assert all(isinstance(item.applicability, Mapping) for item in items)
+
+    result = validate_catalog_content(items)
+
+    assert result.is_complete is True
+
+
+def test_condition_validation_returns_typed_immutable_issues() -> None:
+    issues = validate_condition_shape(
+        json_object({"mode": "match", "operator": "eq", "value": "yes"}),
+        field="Ex",
+        kind="ex",
+    )
+
+    assert all(isinstance(issue, ConditionValidationIssue) for issue in issues)
+    assert [issue.reason for issue in issues] == ["boolean_match_value_invalid"]
+    assert issues[0].details["value"] == "yes"
 
 
 def test_duplicate_identity_and_invalid_parameter_are_fail_closed() -> None:

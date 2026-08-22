@@ -17,13 +17,17 @@ python_version = "3.11"
 strict = true
 
 [tool.mutmut]
-# Start with the canonical BOM orchestration and candidate-eligibility decisions.
-# The mutation scope is intentionally expanded only after each added slice meets
-# the score floor; contracts, serializers and namespace plumbing remain covered
-# by pytest, mypy and architecture guards.
+# Cover the complete specification decision surface. Contracts, serializers,
+# and namespace plumbing remain covered by pytest, mypy, and architecture guards.
 paths_to_mutate = [
     "src/heatcalc_specification_core/bom/pipeline.py",
     "src/heatcalc_specification_core/candidates/filtering.py",
+    "src/heatcalc_specification_core/candidates/selections.py",
+    "src/heatcalc_specification_core/candidates/fingerprint.py",
+    "src/heatcalc_specification_core/catalog/validation.py",
+    "src/heatcalc_specification_core/catalog/box_validation.py",
+    "src/heatcalc_specification_core/preflight/pipeline.py",
+    "src/heatcalc_specification_core/bom/grouping.py",
 ]
 pytest_add_cli_args = [
     "--no-cov",

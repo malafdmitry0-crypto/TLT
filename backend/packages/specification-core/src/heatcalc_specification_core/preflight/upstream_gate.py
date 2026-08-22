@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any
 
 from heatcalc_specification_core.diagnostics import Diagnostic, DiagnosticCode, IssueKind
+from heatcalc_specification_core.json_types import JsonObject, JsonValue
 
 from .contracts import PreflightAssignment, PreflightCatalog
 
@@ -49,7 +48,7 @@ def catalog_diagnostics(catalog: PreflightCatalog | None) -> list[Diagnostic]:
 
 
 def assignment_diagnostics(row: PreflightAssignment, catalog: PreflightCatalog) -> list[Diagnostic]:
-    details: dict[str, object] = {
+    details: dict[str, JsonValue] = {
         "object_id": str(row.object_id),
         "assignment_id": str(row.assignment_id),
         "calculation_id": str(row.calculation_id) if row.calculation_id else None,
@@ -193,7 +192,7 @@ def _revisions_match(row: PreflightAssignment) -> bool:
     )
 
 
-def _section_plan_issue(row: PreflightAssignment) -> dict[str, object] | None:
+def _section_plan_issue(row: PreflightAssignment) -> dict[str, JsonValue] | None:
     result = row.result
     assert result is not None
     if result.section_plan_origin != "automatic":
@@ -228,7 +227,7 @@ def _diagnostic(
     code: DiagnosticCode,
     message: str,
     *,
-    issues: tuple[Mapping[str, Any], ...] = (),
-    details: dict[str, object] | None = None,
+    issues: tuple[JsonObject, ...] = (),
+    details: JsonObject | None = None,
 ) -> Diagnostic:
-    return Diagnostic(code.value, IssueKind.BLOCKING, message, issues=issues, details=details or {})
+    return Diagnostic(code, IssueKind.BLOCKING, message, issues=issues, details=details or {})
