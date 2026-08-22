@@ -125,8 +125,7 @@ class ElectricalVariantObject(Base, TimestampMixin):
     __tablename__ = "electrical_variant_objects"
     __table_args__ = (
         CheckConstraint(
-            "system_type IS NULL OR system_type IN "
-            "('self_regulating', 'resistive', 'skin', 'mineral')",
+            "system_type IS NULL OR system_type IN " "('self_regulating', 'resistive')",
             name="ck_electrical_variant_objects_system_type",
         ),
         CheckConstraint(
@@ -150,8 +149,9 @@ class ElectricalVariantObject(Base, TimestampMixin):
             name="ck_electrical_variant_objects_ready_supported_system",
         ),
         CheckConstraint(
-            "system_type NOT IN ('skin', 'mineral') " "OR assignment_state = 'unsupported'",
-            name="ck_electrical_variant_objects_unsupported_system_state",
+            "requested_cable_type IS NULL OR requested_cable_type IN "
+            "('self_regulating', 'self_regulating_tt', 'single_core', 'three_core')",
+            name="ck_electrical_variant_objects_requested_cable_type",
         ),
         ForeignKeyConstraint(
             ["electrical_variant_id", "project_id"],

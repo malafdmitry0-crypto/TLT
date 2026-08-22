@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.electrical_assignment import ElectricalAssignmentResponse
 from app.schemas.electrical_variant import (
@@ -27,10 +27,6 @@ from app.schemas.project import (
 )
 from app.schemas.report import ReportExportTaskResult
 
-RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE = 40.0
-RESISTIVE_DEFAULT_VOLTAGE_STEP = 5.0
-
-
 # ---------- Electrical ----------
 
 
@@ -42,89 +38,6 @@ SelectionPolicy = Literal[
     "preferred_supplier",
     "balanced",
 ]
-
-
-class SelfRegulatingParams(BaseModel):
-    """Параметры расчёта саморегулирующегося кабеля."""
-
-    required_power_per_meter: float = Field(gt=0, description="Требуемая мощность, Вт/м")
-    cable_mark: str | None = Field(default=None, description="Марка кабеля; null — автоподбор")
-    supply_voltage: float = Field(default=220.0, gt=0)
-    ambient_temperature: float
-    process_temperature: float = Field(description="Температура продукта для проверки T_max кабеля")
-    pipe_length: float = Field(gt=0)
-    safety_factor: float = Field(default=1.1, ge=1.0, le=2.0)
-    winding_coefficient: float = Field(
-        default=1.0,
-        ge=1.0,
-        le=10.0,
-        description="Коэффициент навива/укладки; 1.0 — прямая укладка",
-    )
-    winding_pitch: float | None = Field(
-        default=None,
-        ge=0,
-        description="Шаг навива, мм; 0 или null — прямая укладка",
-    )
-    number_of_threads: int | None = Field(
-        default=None,
-        ge=1,
-        le=3,
-        description="Явно заданное количество ниток; null — автоподбор",
-    )
-    cable_catalog: list[dict[str, Any]] | None = Field(
-        default=None,
-        description=(
-            "Источник кабелей для автоподбора / ручного выбора. "
-            "Если None — используется встроенный справочник ТЛТ."
-        ),
-    )
-    selection_policy: SelectionPolicy = Field(
-        default="technical_minimum",
-        description="Критерий выбора среди технически подходящих кабелей",
-    )
-    balanced_weights: dict[str, float] | None = Field(
-        default=None,
-        description=(
-            "Веса commercial balanced ranking: cost, delivery, stock, supplier. "
-            "Используются только если balanced_weights_approved=true."
-        ),
-    )
-    balanced_weights_approved: bool = Field(
-        default=False,
-        description="Явное бизнес-утверждение весов balanced ranking",
-    )
-    balanced_weights_version: str | None = Field(
-        default=None,
-        description="Версия/источник весов balanced ranking",
-    )
-
-
-class SelfRegulatingResult(BaseModel):
-    selected_cable: str
-    cable_length: float
-    installed_cable_length: float
-    order_cable_length: float
-    power_per_meter: float
-    installed_power_per_meter: float
-    total_power: float
-    current: float
-    voltage: float
-    winding_pitch: float
-    winding_coefficient: float
-    num_circuits: int
-    # PDL-ER-33: explicit catalog identity fields (no mark prefix inference).
-    cable_model: str | None = None
-    temperature_group: Literal["low", "high"] = "low"
-    series: str | None = "ТЛТ"
-    requested_number_of_threads: int | None = None
-    applied_number_of_threads: int
-    number_of_threads_source: Literal["manual", "auto", "default", "previous_result"] = "auto"
-    selection_policy: str = "technical_minimum"
-    applied_selection_policy: str = "technical_minimum"
-    selection_reason: str | None = None
-    candidate_count: int = 0
-    commercial: dict[str, Any] | None = None
-    warnings: list[str] = Field(default_factory=list)
 
 
 class SelfRegulatingTTParams(BaseModel):
@@ -225,281 +138,15 @@ class SelfRegulatingTTResult(BaseModel):
     execution_defaulted: bool = False
 
 
-class ResistiveSingleCoreParams(BaseModel):
-    """Параметры расчёта одножильного резистивного кабеля ТТ Р1."""
-
-    required_heat_loss: float = Field(gt=0, description="Q — требуемые теплопотери, Вт")
-    pipe_length: float = Field(gt=0, description="L — длина трубопровода, м")
-    add_length: float = Field(default=0.0, ge=0, description="L_доп — дополнительная длина, м")
-    process_temperature: float = Field(description="T_ж — температура жидкости, °C")
-    supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
-    selection_mode: Literal["manual", "auto"] = Field(
-        default="manual",
-        description=(
-            "manual — прежний расчёт по явно заданной схеме; "
-            "auto — full-version VSDX-подбор U/N/M по p2/p3 и 65 А"
-        ),
-    )
-    connection_type: Literal["line_1ph", "loop_1ph", "star_3ph"] = Field(
-        default="line_1ph",
-        description="Схема подключения: line_1ph=линия 220В, loop_1ph=петля 220В, star_3ph=звезда 380В",
-    )
-    winding_coefficient: float = Field(
-        default=1.0,
-        ge=1.0,
-        le=10.0,
-        description="w — коэффициент намотки; может быть >1.5 при расчёте из шага навива",
-    )
-    winding_pitch: float | None = Field(
-        default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
-    )
-    number_of_threads: int = Field(
-        default=1, ge=1, le=3, description="Количество ниток (DEC-06 / E0: 1..3)"
-    )
-    max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
-    max_linear_power_w_m: float | None = Field(
-        default=None,
-        gt=0,
-        description="Override лимита p3, Вт/м; в auto по умолчанию берётся ТТ Р1=40 из справочника",
-    )
-    max_parallel_schemes: int = Field(
-        default=20,
-        ge=1,
-        le=1000,
-        description="Максимальное M при full-version автоподборе",
-    )
-    start_voltage: float | None = Field(
-        default=None,
-        gt=0,
-        description="Начальное U для автоподбора; fallback — supply_voltage",
-    )
-    high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
-    min_adjusted_voltage: float = Field(
-        default=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
-        gt=0,
-        description="Минимальное U при шаговом снижении, если первый вариант перегрет",
-    )
-    voltage_step: float = Field(
-        default=RESISTIVE_DEFAULT_VOLTAGE_STEP,
-        gt=0,
-        description="Шаг снижения U в auto",
-    )
-    maintain_temperature: float | None = Field(
-        default=None,
-        description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
-    )
-    max_conductor_temperature: float | None = Field(
-        default=None,
-        description="T3 — максимальная температура жилы/кабеля из справочника; metadata для p3",
-    )
-    cable_catalog: list[dict[str, Any]] | None = Field(
-        default=None, description="Каталог ТТ Р1; None — встроенный"
-    )
-    selection_policy: SelectionPolicy = Field(
-        default="technical_minimum",
-        description="Commercial ranking для auto-подбора среди технически подходящих схем",
-    )
-    balanced_weights: dict[str, float] | None = Field(default=None)
-    balanced_weights_approved: bool = False
-    balanced_weights_version: str | None = None
-    # Геометрия резервуара (для укладки на поверхность бака)
-    tank_shape: Literal["cylindrical", "rectangular"] | None = Field(
-        default=None, description="Форма резервуара для расчёта длины кабеля по периметру"
-    )
-    tank_diameter: float | None = Field(
-        default=None, gt=0, description="Диаметр бака, м (для цилиндра)"
-    )
-    tank_length: float | None = Field(
-        default=None, gt=0, description="Длина бака, м (для прямоугольника)"
-    )
-    tank_width: float | None = Field(
-        default=None, gt=0, description="Ширина бака, м (для прямоугольника)"
-    )
-    heating_height: float | None = Field(
-        default=None, gt=0, description="h_укл — высота зоны обогрева, м"
-    )
-    laying_step: float | None = Field(
-        default=None,
-        ge=0.1,
-        le=0.4,
-        description="w_step — шаг укладки, м",
-    )
-
-
-class ResistiveSingleCoreResult(BaseModel):
-    selected_cable: str
-    conductor_cross_section: float
-    cable_length: float
-    installed_cable_length: float
-    order_cable_length: float
-    required_cross_section: float
-    resistance_ohm_km: float | None = None
-    circuit_resistance_ohm: float | None = None
-    max_current_limit_a: float | None = None
-    power_margin_w: float | None = None
-    total_power: float
-    current: float
-    voltage: float
-    connection_type: str
-    winding_pitch: float
-    winding_coefficient: float
-    num_circuits: int
-    selection_mode: str = "manual"
-    scheme_count: int | None = None
-    scheme_threads: int | None = None
-    linear_power_w_m: float | None = None
-    required_linear_power_w_m: float | None = None
-    p2_w_m: float | None = None
-    p3_w_m: float | None = None
-    section_length_m: float | None = None
-    l1_m: float | None = None
-    l2_m: float | None = None
-    selection_policy: str = "technical_minimum"
-    applied_selection_policy: str = "technical_minimum"
-    selection_reason: str | None = None
-    candidate_count: int = 0
-    commercial: dict[str, Any] | None = None
-    warnings: list[str] = Field(default_factory=list)
-
-
-class ResistiveThreeCoreParams(BaseModel):
-    """Параметры расчёта трёхжильного резистивного кабеля ТТ Р3."""
-
-    required_heat_loss: float = Field(gt=0, description="Q — требуемые теплопотери, Вт")
-    pipe_length: float = Field(gt=0, description="L — длина трубопровода, м")
-    add_length: float = Field(default=0.0, ge=0, description="L_доп — дополнительная длина, м")
-    process_temperature: float = Field(description="T_ж — температура жидкости, °C")
-    supply_voltage: float = Field(default=220.0, gt=0, description="U — напряжение питания, В")
-    selection_mode: Literal["manual", "auto"] = Field(
-        default="manual",
-        description=(
-            "manual — прежний расчёт по явно заданной схеме; "
-            "auto — full-version VSDX-подбор U/N/M по p2/p3 и 65 А"
-        ),
-    )
-    connection_type: Literal["line_1ph", "loop_2x3", "loop_1x3", "star_3x3", "star_1x3"] = Field(
-        default="line_1ph",
-        description="Схема подключения трёхжильного кабеля",
-    )
-    winding_coefficient: float = Field(
-        default=1.0,
-        ge=1.0,
-        le=10.0,
-        description="w — коэффициент намотки; может быть >1.5 при расчёте из шага навива",
-    )
-    winding_pitch: float | None = Field(
-        default=None, ge=0, description="Шаг навива, мм; 0 или null — прямая укладка"
-    )
-    number_of_threads: int = Field(
-        default=1, ge=1, le=3, description="Количество ниток (DEC-06 / E0: 1..3)"
-    )
-    max_current_a: float = Field(default=65.0, gt=0, description="Лимит тока резистивного кабеля")
-    max_linear_power_w_m: float | None = Field(
-        default=None,
-        gt=0,
-        description="Override лимита p3, Вт/м; в auto по умолчанию берётся ТТ Р3=50 из справочника",
-    )
-    max_parallel_schemes: int = Field(
-        default=20,
-        ge=1,
-        le=1000,
-        description="Максимальное M при full-version автоподборе",
-    )
-    start_voltage: float | None = Field(
-        default=None,
-        gt=0,
-        description="Начальное U для автоподбора; fallback — supply_voltage",
-    )
-    high_voltage: float = Field(default=380.0, gt=0, description="U для повышенной схемы/звезды")
-    min_adjusted_voltage: float = Field(
-        default=RESISTIVE_DEFAULT_MIN_ADJUSTED_VOLTAGE,
-        gt=0,
-        description="Минимальное U при шаговом снижении, если первый вариант перегрет",
-    )
-    voltage_step: float = Field(
-        default=RESISTIVE_DEFAULT_VOLTAGE_STEP,
-        gt=0,
-        description="Шаг снижения U в auto",
-    )
-    maintain_temperature: float | None = Field(
-        default=None,
-        description="T1/температура поддержания для VSDX-подбора; fallback — process_temperature",
-    )
-    max_conductor_temperature: float | None = Field(
-        default=None,
-        description="T3 — максимальная температура жилы/кабеля из справочника; metadata для p3",
-    )
-    cable_catalog: list[dict[str, Any]] | None = Field(
-        default=None, description="Каталог ТТ Р3; None — встроенный"
-    )
-    selection_policy: SelectionPolicy = Field(
-        default="technical_minimum",
-        description="Commercial ranking для auto-подбора среди технически подходящих схем",
-    )
-    balanced_weights: dict[str, float] | None = Field(default=None)
-    balanced_weights_approved: bool = False
-    balanced_weights_version: str | None = None
-    # Геометрия резервуара
-    tank_shape: Literal["cylindrical", "rectangular"] | None = Field(
-        default=None, description="Форма резервуара для расчёта длины кабеля по периметру"
-    )
-    tank_diameter: float | None = Field(default=None, gt=0)
-    tank_length: float | None = Field(default=None, gt=0)
-    tank_width: float | None = Field(default=None, gt=0)
-    heating_height: float | None = Field(
-        default=None, gt=0, description="h_укл — высота зоны обогрева, м"
-    )
-    laying_step: float | None = Field(
-        default=None,
-        ge=0.1,
-        le=0.4,
-        description="w_step — шаг укладки, м",
-    )
-
-
-class ResistiveThreeCoreResult(BaseModel):
-    selected_cable: str
-    conductor_cross_section: float
-    cable_length: float
-    installed_cable_length: float
-    order_cable_length: float
-    required_cross_section: float
-    resistance_ohm_km: float | None = None
-    circuit_resistance_ohm: float | None = None
-    max_current_limit_a: float | None = None
-    power_margin_w: float | None = None
-    total_power: float
-    current: float
-    voltage: float
-    connection_type: str
-    winding_pitch: float
-    winding_coefficient: float
-    num_circuits: int
-    selection_mode: str = "manual"
-    scheme_count: int | None = None
-    scheme_threads: int | None = None
-    linear_power_w_m: float | None = None
-    required_linear_power_w_m: float | None = None
-    p2_w_m: float | None = None
-    p3_w_m: float | None = None
-    section_length_m: float | None = None
-    l1_m: float | None = None
-    l2_m: float | None = None
-    selection_policy: str = "technical_minimum"
-    applied_selection_policy: str = "technical_minimum"
-    selection_reason: str | None = None
-    candidate_count: int = 0
-    commercial: dict[str, Any] | None = None
-    warnings: list[str] = Field(default_factory=list)
-
-
-# РЕШЕНИЕ 2026-08-03: legacy-линейка ТЛТ (self_regulating/single_core/three_core)
-# выпилена без совместимости (DEC-07, BE-16 ТЗ). Расчётный тип — только
-# self_regulating_tt (серии ТТН/ТТВ/ТТХ); mineral/skin — unsupported-системы.
-ElectricalCableType = Literal[
+# High-level calculation bodies currently expose only the canonical TT formula.
+# Query endpoints keep the existing resistive discriminators so new formula
+# families can be added by extending this explicit contract.
+ElectricalCableType = Literal["self_regulating_tt"]
+ElectricalCableQueryType = Literal[
+    "self_regulating",
     "self_regulating_tt",
-    "mineral",
-    "skin",
+    "single_core",
+    "three_core",
 ]
 ElectricalCableSource = Literal["builtin", "commercial", "extended", "all"]
 
@@ -513,14 +160,6 @@ class ElectricalRequest(BaseModel):
     electrical_variant_id: UUID
     # Optimistic concurrency token for the object's ER assignment (E8 / B6).
     expected_assignment_version: int | None = None
-    _variant_number: int = PrivateAttr(default=1)
-
-    @property
-    def variant_number(self) -> int:
-        return self._variant_number
-
-    def bind_persistence_variant_number(self, value: int) -> None:
-        self._variant_number = value
 
 
 class ElectricalResponse(BaseModel):
@@ -632,14 +271,6 @@ class ElectricalCandidateCreateRequest(BaseModel):
     mode: ElectricalCandidateMode = "auto"
     cable_mark: str | None = None
     electrical_params: dict[str, Any] = Field(default_factory=dict)
-    _variant_number: int = PrivateAttr(default=1)
-
-    @property
-    def variant_number(self) -> int:
-        return self._variant_number
-
-    def bind_persistence_variant_number(self, value: int) -> None:
-        self._variant_number = value
 
     @model_validator(mode="after")
     def check_manual_mark(self) -> "ElectricalCandidateCreateRequest":
@@ -716,14 +347,6 @@ class ElectricalCandidateFolderCreateRequest(BaseModel):
     electrical_variant_id: UUID
     name: str = Field(min_length=1, max_length=64)
     color: str | None = Field(default=None, max_length=32)
-    _variant_number: int = PrivateAttr(default=1)
-
-    @property
-    def variant_number(self) -> int:
-        return self._variant_number
-
-    def bind_persistence_variant_number(self, value: int) -> None:
-        self._variant_number = value
 
 
 class ElectricalCandidateFolderUpdateRequest(BaseModel):
@@ -773,7 +396,6 @@ class ElectricalSystemSummaries(BaseModel):
 
     self_regulating: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
     resistive: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
-    skin: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
     total: ElectricalSystemSummary = Field(default_factory=ElectricalSystemSummary)
 
 
@@ -822,15 +444,6 @@ class ElectricalQueryRequest(BaseModel):
     search: ObjectQuerySearch | None = None
     filters: list[ObjectQueryFilter] = Field(default_factory=list, max_length=20)
     sort: ObjectQuerySort | None = None
-
-    _variant_number: int | None = PrivateAttr(default=None)
-
-    @property
-    def variant_number(self) -> int | None:
-        return self._variant_number
-
-    def bind_persistence_variant_number(self, value: int) -> None:
-        self._variant_number = value
 
 
 class ElectricalQueryCounts(BaseModel):

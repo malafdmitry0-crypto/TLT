@@ -19,8 +19,6 @@ ElectricalAssignmentView = Literal[
     "unassigned",
     "self_regulating",
     "resistive",
-    "skin",
-    "mineral",
 ]
 
 
@@ -87,8 +85,6 @@ class ElectricalAssignmentSystemCounts(BaseModel):
     unassigned: int = 0
     self_regulating: int = 0
     resistive: int = 0
-    skin: int = 0
-    mineral: int = 0
 
 
 class ElectricalAssignmentStateCounts(BaseModel):

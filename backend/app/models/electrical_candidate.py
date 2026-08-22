@@ -23,6 +23,11 @@ from app.models.base import Base, TimestampMixin
 class ElectricalCandidate(Base, TimestampMixin):
     __tablename__ = "electrical_candidates"
     __table_args__ = (
+        CheckConstraint(
+            "cable_type IN ('self_regulating', 'self_regulating_tt', "
+            "'single_core', 'three_core')",
+            name="ck_electrical_candidates_supported_cable_type",
+        ),
         ForeignKeyConstraint(
             ["electrical_variant_id", "project_id"],
             ["electrical_variants.id", "electrical_variants.project_id"],

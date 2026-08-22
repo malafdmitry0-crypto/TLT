@@ -38,7 +38,7 @@ class AccessoryEntry(BaseModel):
 
 
 class CableExtendedBase(BaseModel):
-    cable_type: str = Field(pattern="^(self_regulating|single_core|three_core|mineral|skin)$")
+    cable_type: str = Field(pattern="^(self_regulating|single_core|three_core)$")
     brand: str
     model: str
     power_per_meter: float | None = None

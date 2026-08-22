@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Integer, String
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,8 +16,6 @@ class CableType(str, enum.Enum):
     self_regulating = "self_regulating"
     single_core = "single_core"
     three_core = "three_core"
-    mineral = "mineral"
-    skin = "skin"
 
 
 cable_type_enum = ENUM(
@@ -30,6 +28,12 @@ cable_type_enum = ENUM(
 
 class CableExtended(Base, TimestampMixin):
     __tablename__ = "cables_extended"
+    __table_args__ = (
+        CheckConstraint(
+            "cable_type::text IN ('self_regulating', 'single_core', 'three_core')",
+            name="ck_cables_extended_supported_type",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cable_type: Mapped[str] = mapped_column(cable_type_enum, nullable=False)

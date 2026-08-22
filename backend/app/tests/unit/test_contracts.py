@@ -32,8 +32,6 @@ def test_string_enums_use_persisted_values():
         "self_regulating",
         "single_core",
         "three_core",
-        "mineral",
-        "skin",
     ]
     assert [item.value for item in Installation] == ["indoor", "outdoor"]
     assert [item.value for item in TankShape] == ["cylindrical", "rectangular"]

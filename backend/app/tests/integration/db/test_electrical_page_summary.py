@@ -50,7 +50,6 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
         name_normalized="summary er",
         sort_order=0,
         is_active=True,
-        legacy_variant_number=1,
     )
     db_session.add(variant)
     await db_session.flush()
@@ -68,7 +67,7 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
             (objects[0], "self_regulating", "ready"),
             (objects[1], "resistive", "ready"),
             (objects[2], "self_regulating", "stale"),
-            (objects[3], "skin", "unsupported"),
+            (objects[3], None, "unassigned"),
         )
     )
     await db_session.flush()
@@ -77,7 +76,6 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=objects[0].id,
-                variant_number=1,
                 electrical_variant_id=variant.id,
                 cable_type="self_regulating",
                 cable_mark="HTM",
@@ -97,7 +95,6 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=objects[1].id,
-                variant_number=1,
                 electrical_variant_id=variant.id,
                 cable_type="single_core",
                 cable_mark="R-1",
@@ -113,7 +110,6 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
             ElectricalCalculation(
                 project_id=project.id,
                 object_id=objects[2].id,
-                variant_number=1,
                 electrical_variant_id=variant.id,
                 cable_type="self_regulating",
                 cable_mark="STALE",
@@ -122,16 +118,6 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
                     **_ready_result(installed=50, order=50, sections=9, working=9, start=9),
                     "stale": True,
                 },
-            ),
-            ElectricalCalculation(
-                project_id=project.id,
-                object_id=objects[3].id,
-                variant_number=1,
-                electrical_variant_id=variant.id,
-                cable_type="skin",
-                cable_mark="FAILED",
-                params={},
-                results={"error_code": "NOPE", "category": "formula"},
             ),
         ]
     )
@@ -144,12 +130,8 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
     _, _, second_summary, _ = await service.electrical_project_page(
         project.id, electrical_variant_id=variant.id, page=2, page_size=1
     )
-    _, _, legacy_summary, _ = await service.electrical_project_page(
-        project.id, variant_number=1, page=1, page_size=1
-    )
 
     assert first_summary == second_summary
-    assert first_summary == legacy_summary
     assert first_summary["total_cable_length"] == 25
     assert first_summary["total_power"] == 250
     assert first_summary["total_sections"] == 5
@@ -157,5 +139,9 @@ async def test_electrical_page_summary_uses_ready_rows_and_assignment_systems(
     assert first_summary["total_start_current_a"] == 9
     assert first_summary["system_summaries"]["self_regulating"]["object_count"] == 1
     assert first_summary["system_summaries"]["resistive"]["section_count"] == 3
-    assert first_summary["system_summaries"]["skin"]["object_count"] == 0
+    assert set(first_summary["system_summaries"]) == {
+        "self_regulating",
+        "resistive",
+        "total",
+    }
     assert first_summary["system_summaries"]["total"]["cable_length_m"] == 25

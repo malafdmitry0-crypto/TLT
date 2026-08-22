@@ -128,8 +128,13 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.CheckConstraint(
-            "system_type IS NULL OR system_type IN ('self_regulating', 'resistive', 'skin', 'mineral')",
+            "system_type IS NULL OR system_type IN ('self_regulating', 'resistive')",
             name="ck_electrical_variant_objects_system_type",
+        ),
+        sa.CheckConstraint(
+            "requested_cable_type IS NULL OR requested_cable_type IN "
+            "('self_regulating', 'self_regulating_tt', 'single_core', 'three_core')",
+            name="ck_electrical_variant_objects_requested_cable_type",
         ),
         sa.CheckConstraint(
             "assignment_state IN ('unassigned', 'ready', 'unsupported', 'stale', 'error')",

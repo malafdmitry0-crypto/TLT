@@ -35,9 +35,7 @@ def _database_urls(database_name: str) -> tuple[str, str]:
 
 def _upgrade_head(database_url: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["DATABASE_URL"] = database_url.replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    env["DATABASE_URL"] = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return subprocess.run(
         ["alembic", "upgrade", "head"],
         cwd=_BACKEND_ROOT,
@@ -88,6 +86,46 @@ async def test_fresh_install_has_uuid_only_electrical_identity_contract() -> Non
                 row["table_name"]: (row["data_type"], row["is_nullable"])
                 for row in identity_columns
             } == {table: ("uuid", "NO") for table in _UUID_IDENTITY_TABLES}
+
+            cable_type_values = await connection.fetch(
+                """
+                SELECT enumlabel
+                FROM pg_enum
+                JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+                WHERE pg_type.typname = 'cable_type'
+                ORDER BY enumsortorder
+                """
+            )
+            assert [row["enumlabel"] for row in cable_type_values] == [
+                "self_regulating",
+                "single_core",
+                "three_core",
+            ]
+
+            supported_type_constraints = set(
+                await connection.fetchval(
+                    """
+                    SELECT array_agg(conname ORDER BY conname)
+                    FROM pg_constraint
+                    WHERE conname = ANY($1::text[])
+                    """,
+                    [
+                        "ck_cables_extended_supported_type",
+                        "ck_electrical_calculations_supported_cable_type",
+                        "ck_electrical_calculation_revisions_supported_cable_type",
+                        "ck_electrical_candidates_supported_cable_type",
+                        "ck_electrical_variant_objects_requested_cable_type",
+                    ],
+                )
+                or []
+            )
+            assert supported_type_constraints == {
+                "ck_cables_extended_supported_type",
+                "ck_electrical_calculations_supported_cable_type",
+                "ck_electrical_calculation_revisions_supported_cable_type",
+                "ck_electrical_candidates_supported_cable_type",
+                "ck_electrical_variant_objects_requested_cable_type",
+            }
 
             diagnostics_default = await connection.fetchval(
                 """

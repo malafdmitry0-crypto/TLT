@@ -32,10 +32,8 @@ from app.services.electrical_candidate_dedupe import build_dedupe_key, build_ide
 CableSource = str
 ELECTRICAL_CANDIDATE_STATUS_APPLICABLE = "applicable"
 ELECTRICAL_CANDIDATE_STATUS_ERROR = "error"
-ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE = "not_applicable"
 ELECTRICAL_CANDIDATE_STATUS_EXCLUDED = "excluded"
 ELECTRICAL_CANDIDATE_STATUS_STALE = "stale"
-ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE = "no_candidate_generator"
 
 
 def _clean_exception_message(exc: Exception) -> str:
@@ -97,74 +95,6 @@ class ElectricalCandidateService:
                 }
             )
         return flags
-
-    def _candidate_not_applicable(
-        self,
-        *,
-        project_id: UUID,
-        object_id: UUID,
-        object_type: str,
-        electrical_variant_id: UUID,
-        cable_type: str,
-        cable_source: CableSource,
-        mode: str,
-        cable_mark: str | None,
-    ) -> ElectricalCandidate:
-        fingerprint_payload = build_identity_payload(
-            object_type=object_type,
-            cable_type=cable_type,
-            cable_source=cable_source,
-            cable_mark=cable_mark,
-            results=None,
-            params={},
-            cable_snapshot=None,
-            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
-            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
-        )
-        dedupe_key = build_dedupe_key(
-            object_type=object_type,
-            cable_type=cable_type,
-            cable_source=cable_source,
-            cable_mark=cable_mark,
-            results=None,
-            params={},
-            cable_snapshot=None,
-            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
-            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
-        )
-        return ElectricalCandidate(
-            project_id=project_id,
-            object_id=object_id,
-            variant_number=None,
-            electrical_variant_id=electrical_variant_id,
-            cable_type=cable_type,
-            cable_source=cable_source,
-            cable_mark=cable_mark,
-            dedupe_key=dedupe_key,
-            mode=mode,
-            status=ELECTRICAL_CANDIDATE_STATUS_NOT_APPLICABLE,
-            priority=0,
-            is_recommended=False,
-            is_pinned=False,
-            is_applied=False,
-            reason_code=ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE,
-            reason_message=(
-                f"Для типа кабеля «{cable_type}» нет расчётной формулы кандидата. "
-                "Авторасчёт не создаёт фиктивные рекомендации."
-            ),
-            params={},
-            results=None,
-            cable_snapshot=None,
-            warnings=[],
-            risk_flags=[{"code": ELECTRICAL_CANDIDATE_NO_GENERATOR_CODE}],
-            candidate_meta={
-                "autoselection_used": mode == "auto",
-                "candidate_count": 0,
-                "fingerprint_payload": fingerprint_payload,
-                "last_mode": mode,
-                "last_calculated_at": datetime.now(UTC).isoformat(),
-            },
-        )
 
     async def _find_electrical_candidate_by_dedupe(
         self,
@@ -325,19 +255,6 @@ class ElectricalCandidateService:
         )
         obj = await self._load_candidate_object(project_id, object_id)
         object_type = str(getattr(obj.object_type, "value", obj.object_type))
-        if cable_type in {"mineral", "skin"}:
-            candidate = self._candidate_not_applicable(
-                project_id=project_id,
-                object_id=object_id,
-                object_type=object_type,
-                electrical_variant_id=electrical_variant_id,
-                cable_type=cable_type,
-                cable_source=cable_source,
-                mode=mode,
-                cable_mark=cable_mark,
-            )
-            return await self._persist_electrical_candidate(candidate)
-
         overrides = self.inputs._base_overrides_with_sources(electrical_params or {})
         request_data: dict[str, Any] = dict(overrides)
         request: ElectricalRequest | None = None

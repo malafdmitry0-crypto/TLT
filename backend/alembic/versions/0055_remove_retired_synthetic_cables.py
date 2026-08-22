@@ -22,7 +22,7 @@ def upgrade() -> None:
         WHERE commercial_data_source IN ('seed', 'demo_seed', 'test', 'e2e')
           AND (
               (cable_type = 'self_regulating' AND brand IN ('ТЛТ', 'ВНШ-СР'))
-              OR cable_type IN ('single_core', 'three_core', 'mineral', 'skin')
+              OR cable_type IN ('single_core', 'three_core')
           )
         """
     )

@@ -55,6 +55,11 @@ def upgrade() -> None:
             "status IN ('applicable', 'error', 'not_applicable', 'excluded', 'stale')",
             name="ck_electrical_candidates_status",
         ),
+        sa.CheckConstraint(
+            "cable_type IN ('self_regulating', 'self_regulating_tt', "
+            "'single_core', 'three_core')",
+            name="ck_electrical_candidates_supported_cable_type",
+        ),
         sa.ForeignKeyConstraint(["object_id"], ["project_objects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

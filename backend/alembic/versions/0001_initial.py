@@ -43,8 +43,6 @@ def upgrade() -> None:
         "self_regulating",
         "single_core",
         "three_core",
-        "mineral",
-        "skin",
         name="cable_type",
         create_type=False,
     )
@@ -157,6 +155,11 @@ def upgrade() -> None:
         sa.Column("cable_mark", sa.String(128), nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=False),
         sa.Column("results", postgresql.JSONB, nullable=True),
+        sa.CheckConstraint(
+            "cable_type IN ('self_regulating', 'self_regulating_tt', "
+            "'single_core', 'three_core')",
+            name="ck_electrical_calculations_supported_cable_type",
+        ),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
@@ -216,6 +219,10 @@ def upgrade() -> None:
         sa.Column("resistance_per_meter", sa.Float, nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=True),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
+        sa.CheckConstraint(
+            "cable_type::text IN ('self_regulating', 'single_core', 'three_core')",
+            name="ck_cables_extended_supported_type",
+        ),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),

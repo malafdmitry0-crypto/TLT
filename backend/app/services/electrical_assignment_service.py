@@ -119,12 +119,6 @@ class ElectricalAssignmentService:
                         .filter(ElectricalVariantObject.system_type == "resistive")
                         .label("system_resistive"),
                         func.count(ElectricalVariantObject.id)
-                        .filter(ElectricalVariantObject.system_type == "skin")
-                        .label("system_skin"),
-                        func.count(ElectricalVariantObject.id)
-                        .filter(ElectricalVariantObject.system_type == "mineral")
-                        .label("system_mineral"),
-                        func.count(ElectricalVariantObject.id)
                         .filter(ElectricalVariantObject.assignment_state == "unassigned")
                         .label("state_unassigned"),
                         func.count(ElectricalVariantObject.id)
@@ -201,8 +195,6 @@ class ElectricalAssignmentService:
                     unassigned=int(aggregate["system_unassigned"] or 0),
                     self_regulating=int(aggregate["system_self_regulating"] or 0),
                     resistive=int(aggregate["system_resistive"] or 0),
-                    skin=int(aggregate["system_skin"] or 0),
-                    mineral=int(aggregate["system_mineral"] or 0),
                 ),
                 by_state=ElectricalAssignmentStateCounts(
                     unassigned=int(aggregate["state_unassigned"] or 0),
@@ -1520,8 +1512,6 @@ class ElectricalAssignmentService:
             return "self_regulating"
         if cable_type in {"single_core", "three_core"}:
             return "resistive"
-        if cable_type in {"skin", "mineral"}:
-            return cable_type
         return None
 
     @staticmethod

@@ -68,7 +68,11 @@ def test_electrical_body_and_response_schemas_are_uuid_only() -> None:
     [
         (
             ElectricalRequest,
-            {"object_id": "00000000-0000-0000-0000-000000000001", "cable_type": "mineral", "data": {}},
+            {
+                "object_id": "00000000-0000-0000-0000-000000000001",
+                "cable_type": "self_regulating_tt",
+                "data": {},
+            },
         ),
         (
             ElectricalQueryRequest,
@@ -94,3 +98,28 @@ def test_electrical_body_and_response_schemas_are_uuid_only() -> None:
 def test_numeric_only_body_fails_closed(schema: type, payload: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         schema.model_validate({**payload, "variant_number": 1})
+
+
+def test_openapi_excludes_retired_electrical_types_but_keeps_resistive_query_values() -> None:
+    schema = app.openapi()
+    components = schema["components"]["schemas"]
+
+    assert components["ElectricalRequest"]["properties"]["cable_type"]["enum"] == [
+        "self_regulating_tt"
+    ]
+    assert components["ElectricalAssignmentsPatchRequest"]["properties"]["system_type"]["enum"] == [
+        "self_regulating",
+        "resistive",
+    ]
+
+    for path in ("/api/v1/calc/electrical/select-cable", "/api/v1/calc/electrical/batch"):
+        parameters = {
+            parameter["name"]: parameter
+            for parameter in schema["paths"][path]["post"]["parameters"]
+        }
+        assert parameters["cable_type"]["schema"]["enum"] == [
+            "self_regulating",
+            "self_regulating_tt",
+            "single_core",
+            "three_core",
+        ]

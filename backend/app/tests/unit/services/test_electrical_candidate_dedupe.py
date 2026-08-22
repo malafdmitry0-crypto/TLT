@@ -179,7 +179,7 @@ def test_diagnostic_candidates_dedupe_by_reason_and_controls():
     params = {"selection_policy": "technical_minimum", "number_of_threads": 2}
     key_a = build_dedupe_key(
         object_type="pipe",
-        cable_type="mineral",
+        cable_type="future_cable",
         cable_source="builtin",
         cable_mark=None,
         results=None,
@@ -190,7 +190,7 @@ def test_diagnostic_candidates_dedupe_by_reason_and_controls():
     )
     key_b = build_dedupe_key(
         object_type="pipe",
-        cable_type="mineral",
+        cable_type="future_cable",
         cable_source="builtin",
         cable_mark=None,
         results=None,
@@ -395,7 +395,6 @@ def test_apply_upsert_clears_is_applied_when_status_not_applicable():
     existing = ElectricalCandidate(
         project_id=uuid.uuid4(),
         object_id=uuid.uuid4(),
-        variant_number=1,
         cable_type="self_regulating",
         cable_source="builtin",
         cable_mark="ТЛТ-75",

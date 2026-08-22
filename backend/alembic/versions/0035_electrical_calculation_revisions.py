@@ -66,6 +66,11 @@ def upgrade() -> None:
             "status IN ('pending', 'success', 'error', 'stale')",
             name="ck_electrical_calculation_revisions_status",
         ),
+        sa.CheckConstraint(
+            "cable_type IN ('self_regulating', 'self_regulating_tt', "
+            "'single_core', 'three_core')",
+            name="ck_electrical_calculation_revisions_supported_cable_type",
+        ),
         sa.ForeignKeyConstraint(
             ["supersedes_result_id"],
             ["electrical_calculation_revisions.id"],

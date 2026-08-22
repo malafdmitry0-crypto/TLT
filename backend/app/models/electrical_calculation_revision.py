@@ -26,6 +26,11 @@ class ElectricalCalculationRevision(Base):
             "status IN ('pending', 'success', 'error', 'stale')",
             name="ck_electrical_calculation_revisions_status",
         ),
+        CheckConstraint(
+            "cable_type IN ('self_regulating', 'self_regulating_tt', "
+            "'single_core', 'three_core')",
+            name="ck_electrical_calculation_revisions_supported_cable_type",
+        ),
         Index(
             "ux_electrical_calculation_revisions_source_number",
             "electrical_calculation_id",

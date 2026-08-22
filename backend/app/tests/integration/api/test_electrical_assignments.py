@@ -197,7 +197,6 @@ class TestElectricalAssignmentApi:
                 ElectricalCalculation(
                     project_id=UUID(project["id"]),
                     object_id=UUID(object_id),
-                    variant_number=variant["legacy_variant_number"],
                     electrical_variant_id=UUID(variant["id"]),
                     cable_type="self_regulating_tt",
                     cable_type_source="manual",
@@ -298,8 +297,6 @@ class TestElectricalAssignmentApi:
                 "unassigned": 2,
                 "self_regulating": 0,
                 "resistive": 0,
-                "skin": 0,
-                "mineral": 0,
             },
             "by_state": {
                 "unassigned": 2,
@@ -591,10 +588,12 @@ class TestElectricalAssignmentApi:
         assert final_assignment.assignment_state == "unassigned"
         assert final_assignment.version == 3
 
-    async def test_unsupported_system_fails_without_mutation(
+    @pytest.mark.parametrize("retired_type", ["mineral", "skin"])
+    async def test_retired_system_fails_validation_without_mutation(
         self,
         client: AsyncClient,
         guest_session: str,
+        retired_type: str,
     ):
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
@@ -607,11 +606,15 @@ class TestElectricalAssignmentApi:
             project["id"],
             variant["id"],
             headers,
-            system_type="skin",
+            system_type=retired_type,
             items=[{"object_id": obj["id"], "expected_version": row["version"]}],
         )
-        assert unsupported.status_code == 409
-        assert unsupported.json()["detail"]["code"] == "ELECTRICAL_SYSTEM_UNSUPPORTED"
+        assert unsupported.status_code == 422
+        assert "body.system_type" in unsupported.json()["fields"]
+        unchanged = (await _assignments(client, project["id"], variant["id"], headers))["items"][0]
+        assert unchanged["system_type"] is None
+        assert unchanged["assignment_state"] == "unassigned"
+        assert unchanged["version"] == row["version"]
 
     async def test_active_target_er_task_blocks_assignment_even_when_cancel_requested(
         self,
@@ -669,7 +672,6 @@ class TestElectricalAssignmentApi:
         candidate = ElectricalCandidate(
             project_id=UUID(project["id"]),
             object_id=UUID(obj["id"]),
-            variant_number=1,
             electrical_variant_id=UUID(variant["id"]),
             cable_type="three_core",
             cable_source="builtin",
@@ -755,7 +757,6 @@ class TestElectricalAssignmentApi:
         target_candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=UUID(first["id"]),
             cable_type="self_regulating",
             cable_source="builtin",
@@ -769,7 +770,6 @@ class TestElectricalAssignmentApi:
         other_candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=2,
             electrical_variant_id=UUID(second["id"]),
             cable_type="three_core",
             cable_source="builtin",
@@ -783,7 +783,6 @@ class TestElectricalAssignmentApi:
         target_folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=UUID(first["id"]),
             name="Target",
             sort_order=10,
@@ -792,7 +791,6 @@ class TestElectricalAssignmentApi:
         other_folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=2,
             electrical_variant_id=UUID(second["id"]),
             name="Other",
             sort_order=10,
@@ -803,7 +801,6 @@ class TestElectricalAssignmentApi:
                 ElectricalCalculation(
                     project_id=project_id,
                     object_id=object_id,
-                    variant_number=1,
                     electrical_variant_id=UUID(first["id"]),
                     cable_type="self_regulating",
                     cable_type_source="auto",
@@ -815,7 +812,6 @@ class TestElectricalAssignmentApi:
                 ElectricalCalculation(
                     project_id=project_id,
                     object_id=object_id,
-                    variant_number=2,
                     electrical_variant_id=UUID(second["id"]),
                     cable_type="three_core",
                     cable_type_source="auto",
@@ -1281,7 +1277,6 @@ class TestElectricalAssignmentApi:
                     await service.electrical_single.calculate(
                         request,
                         commit=False,
-                        electrical_variant_id=variant_id,
                     )
                     observed = request.data["process_temperature"]
                 assert observed == process_temperature
@@ -1324,7 +1319,6 @@ class TestElectricalAssignmentApi:
         candidate = ElectricalCandidate(
             project_id=project_id,
             object_id=object_id,
-            variant_number=2,
             electrical_variant_id=UUID(second["id"]),
             cable_type="self_regulating",
             cable_source="builtin",
@@ -1338,7 +1332,6 @@ class TestElectricalAssignmentApi:
         folder = ElectricalCandidateFolder(
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=UUID(first["id"]),
             name="Cross ER",
             sort_order=10,
@@ -1494,7 +1487,6 @@ class TestElectricalAssignmentCalculationSync:
         await CalculationContainer(db_session).electrical_failures.upsert(
             obj,
             "CalculationError: first only",
-            1,
             "self_regulating",
             electrical_variant_id=UUID(first["id"]),
         )
@@ -1583,7 +1575,6 @@ class TestElectricalAssignmentCalculationSync:
         calc = await CalculationContainer(db_session).electrical_failures.upsert(
             obj,
             "CalculationError: test failure",
-            1,
             "self_regulating",
             request_data={"required_power_per_meter": 20.0},
             electrical_variant_id=UUID(variant["id"]),
@@ -1608,7 +1599,6 @@ class TestElectricalAssignmentCalculationSync:
                     {
                         "project_id": UUID(project["id"]),
                         "object_id": UUID(obj_payload["id"]),
-                        "variant_number": 1,
                         "electrical_variant_id": UUID(variant["id"]),
                         "cable_type": "three_core",
                         "cable_mark": "R-3",

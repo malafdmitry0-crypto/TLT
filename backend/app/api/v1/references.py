@@ -28,13 +28,8 @@ from app.reference_data.loader import (
     list_tt_cables,
 )
 
-# РЕШЕНИЕ 2026-08-03 (DEC-07): legacy-линейка ТЛТ/resistive выпилена;
-# справочники кабелей — только серии ТТН/ТТВ/ТТХ (+ extended mineral/skin).
-ReferenceCableType = Literal[
-    "self_regulating_tt",
-    "mineral",
-    "skin",
-]
+# Public reference selection currently exposes the canonical TT catalog only.
+ReferenceCableType = Literal["self_regulating_tt"]
 
 # TTL для статичных JSON-справочников: 24 часа (изменения = пересборка образа).
 _BUILTIN_TTL = 24 * 3600

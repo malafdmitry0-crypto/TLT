@@ -8,7 +8,6 @@ from app.services.cable_snapshot import stable_hash
 
 DEDUPE_KEY_VERSION = "v1"
 TT_DEDUPE_KEY_VERSION = "v3"
-UNSUPPORTED_CABLE_TYPES = {"mineral", "skin"}
 
 _DIAGNOSTIC_CONTROL_KEYS = (
     "number_of_threads",
@@ -324,9 +323,7 @@ def build_identity_payload(
         params=params,
     )
     # Error with a resolved mark is still an engineering variant attempt (manual cable check).
-    use_diagnostic = (
-        cable_type in UNSUPPORTED_CABLE_TYPES or mark is None or status == "not_applicable"
-    )
+    use_diagnostic = mark is None or status == "not_applicable"
     if use_diagnostic:
         controls: dict[str, Any] = {}
         for key in _DIAGNOSTIC_CONTROL_KEYS:

@@ -96,7 +96,9 @@ class ElectricalSummaryQuery:
         object_ids = [obj.id for obj in objects]
 
         calculation_scope = [ElectricalCalculation.project_id == project_id]
-        calculation_scope.append(ElectricalCalculation.electrical_variant_id == electrical_variant_id)
+        calculation_scope.append(
+            ElectricalCalculation.electrical_variant_id == electrical_variant_id
+        )
 
         if object_ids:
             calculations_result = await self.db.execute(
@@ -222,7 +224,6 @@ class ElectricalSummaryQuery:
                 func.coalesce(func.sum(start_current).filter(ready_successful_calc), 0.0),
                 *system_totals("self_regulating"),
                 *system_totals("resistive"),
-                *system_totals("skin"),
             )
             .select_from(summary_from)
             .where(*calculation_scope)
@@ -241,7 +242,7 @@ class ElectricalSummaryQuery:
             *system_values,
         ) = summary_values
 
-        system_keys = ("self_regulating", "resistive", "skin")
+        system_keys = ("self_regulating", "resistive")
         system_summaries = {}
         for index, system in enumerate(system_keys):
             count, length, sections, power, current_value, start = system_values[

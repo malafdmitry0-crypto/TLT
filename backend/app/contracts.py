@@ -49,8 +49,6 @@ class CableType(str, enum.Enum):
     SELF_REGULATING = "self_regulating"
     SINGLE_CORE = "single_core"
     THREE_CORE = "three_core"
-    MINERAL = "mineral"
-    SKIN = "skin"
 
 
 class Installation(str, enum.Enum):

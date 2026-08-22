@@ -29,13 +29,11 @@ def _phase3_assignment_projection(
         system_type = "self_regulating"
     elif cable_type in {"single_core", "three_core"}:
         system_type = "resistive"
-    elif cable_type in {"skin", "mineral"}:
-        system_type = cable_type
     else:
         system_type = None
 
     payload = results or {}
-    if system_type in {"skin", "mineral"} or payload.get("category") == "unsupported":
+    if payload.get("category") == "unsupported":
         return system_type, "unsupported"
     if payload.get("category") == "stale" or payload.get("stale") is True:
         return system_type, "stale"
@@ -44,10 +42,7 @@ def _phase3_assignment_projection(
     snapshot = payload.get("cable_snapshot")
     snapshot_mark = snapshot.get("cable_mark") if isinstance(snapshot, dict) else None
     has_mark = bool(
-        cable_mark
-        or payload.get("cable_mark")
-        or payload.get("selected_cable")
-        or snapshot_mark
+        cable_mark or payload.get("cable_mark") or payload.get("selected_cable") or snapshot_mark
     )
     return (
         (system_type, "ready")
@@ -69,13 +64,10 @@ def _reconcile_exact_uuid_calculations(bind: sa.engine.Connection) -> None:
                     ) THEN 'self_regulating'
                     WHEN calculation.cable_type IN ('single_core', 'three_core')
                         THEN 'resistive'
-                    WHEN calculation.cable_type IN ('skin', 'mineral')
-                        THEN calculation.cable_type
                     ELSE NULL
                 END,
                 assignment_state = CASE
-                    WHEN calculation.cable_type IN ('skin', 'mineral')
-                         OR calculation.results ->> 'category' = 'unsupported'
+                    WHEN calculation.results ->> 'category' = 'unsupported'
                         THEN 'unsupported'
                     WHEN calculation.results ->> 'category' = 'stale'
                          OR calculation.results -> 'stale' = 'true'::jsonb
@@ -153,14 +145,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_electrical_variant_objects_ready_supported_system",
         "electrical_variant_objects",
-        "assignment_state <> 'ready' "
-        "OR system_type IN ('self_regulating', 'resistive')",
-    )
-    op.create_check_constraint(
-        "ck_electrical_variant_objects_unsupported_system_state",
-        "electrical_variant_objects",
-        "system_type NOT IN ('skin', 'mineral') "
-        "OR assignment_state = 'unsupported'",
+        "assignment_state <> 'ready' " "OR system_type IN ('self_regulating', 'resistive')",
     )
     op.create_index(
         "ix_electrical_variant_objects_variant_system_state",
@@ -174,11 +159,6 @@ def downgrade() -> None:
     op.drop_index(
         "ix_electrical_variant_objects_variant_system_state",
         table_name="electrical_variant_objects",
-    )
-    op.drop_constraint(
-        "ck_electrical_variant_objects_unsupported_system_state",
-        "electrical_variant_objects",
-        type_="check",
     )
     op.drop_constraint(
         "ck_electrical_variant_objects_ready_supported_system",
