@@ -58,7 +58,7 @@ async def test_fresh_install_has_uuid_only_electrical_identity_contract() -> Non
 
         connection = await asyncpg.connect(database_url)
         try:
-            assert await connection.fetchval("SELECT version_num FROM alembic_version") == "0057"
+            assert await connection.fetchval("SELECT version_num FROM alembic_version") == "0001"
 
             retired_columns = await connection.fetch(
                 """
@@ -178,8 +178,29 @@ async def test_fresh_install_has_uuid_only_electrical_identity_contract() -> Non
                 )
                 or []
             )
-            assert "trg_0027_sync_project_object_assignments" in triggers
-            assert "trg_0047_enforce_electrical_variant_limit" in triggers
+            assert "trg_sync_project_object_assignments" in triggers
+            assert "trg_enforce_electrical_variant_limit" in triggers
+
+            application_functions = set(
+                await connection.fetchval(
+                    """
+                    SELECT array_agg(proname ORDER BY proname)
+                    FROM pg_proc
+                    WHERE pronamespace = 'public'::regnamespace
+                      AND proname LIKE 'tlt_%'
+                    """
+                )
+                or []
+            )
+            assert application_functions == {
+                "tlt_capture_electrical_calculation_revision",
+                "tlt_enforce_electrical_variant_limit",
+                "tlt_guard_electrical_calculation_revisions",
+                "tlt_guard_electrical_catalog_immutability",
+                "tlt_guard_specification_catalog_item",
+                "tlt_guard_specification_catalog_version",
+                "tlt_sync_project_object_assignments",
+            }
         finally:
             await connection.close()
     finally:

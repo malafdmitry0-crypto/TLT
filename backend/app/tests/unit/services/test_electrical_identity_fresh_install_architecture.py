@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 _APP_ROOT = Path(__file__).resolve().parents[3]
@@ -38,11 +39,26 @@ def test_runtime_electrical_identity_is_uuid_only() -> None:
     assert offenders == {}
 
 
-def test_migration_history_never_creates_retired_numeric_identity() -> None:
+def test_unpublished_history_is_compacted_to_one_uuid_only_baseline() -> None:
     migration_root = _BACKEND_ROOT / "alembic/versions"
+    migrations = _python_sources(migration_root)
+    assert [path.name for path in migrations] == ["0001_current_schema.py"]
+
+    module = ast.parse(migrations[0].read_text(encoding="utf-8"))
+    assignments: dict[str, object] = {}
+    for node in module.body:
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id in {"revision", "down_revision"}
+        ):
+            assert node.value is not None
+            assignments[node.target.id] = ast.literal_eval(node.value)
+    assert assignments == {"revision": "0001", "down_revision": None}
+
     offenders = {
         str(path.relative_to(_BACKEND_ROOT)): identifier
-        for path in _python_sources(migration_root)
+        for path in migrations
         for identifier in _RETIRED_IDENTIFIERS
         if identifier in path.read_text(encoding="utf-8")
     }

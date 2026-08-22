@@ -13,7 +13,7 @@ MIGRATION_PATH = (
     Path(__file__).resolve().parents[4]
     / "alembic"
     / "versions"
-    / "0035_electrical_calculation_revisions.py"
+    / "0001_current_schema.py"
 )
 
 
@@ -62,7 +62,7 @@ def test_revision_model_preserves_full_projection_without_mutable_timestamp():
     )
 
 
-def test_migration_chain_and_gap_free_backfill_are_static_contracts():
+def test_baseline_contains_revision_table_and_capture_trigger_contract():
     source = _migration_source()
     module = ast.parse(source)
     assignments = {
@@ -74,25 +74,23 @@ def test_migration_chain_and_gap_free_backfill_are_static_contracts():
         and node.value is not None
     }
 
-    assert assignments == {"revision": "0035", "down_revision": "0034"}
-    assert source.index("LOCK TABLE electrical_calculations") < source.index("op.create_table(")
-    assert "FROM electrical_calculations AS ec" in source
-    assert "AFTER INSERT OR UPDATE ON electrical_calculations" in source
-    assert source.index(
-        "CREATE TRIGGER tr_electrical_calculations_capture_revision"
-    ) < source.index("FROM electrical_calculations AS ec")
+    assert assignments == {"revision": "0001", "down_revision": None}
+    assert "CREATE TABLE public.electrical_calculation_revisions" in source
+    assert "AFTER INSERT OR UPDATE ON public.electrical_calculations" in source
+    assert "tlt_capture_electrical_calculation_revision" in source
 
 
 def test_capture_trigger_builds_a_deterministic_immutable_revision_chain():
     source = _migration_source()
 
     assert "ORDER BY revision_number DESC, recorded_at DESC, id DESC" in source
-    assert "LIMIT 1\n             FOR UPDATE" in source
+    assert "LIMIT 1" in source
+    assert "FOR UPDATE" in source
     assert "COALESCE(previous_revision_number, 0) + 1" in source
     assert "previous_revision_id" in source
     assert "ux_electrical_calculation_revisions_source_number" in source
     assert "ux_electrical_calculation_revisions_supersedes" in source
-    assert "BEFORE UPDATE OR DELETE ON electrical_calculation_revisions" in source
+    assert "BEFORE DELETE OR UPDATE ON public.electrical_calculation_revisions" in source
     assert "electrical calculation revisions are append-only" in source
 
 
@@ -107,11 +105,6 @@ def test_revision_status_and_downgrade_cover_success_error_and_stale_history():
     assert "NULLIF(BTRIM(COALESCE(NEW.results ->> 'error', '')), '')" in source
 
     downgrade = source[source.index("def downgrade()") :]
-    capture_trigger = downgrade.index(
-        "DROP TRIGGER IF EXISTS tr_electrical_calculations_capture_revision"
-    )
-    capture_function = downgrade.index(
-        "DROP FUNCTION IF EXISTS tlt_0035_capture_electrical_calculation_revision()"
-    )
-    table = downgrade.index('op.drop_table("electrical_calculation_revisions")')
-    assert capture_trigger < capture_function < table
+    assert "electrical_calculation_revisions" in downgrade
+    assert "tlt_capture_electrical_calculation_revision" in downgrade
+    assert "DROP EXTENSION" not in downgrade

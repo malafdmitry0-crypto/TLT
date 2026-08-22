@@ -238,7 +238,7 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
     (
         _postgresql_ddl(
             """
-            CREATE OR REPLACE FUNCTION tlt_0027_sync_project_object_assignments()
+            CREATE OR REPLACE FUNCTION tlt_sync_project_object_assignments()
             RETURNS trigger
             LANGUAGE plpgsql
             AS $function$
@@ -276,7 +276,7 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
                     NULL,
                     NEW.version,
                     jsonb_strip_nulls(jsonb_build_object(
-                        'migration_revision', '0027',
+                        'identity_sync', 'project_object_assignment_trigger',
                         'sections_status', 'not_ready',
                         'sections_error_code', 'ELECTRICAL_SECTIONS_NOT_READY'
                     ))
@@ -290,21 +290,21 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
         ),
         _postgresql_ddl(
             """
-            DROP TRIGGER IF EXISTS trg_0027_sync_project_object_assignments
+            DROP TRIGGER IF EXISTS trg_sync_project_object_assignments
             ON project_objects
             """
         ),
         _postgresql_ddl(
             """
-            CREATE TRIGGER trg_0027_sync_project_object_assignments
+            CREATE TRIGGER trg_sync_project_object_assignments
             AFTER INSERT ON project_objects
             FOR EACH ROW
-            EXECUTE FUNCTION tlt_0027_sync_project_object_assignments()
+            EXECUTE FUNCTION tlt_sync_project_object_assignments()
             """
         ),
         _postgresql_ddl(
             f"""
-            CREATE OR REPLACE FUNCTION tlt_0047_enforce_electrical_variant_limit()
+            CREATE OR REPLACE FUNCTION tlt_enforce_electrical_variant_limit()
             RETURNS trigger
             LANGUAGE plpgsql
             AS $function$
@@ -328,16 +328,16 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
         ),
         _postgresql_ddl(
             """
-            DROP TRIGGER IF EXISTS trg_0047_enforce_electrical_variant_limit
+            DROP TRIGGER IF EXISTS trg_enforce_electrical_variant_limit
             ON electrical_variants
             """
         ),
         _postgresql_ddl(
             """
-            CREATE TRIGGER trg_0047_enforce_electrical_variant_limit
+            CREATE TRIGGER trg_enforce_electrical_variant_limit
             BEFORE INSERT OR UPDATE OF project_id ON electrical_variants
             FOR EACH ROW
-            EXECUTE FUNCTION tlt_0047_enforce_electrical_variant_limit()
+            EXECUTE FUNCTION tlt_enforce_electrical_variant_limit()
             """
         ),
     )
@@ -346,18 +346,18 @@ _CREATE_SYNC_TRIGGER_DDLS = list(
 _DROP_SYNC_TRIGGER_DDLS = [
     _postgresql_ddl(
         """
-        DROP TRIGGER IF EXISTS trg_0047_enforce_electrical_variant_limit
+        DROP TRIGGER IF EXISTS trg_enforce_electrical_variant_limit
         ON electrical_variants
         """
     ),
-    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_0047_enforce_electrical_variant_limit()"),
+    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_enforce_electrical_variant_limit()"),
     _postgresql_ddl(
         """
-        DROP TRIGGER IF EXISTS trg_0027_sync_project_object_assignments
+        DROP TRIGGER IF EXISTS trg_sync_project_object_assignments
         ON project_objects
         """
     ),
-    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_0027_sync_project_object_assignments()"),
+    _postgresql_ddl("DROP FUNCTION IF EXISTS tlt_sync_project_object_assignments()"),
 ]
 for _ddl in _CREATE_SYNC_TRIGGER_DDLS:
     event.listen(Base.metadata, "after_create", _ddl)
