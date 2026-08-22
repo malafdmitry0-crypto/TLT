@@ -517,7 +517,10 @@ class TestBuildObjectsXlsxSafety:
     def test_pipe_export_omits_manual_alpha_and_round_trips_manual_insulation(self):
         from types import SimpleNamespace
 
-        from app.services.project_object_params import prepare_project_object_params
+        from app.services.project_object_params import (
+            normalize_project_object_params,
+            validate_and_canonicalize_project_object_params,
+        )
 
         source = {
             "name": "Manual physics",
@@ -551,7 +554,10 @@ class TestBuildObjectsXlsxSafety:
         built, err = _build_pipe_params(rows[0])
         assert err is None
         assert built is not None
-        prepared = prepare_project_object_params("pipe", built)
+        normalized = normalize_project_object_params("pipe", built)
+        preparation = validate_and_canonicalize_project_object_params("pipe", normalized)
+        assert preparation.report.is_valid
+        prepared = preparation.params
 
         assert "alpha_vnesh" not in prepared
         assert prepared["wind_speed"] == 4.0

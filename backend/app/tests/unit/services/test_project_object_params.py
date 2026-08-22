@@ -9,8 +9,8 @@ from app.services.project_object_params import (
     ValidationIssue,
     ValidationReport,
     normalize_project_object_params,
-    prepare_project_object_params,
     reject_legacy_specification_object_params,
+    validate_and_canonicalize_project_object_params,
 )
 
 
@@ -184,43 +184,51 @@ def test_normalization_keeps_existing_legacy_values_inert_for_compatibility_read
 
 
 def test_non_indoor_object_rejects_indoor_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "pipe", _underground_pipe(insulation_temperature_basis="indoor")
-        )
+    normalized = normalize_project_object_params(
+        "pipe", _underground_pipe(insulation_temperature_basis="indoor")
+    )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert exc.value.code == "OBJECT_PARAMS_INVALID"
-    assert exc.value.fields == ("insulation_temperature_basis",)
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("insulation_temperature_basis",)
 
 
 def test_outdoor_object_rejects_attic_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params("pipe", _outdoor_pipe(insulation_temperature_basis="attic"))
+    normalized = normalize_project_object_params(
+        "pipe", _outdoor_pipe(insulation_temperature_basis="attic")
+    )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert exc.value.code == "OBJECT_PARAMS_INVALID"
-    assert exc.value.fields == ("insulation_temperature_basis",)
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("insulation_temperature_basis",)
 
 
 def test_underground_object_accepts_channel_insulation_temperature_basis():
-    params = prepare_project_object_params("pipe", _underground_pipe())
+    normalized = normalize_project_object_params("pipe", _underground_pipe())
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    assert prepared.report.is_valid
+    params = prepared.params
     assert params["insulation_temperature_basis"] == "channel"
     assert "ambient_temperature" not in params
     assert "wind_speed" not in params
 
 
 def test_underground_object_rejects_attic_insulation_temperature_basis():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "pipe", _underground_pipe(insulation_temperature_basis="attic")
-        )
+    normalized = normalize_project_object_params(
+        "pipe", _underground_pipe(insulation_temperature_basis="attic")
+    )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert exc.value.code == "OBJECT_PARAMS_INVALID"
-    assert exc.value.fields == ("insulation_temperature_basis",)
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("insulation_temperature_basis",)
 
 
 @pytest.mark.parametrize("basis", ["indoor", "attic", "basement"])
 def test_indoor_object_accepts_building_insulation_temperature_basis(basis):
-    params = prepare_project_object_params(
+    normalized = normalize_project_object_params(
         "pipe",
         _outdoor_pipe(
             placement="indoor",
@@ -229,25 +237,30 @@ def test_indoor_object_accepts_building_insulation_temperature_basis(basis):
             insulation_temperature_basis=basis,
         ),
     )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    assert prepared.report.is_valid
+    params = prepared.params
     assert params["insulation_temperature_basis"] == basis
 
 
 def test_explicit_blank_pipe_wall_is_rejected():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params("pipe", _outdoor_pipe(wall_thickness=None))
+    normalized = normalize_project_object_params("pipe", _outdoor_pipe(wall_thickness=None))
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert str(exc.value) == "Проверьте параметры объекта"
-    assert exc.value.code == "OBJECT_PARAMS_INVALID"
-    assert exc.value.fields == ("wall_thickness",)
+    assert str(error) == "Проверьте параметры объекта"
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("wall_thickness",)
 
 
 def test_missing_pipe_fields_have_stable_paths_without_pydantic_details():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params("pipe", {})
+    normalized = normalize_project_object_params("pipe", {})
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert str(exc.value) == "Заполните обязательные поля объекта"
-    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
-    assert exc.value.fields == (
+    assert str(error) == "Заполните обязательные поля объекта"
+    assert error.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert error.fields == (
         "outer_diameter",
         "wall_thickness",
         "insulation_layers",
@@ -259,20 +272,21 @@ def test_missing_pipe_fields_have_stable_paths_without_pydantic_details():
 
 
 def test_nested_missing_layer_field_uses_canonical_dot_path():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "pipe",
-            _outdoor_pipe(
-                insulation_layers=[
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"},
-                    {"thickness": 0.02},
-                ]
-            ),
-        )
+    normalized = normalize_project_object_params(
+        "pipe",
+        _outdoor_pipe(
+            insulation_layers=[
+                {"thickness": 0.05, "material": "mineral_wool_boards_120"},
+                {"thickness": 0.02},
+            ]
+        ),
+    )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert str(exc.value) == "Заполните обязательные поля объекта"
-    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
-    assert exc.value.fields == ("insulation_layers.1.material",)
+    assert str(error) == "Заполните обязательные поля объекта"
+    assert error.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert error.fields == ("insulation_layers.1.material",)
 
 
 def test_climate_key_is_derived_from_region_and_city():
@@ -290,60 +304,62 @@ def test_climate_region_and_city_are_derived_from_key_when_missing():
 
 
 def test_second_insulation_layer_requires_material():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "pipe",
-            _outdoor_pipe(
-                insulation_layers=[
-                    {"thickness": 0.05, "material": "mineral_wool_boards_120"},
-                    {"thickness": 0.02},
-                ]
-            ),
-        )
+    normalized = normalize_project_object_params(
+        "pipe",
+        _outdoor_pipe(
+            insulation_layers=[
+                {"thickness": 0.05, "material": "mineral_wool_boards_120"},
+                {"thickness": 0.02},
+            ]
+        ),
+    )
+    prepared = validate_and_canonicalize_project_object_params("pipe", normalized)
 
-    assert exc.value.fields == ("insulation_layers.1.material",)
+    assert prepared.report.fields == ("insulation_layers.1.material",)
 
 
 def test_tank_shape_geometry_is_required_after_defaults():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "tank",
-            {
-                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "min_switch_temperature": -20,
-                "heating_height": 3,
-                "laying_step": 0.2,
-                "placement": "outdoor",
-                "wind_speed": 0,
-            },
-        )
+    normalized = normalize_project_object_params(
+        "tank",
+        {
+            "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
+            "insulation_temperature_basis": "outdoor_winter",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "min_switch_temperature": -20,
+            "heating_height": 3,
+            "laying_step": 0.2,
+            "placement": "outdoor",
+            "wind_speed": 0,
+        },
+    )
+    prepared = validate_and_canonicalize_project_object_params("tank", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert exc.value.code == "OBJECT_PARAMS_INVALID"
-    assert exc.value.fields == ("diameter", "height")
+    assert error.code == "OBJECT_PARAMS_INVALID"
+    assert error.fields == ("diameter", "height")
 
 
 def test_tank_requires_all_downstream_inputs_before_heat_formula():
-    with pytest.raises(ProjectObjectParamsError) as exc:
-        prepare_project_object_params(
-            "tank",
-            {
-                "shape": "cylindrical",
-                "diameter": 2,
-                "height": 3,
-                "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
-                "insulation_temperature_basis": "outdoor_winter",
-                "ambient_temperature": -20,
-                "process_temperature": 80,
-                "placement": "outdoor",
-                "wind_speed": 0,
-            },
-        )
+    normalized = normalize_project_object_params(
+        "tank",
+        {
+            "shape": "cylindrical",
+            "diameter": 2,
+            "height": 3,
+            "insulation_layers": [{"thickness": 0.05, "material": "mineral_wool_boards_120"}],
+            "insulation_temperature_basis": "outdoor_winter",
+            "ambient_temperature": -20,
+            "process_temperature": 80,
+            "placement": "outdoor",
+            "wind_speed": 0,
+        },
+    )
+    prepared = validate_and_canonicalize_project_object_params("tank", normalized)
+    error = ProjectObjectParamsError.from_report(prepared.report)
 
-    assert exc.value.code == "OBJECT_REQUIRED_FIELDS_MISSING"
-    assert exc.value.fields == (
+    assert error.code == "OBJECT_REQUIRED_FIELDS_MISSING"
+    assert error.fields == (
         "min_switch_temperature",
         "heating_height",
         "laying_step",

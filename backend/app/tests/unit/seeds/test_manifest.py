@@ -14,7 +14,10 @@ from app.services.heat_contract import (
     PIPE_FORBIDDEN_HEAT_PARAM_KEYS,
     TANK_FORBIDDEN_HEAT_PARAM_KEYS,
 )
-from app.services.project_object_params import prepare_project_object_params
+from app.services.project_object_params import (
+    normalize_project_object_params,
+    validate_and_canonicalize_project_object_params,
+)
 
 EXPECTED_HEAT_SEED_CASES = {
     "pipe_indoor_manual_lambda_1_layer",
@@ -94,7 +97,12 @@ def test_heat_seeds_pass_the_same_create_and_storage_contract_as_api_objects():
             sort_order=0,
             params=params,
         )
-        stored = prepare_project_object_params(create.object_type, create.params)
+        normalized = normalize_project_object_params(create.object_type, create.params)
+        preparation = validate_and_canonicalize_project_object_params(
+            create.object_type, normalized
+        )
+        assert preparation.report.is_valid
+        stored = preparation.params
         forbidden = (
             PIPE_FORBIDDEN_HEAT_PARAM_KEYS
             if create.object_type == "pipe"
@@ -239,7 +247,14 @@ def test_project_seed_plan_objects_pass_the_write_contract():
             # seed_case остаётся только у канонических объектов — по нему их
             # отличает scripts/heat-seed-audit.sql
             assert "seed_case" not in config["params"]
-            params = prepare_project_object_params(config["object_type"], dict(config["params"]))
+            normalized = normalize_project_object_params(
+                config["object_type"], dict(config["params"])
+            )
+            preparation = validate_and_canonicalize_project_object_params(
+                config["object_type"], normalized
+            )
+            assert preparation.report.is_valid
+            params = preparation.params
             assert params["min_switch_temperature"] == -20.0
             forbidden = (
                 PIPE_FORBIDDEN_HEAT_PARAM_KEYS

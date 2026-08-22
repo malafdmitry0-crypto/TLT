@@ -207,7 +207,10 @@ class TestAddRowsHelper:
         from uuid import uuid4
 
         from app.services.object_spreadsheet.persistence import _add_rows, _dedupe_key
-        from app.services.project_object_params import prepare_project_object_params
+        from app.services.project_object_params import (
+            normalize_project_object_params,
+            validate_and_canonicalize_project_object_params,
+        )
 
         row = {
             "_row": 2,
@@ -228,7 +231,10 @@ class TestAddRowsHelper:
         built, err = _build_pipe_params(row)
         assert err is None
         assert built is not None
-        normalized = prepare_project_object_params("pipe", built)
+        normalized = normalize_project_object_params("pipe", built)
+        preparation = validate_and_canonicalize_project_object_params("pipe", normalized)
+        assert preparation.report.is_valid
+        normalized = preparation.params
         dedupe_keys = {_dedupe_key("pipe", normalized)}
 
         async def fake_commit(db, batch, sheet_label):

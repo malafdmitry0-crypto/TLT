@@ -14,7 +14,10 @@ from app.schemas.project import ProjectObjectCreate, ProjectObjectUpdate
 from app.services.calculation.container import CalculationContainer
 from app.services.heat_contract import replace_heat_owned_params
 from app.services.heat_loss_application import apply_climate_policy
-from app.services.project_object_params import prepare_project_object_params
+from app.services.project_object_params import (
+    normalize_project_object_params,
+    validate_and_canonicalize_project_object_params,
+)
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -253,7 +256,10 @@ def test_pipe_heat_replacement_preserves_non_heat_and_volume_and_removes_legacy(
         "insulation_thickness": 0.05,
     }
     replaced = replace_heat_owned_params(existing, _air())
-    prepared = prepare_project_object_params("pipe", replaced)
+    normalized = normalize_project_object_params("pipe", replaced)
+    preparation = validate_and_canonicalize_project_object_params("pipe", normalized)
+    assert preparation.report.is_valid
+    prepared = preparation.params
 
     assert prepared["volume"] == 12.5
     assert prepared["supply_voltage"] == 380

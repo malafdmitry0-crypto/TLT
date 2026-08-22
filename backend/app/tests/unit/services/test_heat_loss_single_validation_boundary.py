@@ -18,9 +18,7 @@ from app.services import heat_loss_application as heat_loss_application_module
 from app.services import project_object_params as project_params_module
 from app.services.calculation.container import CalculationContainer
 from app.services.project_object_params import (
-    ProjectObjectParamsError,
     normalize_project_object_params,
-    prepare_project_object_params,
     validate_and_canonicalize_project_object_params,
 )
 
@@ -136,7 +134,7 @@ async def test_recalculate_runs_one_stored_model_and_reuses_that_instance(
         ("tank", "StoredTankHeatParams", StoredTankHeatParams, _tank()),
     ],
 )
-def test_prepare_helper_also_constructs_the_stored_contract_once(
+def test_canonical_preparation_constructs_the_stored_contract_once(
     monkeypatch: pytest.MonkeyPatch,
     object_type: str,
     constructor_name: str,
@@ -146,10 +144,12 @@ def test_prepare_helper_also_constructs_the_stored_contract_once(
     constructor = MagicMock(side_effect=lambda **kwargs: stored_type(**kwargs))
     monkeypatch.setattr(project_params_module, constructor_name, constructor)
 
-    prepared = prepare_project_object_params(object_type, payload)
+    normalized = normalize_project_object_params(object_type, payload)
+    prepared = validate_and_canonicalize_project_object_params(object_type, normalized)
 
     assert constructor.call_count == 1
-    assert prepared["process_temperature"] == 80.0
+    assert prepared.report.is_valid
+    assert prepared.params["process_temperature"] == 80.0
 
 
 def test_final_report_collects_schema_and_downstream_issues_without_raising() -> None:
@@ -174,9 +174,11 @@ def test_final_report_collects_schema_and_downstream_issues_without_raising() ->
     )
     assert len(prepared.report.issues) == 3
 
-    with pytest.raises(ProjectObjectParamsError) as exc_info:
-        prepare_project_object_params("pipe", payload)
-    assert getattr(exc_info.value, "fields", ()) == prepared.report.fields
+    assert prepared.report.fields == (
+        "outer_diameter",
+        "wall_thickness",
+        "min_switch_temperature",
+    )
 
 
 async def test_core_domain_report_preserves_all_fields_and_stops_formula(

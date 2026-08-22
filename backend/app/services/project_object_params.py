@@ -49,6 +49,7 @@ class ValidationReport:
     def fields(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(issue.field for issue in self.issues if issue.field is not None))
 
+
 @dataclass(frozen=True)
 class PreparedProjectObjectParams:
     """Normalized params, their report, and a trusted formula input when valid."""
@@ -98,14 +99,10 @@ class ProjectObjectParamsError(ValueError):
                 fields=report.fields,
                 reason=unsupported.reason,
             )
-        has_invalid = any(
-            issue.code != "OBJECT_REQUIRED_FIELDS_MISSING" for issue in report.issues
-        )
+        has_invalid = any(issue.code != "OBJECT_REQUIRED_FIELDS_MISSING" for issue in report.issues)
         reason = next((issue.reason for issue in report.issues if issue.reason is not None), None)
         return cls(
-            "Проверьте параметры объекта"
-            if has_invalid
-            else "Заполните обязательные поля объекта",
+            "Проверьте параметры объекта" if has_invalid else "Заполните обязательные поля объекта",
             code="OBJECT_PARAMS_INVALID" if has_invalid else "OBJECT_REQUIRED_FIELDS_MISSING",
             fields=report.fields,
             reason=reason,
@@ -268,18 +265,6 @@ def _finite_real(value: object) -> float | None:
     return numeric if math.isfinite(numeric) else None
 
 
-def prepare_project_object_params(
-    object_type: str, params: Mapping[str, Any] | None
-) -> dict[str, Any]:
-    """Compatibility wrapper around the report-based preparation boundary."""
-
-    normalized = normalize_project_object_params(object_type, params)
-    prepared = validate_and_canonicalize_project_object_params(object_type, normalized)
-    if not prepared.report.is_valid:
-        raise ProjectObjectParamsError.from_report(prepared.report)
-    return prepared.params
-
-
 def build_stored_heat_params(
     object_type: str,
     params: Mapping[str, Any],
@@ -361,20 +346,6 @@ def validate_and_canonicalize_project_object_params(
         report=report,
         heat_params=stored,
     )
-
-
-def validate_project_object_params(
-    object_type: str,
-    params: Mapping[str, Any],
-) -> StoredHeatParams:
-    """Compatibility wrapper returning the trusted model or the legacy exception."""
-
-    prepared = validate_and_canonicalize_project_object_params(object_type, params)
-    if not prepared.report.is_valid:
-        raise ProjectObjectParamsError.from_report(prepared.report)
-    if prepared.heat_params is None:  # pragma: no cover - guarded by report.is_valid
-        raise RuntimeError("Валидный отчёт не содержит formula input")
-    return prepared.heat_params
 
 
 def _validate_downstream_required_inputs(
