@@ -111,6 +111,65 @@ jobs:
           MUTMUT_SPECIFICATION_CORE_MAX_TIMEOUTS: "0"
         run: python scripts/mutmut_score_gate.py
 
+  backend-app:
+    name: Backend application gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: heatcalc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d heatcalc_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: test
+      SECRET_KEY: ci-only-secret
+      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/heatcalc_test
+      TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/heatcalc_test
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements-lock.txt
+            backend/requirements-dev.txt
+      - name: Install locked backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements-dev.txt
+      - name: Fresh database migration
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Static and dependency security gates
+        working-directory: backend
+        run: |
+          ruff check app alembic
+          mypy app --exclude app/tests/ --no-pretty
+          bandit -q -r app -c pyproject.toml
+          pip-audit -r requirements-lock.txt --progress-spinner off
+      - name: Backend unit and integration tests
+        working-directory: backend
+        run: pytest app/tests
+
   frontend-dod:
     name: Frontend full DoD (test:agent-dod:dual-safe)
     runs-on: ubuntu-latest
