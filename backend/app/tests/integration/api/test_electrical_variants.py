@@ -27,6 +27,7 @@ from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
 from app.models.user import User
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.calculation.electrical_candidates import ElectricalCandidateService
 from app.services.calculation.electrical_single import ElectricalSingleCalculationService
 from app.services.calculation.heat_calculation import HeatCalculationService
@@ -50,6 +51,20 @@ READY_PIPE_PARAMS = {
     "placement": "outdoor",
     "wind_speed": 0.0,
 }
+
+
+async def _seed_calculation_catalogs(
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
 
 
 class _FakeTaskQueue:
@@ -579,7 +594,10 @@ class TestElectricalVariantLifecycle:
         self,
         client: AsyncClient,
         guest_session: str,
+        db_session: AsyncSession,
+        admin_user: User,
     ):
+        await _seed_calculation_catalogs(db_session, admin_user)
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}
         obj = await _add_ready_pipe(client, project["id"], headers)
@@ -1311,7 +1329,9 @@ class TestElectricalVariantConcurrency:
         db_session: AsyncSession,
         test_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
+        admin_user: User,
     ):
+        await _seed_calculation_catalogs(db_session, admin_user)
         project = await _guest_project(client, guest_session)
         project_id = UUID(project["id"])
         headers = {"X-Session-Id": guest_session}
@@ -1404,7 +1424,9 @@ class TestElectricalVariantConcurrency:
         db_session: AsyncSession,
         test_engine: AsyncEngine,
         monkeypatch: pytest.MonkeyPatch,
+        admin_user: User,
     ):
+        await _seed_calculation_catalogs(db_session, admin_user)
         project = await _guest_project(client, guest_session)
         project_id = UUID(project["id"])
         headers = {"X-Session-Id": guest_session}

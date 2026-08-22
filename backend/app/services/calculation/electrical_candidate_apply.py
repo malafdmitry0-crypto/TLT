@@ -133,7 +133,6 @@ class ElectricalCandidateApplyService:
                 candidate.object_id,
                 candidate.cable_mark,
                 candidate.cable_source,
-                None,
                 candidate.cable_type,
                 apply_params,
                 commit=False,
