@@ -56,7 +56,6 @@ def _resolved() -> ResolvedElectricalInputs:
         values=values,
         sources={field: "parity_test" for field in values.model_fields},
         mocked_fields=[],
-        legacy_aliases=[],
         warnings=[],
         production_eligible=True,
     )

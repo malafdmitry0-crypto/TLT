@@ -118,10 +118,3 @@ def extract_tt_catalog_rows(
     )
     meta = {key: value for key, value in catalog.items() if key != "payload"}
     return rows, meta
-
-
-def extract_power_catalog_rows(
-    power_catalog: Mapping[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Compatibility wrapper for callers which need only the power snapshot."""
-    return extract_tt_catalog_rows(power_catalog, "power")

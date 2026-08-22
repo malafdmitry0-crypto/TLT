@@ -126,7 +126,6 @@ class ElectricalTTPreparationService:
             assignment=assignment_values,
             project_settings=project_values,
             object_heat=object_heat,
-            legacy_aliases=normalized.legacy_aliases,
             boundary_warnings=normalized.warnings,
         )
         tank_layout = object_heat.get("_tank_layout")

@@ -146,7 +146,6 @@ def normalize_electrical_override_payload(
         ) from exc
     return NormalizedElectricalOverrides(
         overrides=overrides,
-        legacy_aliases=[],
         warnings=[],
     )
 
@@ -183,7 +182,6 @@ class ElectricalInputResolver:
         assignment: Mapping[str, Any] | BaseModel | None = None,
         project_settings: Mapping[str, Any] | BaseModel | None = None,
         object_heat: Mapping[str, Any] | BaseModel | None = None,
-        legacy_aliases: list[str] | None = None,
         boundary_warnings: list[str] | None = None,
     ) -> ResolvedElectricalInputs:
         explicit_values, explicit_fields = _present_values(explicit)
@@ -272,7 +270,6 @@ class ElectricalInputResolver:
             values=canonical_values,
             sources=sources,
             mocked_fields=mocked_fields,
-            legacy_aliases=list(legacy_aliases or []),
             warnings=warnings,
             production_eligible=not mocked_fields,
         )

@@ -466,7 +466,6 @@ def calculate_electrical_tt(
                 "source": plan.i_dop_source,
             },
             "mocked_fields": list(resolved.mocked_fields),
-            "legacy_aliases": list(resolved.legacy_aliases),
             "warnings": warnings,
             "production_eligible": production_eligible,
             "system_voltage_v": float(values.nominal_voltage_v),
@@ -510,7 +509,6 @@ def calculate_electrical_tt(
         "resolved_inputs": resolved_values,
         "input_sources": applied_input_sources,
         "mocked_fields": list(resolved.mocked_fields),
-        "legacy_aliases": list(resolved.legacy_aliases),
         "warnings": warnings,
         "production_eligible": production_eligible,
     }

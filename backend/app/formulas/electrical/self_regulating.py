@@ -16,19 +16,10 @@ from heatcalc_electrical_core import (
     PipeLayout,
     TankLayout,
     TTFormulaDomainError,
-    TTFormulaReport,
     TTPreparationInput,
     run_tt_formula,
 )
 from heatcalc_electrical_core import compute_tank_cable_length as _core_tank_cable_length
-from heatcalc_electrical_core.geometry import compute_winding_factor as _core_winding_factor
-from heatcalc_electrical_core.geometry import max_winding_factor as _core_max_winding_factor
-from heatcalc_electrical_core.selection import (
-    TTCatalogCandidate,
-)
-from heatcalc_electrical_core.selection import (
-    build_tt_catalog_candidates as _core_build_tt_catalog_candidates,
-)
 
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.catalog_preparation import prepare_tt_catalog_bundle
@@ -57,40 +48,6 @@ def _catalog_bundle(
         section_rows=_mapping_rows(section_rows),
         bom_rows=_mapping_rows(bom_rows),
     )
-
-
-def build_tt_catalog_candidates(
-    power_catalog_rows: Sequence[Mapping[str, Any]],
-    section_catalog_rows: Sequence[Mapping[str, Any]],
-    bom_catalog_rows: Sequence[Mapping[str, Any]],
-) -> list[TTCatalogCandidate]:
-    """Legacy import-path adapter for core candidate construction."""
-    candidates = _core_build_tt_catalog_candidates(
-        _catalog_bundle(power_catalog_rows, section_catalog_rows, bom_catalog_rows)
-    )
-    if isinstance(candidates, TTFormulaReport):
-        raise_electrical_formula_report(candidates)
-        raise AssertionError("blocking core candidate report must raise")
-    return list(candidates)
-
-
-def compute_winding_factor(*, outer_diameter_mm: float, winding_pitch_mm: float | None) -> Decimal:
-    """Legacy float-input facade over the core Decimal winding calculation."""
-    try:
-        return _core_winding_factor(
-            outer_diameter_mm=decimal_value(outer_diameter_mm),
-            winding_pitch_mm=(
-                decimal_value(winding_pitch_mm) if winding_pitch_mm is not None else None
-            ),
-        )
-    except TTFormulaDomainError as error:
-        raise_electrical_formula_domain_error(error)
-        raise AssertionError("core winding error mapping must raise") from error
-
-
-def max_winding_factor(outer_diameter_mm: float) -> Decimal:
-    """Legacy import-path facade over the core winding-factor boundary table."""
-    return _core_max_winding_factor(decimal_value(outer_diameter_mm))
 
 
 def calc_self_regulating_tt(

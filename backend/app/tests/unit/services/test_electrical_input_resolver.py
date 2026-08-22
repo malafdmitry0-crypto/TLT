@@ -189,7 +189,7 @@ def test_public_request_vocabulary_maps_without_legacy_warning_or_mark_rewrite()
     assert normalized.overrides.cold_start_temperature_c == Decimal("-30")
     assert normalized.overrides.nominal_voltage_v == Decimal("380")
     assert normalized.overrides.manual_cable_model == "30ттв2-ср"
-    assert normalized.legacy_aliases == []
+    assert "legacy_aliases" not in type(normalized).model_fields
     assert normalized.warnings == []
 
 

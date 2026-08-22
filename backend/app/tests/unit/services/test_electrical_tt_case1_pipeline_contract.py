@@ -56,7 +56,6 @@ def _resolved(**updates: object) -> ResolvedElectricalInputs:
         values=values,
         sources={field: "case1_test" for field in values.model_fields},
         mocked_fields=[],
-        legacy_aliases=[],
         warnings=[],
         production_eligible=True,
     )

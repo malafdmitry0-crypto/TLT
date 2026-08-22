@@ -48,14 +48,12 @@ class ResolvedElectricalInputs(BaseModel):
     values: CanonicalElectricalInputs
     sources: dict[str, str]
     mocked_fields: list[str]
-    legacy_aliases: list[str]
     warnings: list[str]
     production_eligible: bool
 
 
 class NormalizedElectricalOverrides(BaseModel):
     overrides: ElectricalInputOverrides
-    legacy_aliases: list[str]
     warnings: list[str]
 
 
