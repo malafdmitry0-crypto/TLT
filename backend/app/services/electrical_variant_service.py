@@ -115,7 +115,7 @@ class ElectricalVariantService:
     ) -> ElectricalVariant:
         """Resolve a project-scoped ЭР by UUID for read paths (report/spec/export).
 
-        Does not require a legacy slot. Cross-project or missing UUID raises
+        Cross-project or missing UUID raises
         ELECTRICAL_VARIANT_NOT_FOUND without leaking foreign existence.
         """
         await ProjectService(self.db).get_project_basic(project_id, principal)

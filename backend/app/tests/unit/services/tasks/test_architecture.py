@@ -12,8 +12,8 @@ from app.schemas.report import ReportExportJobRequest, ReportExportTaskResult
 from app.services.tasks.payloads import electrical_payload, report_export_payload
 
 SERVICES_DIR = Path(__file__).resolve().parents[4] / "services"
-TASK_FACADE = SERVICES_DIR / "task_service.py"
 TASK_PACKAGE = SERVICES_DIR / "tasks"
+TASK_FACADE = TASK_PACKAGE / "service.py"
 
 
 def _python_lines(path: Path) -> int:
@@ -97,4 +97,3 @@ def test_database_constraint_rejects_non_uuid_electrical_task_payloads() -> None
 
     assert "electrical_variant_id IS NOT NULL" in sql
     assert "request_payload ->> 'electrical_variant_id' IS NOT NULL" in sql
-    assert "NOT request_payload ? 'variant_number'" in sql

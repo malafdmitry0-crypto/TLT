@@ -42,8 +42,7 @@ class BackgroundTask(Base, TimestampMixin):
             "request_payload ->> 'electrical_variant_id' IS NOT NULL AND "
             "lower(request_payload ->> 'electrical_variant_id') = "
             "electrical_variant_id::text AND "
-            "NOT request_payload ? 'payload_version' AND "
-            "NOT request_payload ? 'variant_number')",
+            "NOT request_payload ? 'payload_version')",
             name="ck_background_tasks_electrical_variant_trace",
         ),
         Index("ix_background_tasks_status_next_retry", "status", "next_retry_at"),
