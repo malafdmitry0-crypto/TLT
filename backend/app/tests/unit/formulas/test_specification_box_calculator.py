@@ -11,7 +11,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from heatcalc_specification_core.boxes import (
+from heatcalc_specification_core.bom.boxes import (
     SPEC_BOX_EX_RGR_MATRIX_MISSING,
     box_row_from_catalog_parts,
     calculate_box_quantity,
@@ -21,7 +21,7 @@ from heatcalc_specification_core.boxes import (
     row_conditions_match,
     validate_box_matrix_ex_r_gr,
 )
-from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.catalog.conditions import match_condition, not_applicable
 from heatcalc_specification_core.common import floor_div
 from heatcalc_specification_core.types import (
     BOX_CONDITION_UNUSED,
@@ -551,7 +551,7 @@ class TestPureLayerImports:
     def test_boxes_module_has_no_heavy_deps(self) -> None:
         import ast
 
-        import heatcalc_specification_core.boxes as boxes_module
+        import heatcalc_specification_core.bom.boxes as boxes_module
 
         assert boxes_module.__file__ is not None
         path = Path(boxes_module.__file__)

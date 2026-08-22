@@ -41,7 +41,6 @@ async def _seed_project_with_variants(
             name_normalized=f"er {index + 1}",
             sort_order=index,
             is_active=index == 0,
-            legacy_variant_number=None,
         )
         for index in range(count)
     ]

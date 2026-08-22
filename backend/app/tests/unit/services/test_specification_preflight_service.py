@@ -67,7 +67,6 @@ def _variant(project_id: uuid.UUID, *, name: str) -> ElectricalVariant:
         name_normalized=name.casefold(),
         sort_order=0,
         is_active=False,
-        legacy_variant_number=None,
     )
 
 
@@ -153,7 +152,6 @@ def _row(
             id=uuid.uuid4(),
             project_id=project_id,
             object_id=object_id,
-            variant_number=1,
             electrical_variant_id=variant_id,
             cable_type="self_regulating_tt",
             cable_mark="30ТТВ2-СР",

@@ -30,7 +30,6 @@ from heatcalc_specification_core.bom import (
     CandidateGroup as CoreCandidateGroup,
 )
 from heatcalc_specification_core.catalog import CatalogParameters
-from heatcalc_specification_core.catalog_identity import temperature_group_from_result
 from heatcalc_specification_core.common import normalize_temperature_group
 from heatcalc_specification_core.json_types import json_object
 from heatcalc_specification_core.types import FormulaInputError
@@ -347,17 +346,21 @@ def _nomenclature_code(result: Mapping[str, Any]) -> str | None:
 
 
 def _temperature_group(result: Mapping[str, Any]) -> str | None:
-    raw = temperature_group_from_result(dict(result))
-    if raw is None:
-        cable = _mapping(result.get("cable"))
-        raw = result.get("temperature_group") or cable.get("temperature_group")
-    if raw is None:
-        return None
-    try:
-        normalized = normalize_temperature_group(str(raw))
-    except FormulaInputError:
-        return None
-    return normalized.value if normalized is not None else None
+    cable = _mapping(result.get("cable"))
+    snapshot = _mapping(result.get("cable_snapshot"))
+    technical = _mapping(snapshot.get("technical"))
+    selection = _mapping(snapshot.get("selection"))
+    for source in (result, cable, snapshot, technical, selection):
+        raw = source.get("temperature_group")
+        if not isinstance(raw, str):
+            continue
+        try:
+            normalized = normalize_temperature_group(raw)
+        except FormulaInputError:
+            continue
+        if normalized is not None:
+            return normalized.value
+    return None
 
 
 def _section_facts(result: Mapping[str, Any]) -> tuple[Any, Any]:

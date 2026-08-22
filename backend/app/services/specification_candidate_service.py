@@ -12,7 +12,10 @@ from heatcalc_specification_core.candidates import (
     CandidateCatalog,
     CandidateCatalogItem,
     CandidateCatalogVersion,
+    CandidateResultSnapshot,
     SelectionSource,
+    condition_from_json,
+    condition_json,
 )
 from heatcalc_specification_core.candidates import (
     CandidateGroup as CoreCandidateGroup,
@@ -61,7 +64,9 @@ def build_candidate_groups(
     result = build_core_candidate_groups(
         electrical_variant_id=electrical_variant_id,
         catalog=_core_catalog(catalog),
-        contributing_results=contributing_results,
+        contributing_results=tuple(
+            CandidateResultSnapshot.from_mapping(item) for item in contributing_results
+        ),
         catalog_selections=catalog_selections,
         object_type_section=object_type_section,
     )
@@ -90,7 +95,7 @@ def stable_group_key(
     return core_stable_group_key(
         electrical_variant_id=electrical_variant_id,
         category=category,
-        conditions=conditions,
+        condition=condition_from_json(conditions),
         object_type_section=object_type_section,
     )
 
@@ -110,7 +115,10 @@ def catalog_selections_for_variant(
 def candidate_groups_fingerprint_payload(
     groups: Sequence[SpecificationCandidateGroup],
 ) -> list[dict[str, Any]]:
-    return core_groups_fingerprint_payload([_core_group(item) for item in groups])
+    return [
+        dict(item)
+        for item in core_groups_fingerprint_payload([_core_group(item) for item in groups])
+    ]
 
 
 def _core_catalog(catalog: ResolvedSpecificationCatalog) -> CandidateCatalog:
@@ -149,7 +157,7 @@ def _application_group(group: CoreCandidateGroup) -> SpecificationCandidateGroup
         electrical_variant_id=group.electrical_variant_id,
         category=group.category,
         object_type_section=group.object_type_section,
-        conditions=thaw(group.conditions),
+        conditions=thaw(condition_json(group.condition)),
         candidates=[_application_candidate(item) for item in group.candidates],
         selected_catalog_item_id=group.selected_catalog_item_id,
         selection_source=SpecificationSelectionSource(group.selection_source.value),
@@ -179,7 +187,7 @@ def _core_group(group: SpecificationCandidateGroup) -> CoreCandidateGroup:
         electrical_variant_id=group.electrical_variant_id,
         category=group.category,
         object_type_section=group.object_type_section,
-        conditions=group.conditions,
+        condition=condition_from_json(group.conditions),
         candidates=tuple(_core_candidate(item) for item in group.candidates),
         selected_catalog_item_id=group.selected_catalog_item_id,
         selection_source=SelectionSource(group.selection_source.value),

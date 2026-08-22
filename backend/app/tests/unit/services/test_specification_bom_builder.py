@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
-from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.catalog.conditions import match_condition, not_applicable
 
 from app.schemas.specification import (
     SpecificationCandidate,
@@ -240,7 +240,10 @@ def _fixture_catalog_and_groups(
             electrical_variant_id=variant_id,
             category="cable",
             selected=cable.id,
-            conditions={"mark": "30ТТВ2-СР"},
+            conditions={
+                "mark": "30ТТВ2-СР",
+                "nomenclature_code": "001-002-002",
+            },
         ),
         _group(
             electrical_variant_id=variant_id,
@@ -347,6 +350,31 @@ class TestBomBuilderGoldens:
             }
         ]
         assert bom.snapshot["preflight_fingerprint"] == f"sha256:{'1' * 64}"
+
+    def test_temperature_group_uses_explicit_nested_snapshot_field(self) -> None:
+        variant_id = uuid.uuid4()
+        object_id = str(uuid.uuid4())
+        catalog, groups, _ids = _fixture_catalog_and_groups(variant_id)
+        result = _result(object_id=object_id)
+        result.pop("temperature_group")
+        result["cable"].pop("temperature_group", None)
+        result["cable_snapshot"] = {"selection": {"temperature_group": "medium-high"}}
+
+        bom = materialize_specification_bom(
+            electrical_variant_id=variant_id,
+            contributing_results=[result],
+            objects_by_id={object_id: {"object_type": "pipe", "outer_diameter": 0.108}},
+            catalog=catalog,  # type: ignore[arg-type]
+            candidate_groups=groups,
+            resolved_options=_options(),
+            snapshot_context=_snapshot_context(variant_id),
+            preflight_fingerprint=f"sha256:{'1' * 64}",
+        )
+
+        assert isinstance(bom, BomBuildSuccess)
+        assert bom.snapshot["normalized_inputs"]["objects"][0]["temperature_group"] == (
+            "MEDIUM_HIGH"
+        )
 
     def test_missing_selection_is_blocking_no_partial(self) -> None:
         variant_id = uuid.uuid4()

@@ -10,28 +10,26 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 import pytest
-from heatcalc_specification_core.aluminium_tape import (
-    calculate_aluminium_from_scalar,
-    calculate_aluminium_object_length,
-    calculate_aluminium_tape,
-)
-from heatcalc_specification_core.cable import (
+from heatcalc_specification_core.bom.cable import (
     calculate_cable_mark,
     calculate_group_actual,
     calculate_mark_actual,
     calculate_mark_order,
 )
-from heatcalc_specification_core.common import FIBERGLASS_RESERVE, ceil_div
-from heatcalc_specification_core.connection_kit import calculate_connection_kits
-from heatcalc_specification_core.fiberglass_tape import (
+from heatcalc_specification_core.bom.kits import (
+    calculate_connection_kits,
+    calculate_repair_kits,
+    calculate_sealant,
+)
+from heatcalc_specification_core.bom.tapes import (
+    calculate_aluminium_from_scalar,
+    calculate_aluminium_object_length,
+    calculate_aluminium_tape,
     calculate_fiberglass_object_length,
     calculate_fiberglass_reels_from_total,
     calculate_fiberglass_tape,
 )
-from heatcalc_specification_core.repair_kit import (
-    calculate_repair_kits,
-)
-from heatcalc_specification_core.sealant import calculate_sealant
+from heatcalc_specification_core.common import FIBERGLASS_RESERVE, ceil_div
 from heatcalc_specification_core.types import (
     AluminiumObjectInput,
     CableGroupInput,

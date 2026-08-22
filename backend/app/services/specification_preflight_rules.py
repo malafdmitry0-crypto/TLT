@@ -11,6 +11,7 @@ from uuid import UUID
 
 from heatcalc_specification_core import prepare_specification
 from heatcalc_specification_core.diagnostics import Diagnostic as CoreDiagnostic
+from heatcalc_specification_core.json_types import mutable_json
 from heatcalc_specification_core.preflight import (
     CatalogIdentity,
     ElectricalResultSnapshot,
@@ -216,8 +217,8 @@ def _application_diagnostic(item: CoreDiagnostic) -> SpecificationDiagnostic:
         code=SpecificationDiagnosticCode(item.code),
         kind=SpecificationIssueKind(item.kind.value),
         message=item.message,
-        issues=[dict(issue) for issue in item.issues],
-        details=dict(item.details),
+        issues=[mutable_json(issue) for issue in item.issues],
+        details=mutable_json(item.details),
     )
 
 

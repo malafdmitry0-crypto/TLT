@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from heatcalc_specification_core.grouping import (
+from heatcalc_specification_core.bom.grouping import (
     MODE_MERGE_MATERIALS,
     MODE_SEPARATE_BY_OBJECT_TYPE,
     grouping_key,
