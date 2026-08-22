@@ -11,8 +11,13 @@ VALID_CABLE_MARK_SOURCES = {"auto", "manual"}
 VALID_ASSIGNMENT_SYSTEM_TYPES = {
     "self_regulating",
     "resistive",
-    "skin",
-    "mineral",
+}
+VALID_ELECTRICAL_CABLE_TYPES = {
+    "self_regulating",
+    "self_regulating_tt",
+    "single_core",
+    "three_core",
+    "resistive",
 }
 VALID_ASSIGNMENT_STATES = {
     "unassigned",

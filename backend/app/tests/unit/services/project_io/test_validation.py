@@ -62,6 +62,43 @@ def test_full_payload_validation_happens_without_database():
     validate_project_payload(payload, role="employee")
 
 
+@pytest.mark.parametrize("retired_type", ["mineral", "skin"])
+@pytest.mark.parametrize("section", ["assignment", "electrical"])
+def test_retired_cable_types_are_rejected_before_project_persistence(
+    retired_type: str,
+    section: str,
+) -> None:
+    variant_id = str(uuid4())
+    assignment = {
+        "variant_key": variant_id,
+        "object_key": "o1",
+        "assignment_state": "unassigned",
+        "system_type": "",
+        "requested_cable_type": retired_type if section == "assignment" else "",
+    }
+    electrical = {
+        "variant_key": variant_id,
+        "object_key": "o1",
+        "cable_type": retired_type if section == "electrical" else "self_regulating_tt",
+        "params": "{}",
+        "results": "{}",
+    }
+    payload = ProjectImportPayload(
+        project_key=None,
+        name="P",
+        task_number=None,
+        description=None,
+        status="draft",
+        objects=[{"object_key": "o1", "type": "pipe", "params": "{}"}],
+        variants=[{"variant_key": variant_id, "name": "ЭР1", "is_active": "true"}],
+        assignments=[assignment],
+        electrical=[electrical],
+    )
+
+    with pytest.raises(ProjectImportError, match="Некорректный .*cable_type"):
+        validate_project_payload(payload, role="employee")
+
+
 def test_numeric_only_variant_identity_is_rejected() -> None:
     payload = ProjectImportPayload(
         project_key=None,

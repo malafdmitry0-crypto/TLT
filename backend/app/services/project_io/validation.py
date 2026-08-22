@@ -12,6 +12,7 @@ from app.services.project_io.contracts import (
     OBJECT_TYPE_ALIASES,
     VALID_ASSIGNMENT_STATES,
     VALID_ASSIGNMENT_SYSTEM_TYPES,
+    VALID_ELECTRICAL_CABLE_TYPES,
     ProjectImportError,
     ProjectImportPayload,
     Row,
@@ -344,10 +345,12 @@ def _validate_assignments(rows: list[Row], object_keys: set[str], variants: set[
             raise ProjectImportError(f"Некорректный assignment_state: {state!r}")
         if state == "ready" and system_type not in {"self_regulating", "resistive"}:
             raise ProjectImportError("assignment_state='ready' требует поддерживаемый system_type")
-        if system_type in {"skin", "mineral"} and state != "unsupported":
-            raise ProjectImportError(
-                "system_type skin/mineral требует assignment_state='unsupported'"
-            )
+        requested_cable_type = (row.get("requested_cable_type") or "").strip().lower() or None
+        if (
+            requested_cable_type is not None
+            and requested_cable_type not in VALID_ELECTRICAL_CABLE_TYPES
+        ):
+            raise ProjectImportError(f"Некорректный requested_cable_type: {requested_cable_type!r}")
 
 
 def _validate_electrical(rows: list[Row], object_keys: set[str], variants: set[str]) -> None:
@@ -365,6 +368,9 @@ def _validate_electrical(rows: list[Row], object_keys: set[str], variants: set[s
         if scope in seen:
             raise ProjectImportError(f"Дублирующийся electrical для {variant_key!r}/{object_key!r}")
         seen.add(scope)
+        cable_type = (row.get("cable_type") or "").strip().lower()
+        if cable_type and cable_type not in VALID_ELECTRICAL_CABLE_TYPES:
+            raise ProjectImportError(f"Некорректный cable_type: {cable_type!r}")
         for field, default in (
             ("cable_snapshot", None),
             ("params", {}),

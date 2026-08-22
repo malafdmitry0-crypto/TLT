@@ -121,7 +121,7 @@ async def _seed_sparse_current_export_graph(
         for variant, obj, system_type, state, requested_type in (
             (er1, first, "self_regulating", "ready", "self_regulating_tt"),
             (er1, second, None, "unassigned", None),
-            (er4, first, "mineral", "unsupported", "mineral"),
+            (er4, first, None, "unassigned", None),
             (er4, second, "resistive", "ready", "single_core"),
         )
     ]
@@ -140,20 +140,6 @@ async def _seed_sparse_current_export_graph(
                 cable_mark_source="manual",
                 params={"source": "current-roundtrip"},
                 results={"selected_cable": "TLT-SR-1", "total_power": 120.0},
-            ),
-            ElectricalCalculation(
-                project_id=project.id,
-                object_id=first.id,
-                electrical_variant_id=er4.id,
-                cable_type="mineral",
-                cable_type_source="manual",
-                cable_mark=None,
-                cable_mark_source="auto",
-                params={"source": "current-roundtrip"},
-                results={
-                    "category": "unsupported",
-                    "error_code": "UNSUPPORTED_CABLE_TYPE",
-                },
             ),
             ElectricalCalculation(
                 project_id=project.id,
@@ -242,11 +228,8 @@ async def _assert_sparse_imported_graph(
     )
     assert second_er4.requested_cable_type == "single_core"
     assert (second_er1.system_type, second_er1.assignment_state) == (None, "unassigned")
-    assert (first_er4.system_type, first_er4.assignment_state) == (
-        "mineral",
-        "unsupported",
-    )
-    assert first_er4.requested_cable_type == "mineral"
+    assert (first_er4.system_type, first_er4.assignment_state) == (None, "unassigned")
+    assert first_er4.requested_cable_type is None
 
     calculations = list(
         (
@@ -266,7 +249,6 @@ async def _assert_sparse_imported_graph(
         for calculation in calculations
     }
     assert calculation_by_scope[(first.id, er1.id)]
-    assert calculation_by_scope[(first.id, er4.id)]
     assert calculation_by_scope[(second.id, er4.id)]
 
     specs = list(
