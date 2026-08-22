@@ -646,7 +646,9 @@ async def test_coefficient_provider_exception_is_an_invalid_canonical_outcome(
     formula = MagicMock()
     monkeypatch.setattr(heat_loss_application_module, "calc_heat_loss", formula)
     service = CalculationContainer(AsyncMock()).heat
-    service._load_coefficients = AsyncMock(side_effect=RuntimeError("coefficient cache unavailable"))
+    service._load_coefficients = AsyncMock(
+        side_effect=RuntimeError("coefficient cache unavailable")
+    )
     obj = _object(_pipe())
 
     outcome = await service.try_recalculate(obj)
