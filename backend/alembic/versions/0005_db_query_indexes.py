@@ -24,11 +24,6 @@ def upgrade() -> None:
         ["project_id", "object_type", "sort_order", "id"],
     )
     op.create_index(
-        "ix_electrical_calculations_object_variant",
-        "electrical_calculations",
-        ["object_id", "variant_number"],
-    )
-    op.create_index(
         "ix_projects_user_updated",
         "projects",
         ["user_id", "updated_at"],
@@ -49,10 +44,6 @@ def downgrade() -> None:
     op.drop_index("ix_guest_sessions_last_activity", table_name="guest_sessions")
     op.drop_index("ix_projects_session_updated", table_name="projects")
     op.drop_index("ix_projects_user_updated", table_name="projects")
-    op.drop_index(
-        "ix_electrical_calculations_object_variant",
-        table_name="electrical_calculations",
-    )
     op.drop_index("ix_project_objects_project_type_sort", table_name="project_objects")
     op.create_index(
         "ix_project_objects_project_type_sort",

@@ -29,15 +29,26 @@ def upgrade() -> None:
         sa.Column("supersedes_result_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("object_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("variant_number", sa.Integer(), nullable=False),
-        sa.Column("electrical_variant_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("electrical_variant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("cable_type", sa.String(length=64), nullable=False),
         sa.Column("cable_type_source", sa.String(length=32), nullable=False),
         sa.Column("cable_mark", sa.String(length=128), nullable=True),
         sa.Column("cable_mark_source", sa.String(length=32), nullable=False),
-        sa.Column("cable_snapshot", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("params", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("results", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "cable_snapshot",
+            postgresql.JSONB(astext_type=sa.Text()),  # type: ignore[no-untyped-call]
+            nullable=True,
+        ),
+        sa.Column(
+            "params",
+            postgresql.JSONB(astext_type=sa.Text()),  # type: ignore[no-untyped-call]
+            nullable=False,
+        ),
+        sa.Column(
+            "results",
+            postgresql.JSONB(astext_type=sa.Text()),  # type: ignore[no-untyped-call]
+            nullable=True,
+        ),
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("source_created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("source_updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -50,10 +61,6 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "revision_number >= 1",
             name="ck_electrical_calculation_revisions_number",
-        ),
-        sa.CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 5",
-            name="ck_electrical_calculation_revisions_variant_number",
         ),
         sa.CheckConstraint(
             "status IN ('pending', 'success', 'error', 'stale')",
@@ -122,7 +129,6 @@ def upgrade() -> None:
                 supersedes_result_id,
                 project_id,
                 object_id,
-                variant_number,
                 electrical_variant_id,
                 cable_type,
                 cable_type_source,
@@ -142,7 +148,6 @@ def upgrade() -> None:
                 previous_revision_id,
                 NEW.project_id,
                 NEW.object_id,
-                NEW.variant_number,
                 NEW.electrical_variant_id,
                 NEW.cable_type,
                 NEW.cable_type_source,
@@ -178,7 +183,6 @@ def upgrade() -> None:
             supersedes_result_id,
             project_id,
             object_id,
-            variant_number,
             electrical_variant_id,
             cable_type,
             cable_type_source,
@@ -199,7 +203,6 @@ def upgrade() -> None:
             NULL,
             ec.project_id,
             ec.object_id,
-            ec.variant_number,
             ec.electrical_variant_id,
             ec.cable_type,
             ec.cable_type_source,

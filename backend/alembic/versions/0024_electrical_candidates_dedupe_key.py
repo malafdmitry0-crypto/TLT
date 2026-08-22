@@ -34,6 +34,7 @@ def _pick_survivor_index(rows: list) -> int:
 
     return max(range(len(rows)), key=sort_key)
 
+
 revision: str = "0024"
 down_revision: str | None = "0023"
 branch_labels: str | None = None
@@ -43,19 +44,23 @@ depends_on: str | None = None
 def _backfill_and_merge() -> None:
     bind = op.get_bind()
     session = Session(bind=bind)
-    rows = session.execute(
-        text(
-            """
-            SELECT ec.id, ec.object_id, ec.variant_number, ec.cable_type, ec.cable_source, ec.cable_mark,
+    rows = (
+        session.execute(
+            text(
+                """
+            SELECT ec.id, ec.object_id, ec.electrical_variant_id, ec.cable_type, ec.cable_source, ec.cable_mark,
                    ec.status, ec.reason_code, ec.params, ec.results, ec.cable_snapshot,
                    ec.priority, ec.is_recommended, ec.is_pinned, ec.is_applied, ec.engineer_comment,
                    ec.updated_at, ec.created_at, po.object_type
             FROM electrical_candidates ec
             JOIN project_objects po ON po.id = ec.object_id
-            ORDER BY ec.object_id, ec.variant_number, ec.updated_at, ec.created_at
+            ORDER BY ec.object_id, ec.electrical_variant_id, ec.updated_at, ec.created_at
             """
+            )
         )
-    ).mappings().all()
+        .mappings()
+        .all()
+    )
 
     keyed: dict[tuple, list] = defaultdict(list)
     for row in rows:
@@ -70,7 +75,9 @@ def _backfill_and_merge() -> None:
             reason_code=row["reason_code"],
             status=row["status"],
         )
-        keyed[(row["object_id"], row["variant_number"], dedupe_key)].append((row, dedupe_key))
+        keyed[(row["object_id"], row["electrical_variant_id"], dedupe_key)].append(
+            (row, dedupe_key)
+        )
 
     delete_ids: list = []
     for group in keyed.values():
@@ -138,16 +145,17 @@ def upgrade() -> None:
     _backfill_and_merge()
     op.alter_column("electrical_candidates", "dedupe_key", nullable=False)
     op.create_index(
-        "ux_electrical_candidates_object_variant_dedupe",
+        "ux_electrical_candidates_object_electrical_variant_dedupe",
         "electrical_candidates",
-        ["object_id", "variant_number", "dedupe_key"],
+        ["object_id", "electrical_variant_id", "dedupe_key"],
         unique=True,
+        postgresql_where=sa.text("electrical_variant_id IS NOT NULL"),
     )
 
 
 def downgrade() -> None:
     op.drop_index(
-        "ux_electrical_candidates_object_variant_dedupe",
+        "ux_electrical_candidates_object_electrical_variant_dedupe",
         table_name="electrical_candidates",
     )
     op.drop_column("electrical_candidates", "dedupe_key")

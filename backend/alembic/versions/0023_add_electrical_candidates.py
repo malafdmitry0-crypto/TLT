@@ -5,10 +5,10 @@ Revises: 0022
 Create Date: 2026-05-20
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision: str = "0023"
 down_revision: str | None = "0022"
@@ -17,17 +17,12 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    op.create_check_constraint(
-        "ck_electrical_calculations_variant_number",
-        "electrical_calculations",
-        "variant_number >= 1 AND variant_number <= 4",
-    )
     op.create_table(
         "electrical_candidates",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("object_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("variant_number", sa.Integer(), nullable=False),
+        sa.Column("electrical_variant_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("cable_type", sa.String(length=64), nullable=False),
         sa.Column("cable_source", sa.String(length=32), nullable=False),
         sa.Column("cable_mark", sa.String(length=128), nullable=True),
@@ -46,11 +41,11 @@ def upgrade() -> None:
         sa.Column("warnings", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("risk_flags", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("candidate_meta", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.CheckConstraint(
-            "variant_number >= 1 AND variant_number <= 4",
-            name="ck_electrical_candidates_variant_number",
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.CheckConstraint(
             "mode IN ('auto', 'manual')",
@@ -65,31 +60,26 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_electrical_candidates_project_object_variant",
+        "ix_electrical_candidates_project_object_electrical_variant",
         "electrical_candidates",
-        ["project_id", "object_id", "variant_number"],
+        ["project_id", "object_id", "electrical_variant_id"],
     )
     op.create_index(
-        "ux_electrical_candidates_applied_object_variant",
+        "ux_electrical_candidates_applied_object_electrical_variant",
         "electrical_candidates",
-        ["object_id", "variant_number"],
+        ["object_id", "electrical_variant_id"],
         unique=True,
-        postgresql_where=sa.text("is_applied"),
+        postgresql_where=sa.text("is_applied AND electrical_variant_id IS NOT NULL"),
     )
 
 
 def downgrade() -> None:
     op.drop_index(
-        "ux_electrical_candidates_applied_object_variant",
+        "ux_electrical_candidates_applied_object_electrical_variant",
         table_name="electrical_candidates",
     )
     op.drop_index(
-        "ix_electrical_candidates_project_object_variant",
+        "ix_electrical_candidates_project_object_electrical_variant",
         table_name="electrical_candidates",
     )
     op.drop_table("electrical_candidates")
-    op.drop_constraint(
-        "ck_electrical_calculations_variant_number",
-        "electrical_calculations",
-        type_="check",
-    )

@@ -22,18 +22,9 @@ def upgrade() -> None:
         "project_objects",
         ["project_id", "object_type", "sort_order"],
     )
-    op.create_index(
-        "ix_electrical_calculations_project_variant",
-        "electrical_calculations",
-        ["project_id", "variant_number"],
-    )
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_electrical_calculations_project_variant",
-        table_name="electrical_calculations",
-    )
     op.drop_index(
         "ix_project_objects_project_type_sort",
         table_name="project_objects",

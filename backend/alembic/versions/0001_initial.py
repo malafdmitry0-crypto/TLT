@@ -152,7 +152,7 @@ def upgrade() -> None:
             sa.ForeignKey("project_objects.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("variant_number", sa.Integer, nullable=False, server_default="1"),
+        sa.Column("electrical_variant_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("cable_type", sa.String(64), nullable=False),
         sa.Column("cable_mark", sa.String(128), nullable=True),
         sa.Column("params", postgresql.JSONB, nullable=False),
@@ -174,7 +174,7 @@ def upgrade() -> None:
             sa.ForeignKey("projects.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("variant_number", sa.Integer, nullable=False, server_default="1"),
+        sa.Column("electrical_variant_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("items", postgresql.JSONB, nullable=False),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False

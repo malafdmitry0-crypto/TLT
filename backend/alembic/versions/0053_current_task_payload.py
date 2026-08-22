@@ -33,7 +33,6 @@ def upgrade() -> None:
                 AND lower(request_payload ->> 'electrical_variant_id') =
                     electrical_variant_id::text
                 AND NOT request_payload ? 'payload_version'
-                AND NOT request_payload ? 'variant_number'
             )
         ) NOT VALID
         """
