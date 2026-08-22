@@ -11,19 +11,16 @@ import app.services.electrical_tt_pipeline as electrical_tt_pipeline
 from app.electrical_domain import ElectricalFormulaError
 from app.formulas.electrical.tt_cable_options import build_tt_cable_options
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
-from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_tt_pipeline import (
     ELECTRICAL_EXECUTION_DEFAULTED,
     PipeElectricalLayout,
     calculate_electrical_tt,
 )
+from app.tests.electrical_catalog_fixtures import active_electrical_catalogs
 
 
 def _catalogs() -> dict[str, dict[str, Any]]:
-    catalogs = {
-        kind: deepcopy(ElectricalCatalogService._static_calculation_fallback(kind))
-        for kind in ("power", "section", "bom")
-    }
+    catalogs = active_electrical_catalogs()
     for kind, catalog in catalogs.items():
         catalog.update(
             {

@@ -7,12 +7,12 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
 from app.services.electrical_catalog_service import (
     _BOM_MARKS,
     _TT_MODELS,
     ElectricalCatalogService,
+    ElectricalCatalogServiceError,
     _canonical_checksum,
     _validate_rows,
     bundled_electrical_catalog_documents,
@@ -116,29 +116,18 @@ def test_payload_checksum_is_canonical_and_input_sensitive():
     assert first != changed
 
 
-def test_static_calculation_fallback_is_explicit_and_carries_payload():
-    for kind in ("power", "section", "bom"):
-        catalog = ElectricalCatalogService._static_calculation_fallback(kind)
-
-        assert catalog["authority"] == "static_fallback"
-        assert catalog["payload"].get("rows") or catalog["payload"].get("entries")
-        assert catalog["payload_checksum"] == _canonical_checksum(catalog["payload"])
-
-
-async def test_production_calculation_catalogs_use_approved_builtin_fallback_without_db_active(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    monkeypatch.setattr(settings, "APP_ENV", "production")
+async def test_calculation_catalogs_fail_closed_without_complete_db_authority():
     db = AsyncMock()
     result = MagicMock()
     result.scalars.return_value.all.return_value = []
     db.execute.return_value = result
 
-    catalogs = await ElectricalCatalogService(db).active_calculation_catalogs()
+    with pytest.raises(ElectricalCatalogServiceError) as raised:
+        await ElectricalCatalogService(db).active_calculation_catalogs()
 
-    assert set(catalogs) == {"power", "section", "bom"}
-    assert all(catalog["authority"] == "static_fallback" for catalog in catalogs.values())
-    assert all(catalog["production_approved"] is True for catalog in catalogs.values())
+    assert raised.value.code == "ELECTRICAL_CATALOG_NOT_READY"
+    assert raised.value.status_code == 503
+    assert raised.value.details == {"missing_active_kinds": ["power", "section", "bom"]}
     assert db.execute.await_count == 4
     lock_statements = [str(call.args[0]) for call in db.execute.await_args_list[:3]]
     assert all("pg_advisory_xact_lock_shared" in statement for statement in lock_statements)
@@ -153,6 +142,46 @@ async def test_calculation_catalog_database_error_never_falls_back_to_builtin():
         await ElectricalCatalogService(db).active_calculation_catalogs()
 
     assert db.execute.await_count == 4
+
+
+async def test_calculation_catalogs_reject_an_active_non_current_schema():
+    service = ElectricalCatalogService(AsyncMock())
+    service._active_rows = AsyncMock(
+        return_value={
+            "power": SimpleNamespace(schema_version=1),
+            "section": SimpleNamespace(schema_version=1),
+            "bom": SimpleNamespace(schema_version=1),
+        }
+    )
+
+    with pytest.raises(ElectricalCatalogServiceError) as raised:
+        await service.active_calculation_catalogs()
+
+    assert raised.value.code == "ELECTRICAL_CATALOG_SCHEMA_UNSUPPORTED"
+    assert raised.value.status_code == 503
+    assert raised.value.details == {
+        "catalogs": [{"kind": "power", "schema_version": 1, "supported_schema_version": 2}]
+    }
+
+
+async def test_import_rejects_a_non_current_schema_version():
+    document = bundled_electrical_catalog_documents()["power"].model_copy(
+        update={"schema_version": 1}
+    )
+
+    with pytest.raises(ElectricalCatalogServiceError) as raised:
+        await ElectricalCatalogService(AsyncMock()).import_draft(
+            "power",
+            document,
+            CurrentPrincipal(role="guest", session_id="catalog-import"),
+        )
+
+    assert raised.value.code == "ELECTRICAL_CATALOG_IMPORT_INVALID"
+    assert raised.value.details == {
+        "kind": "power",
+        "schema_version": 1,
+        "supported_schema_version": 2,
+    }
 
 
 @pytest.mark.parametrize(

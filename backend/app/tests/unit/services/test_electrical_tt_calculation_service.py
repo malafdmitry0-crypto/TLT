@@ -12,8 +12,8 @@ from app.schemas.calculation import ElectricalRequest
 from app.services.calculation.container import CalculationContainer
 from app.services.calculation.electrical_tt_context import ElectricalTTContext
 from app.services.calculation.electrical_tt_inputs import ElectricalInputMapper
-from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
+from app.tests.electrical_catalog_fixtures import active_electrical_catalogs
 
 
 def _pipe() -> SimpleNamespace:
@@ -71,26 +71,18 @@ def _service(obj: SimpleNamespace, *, overrides: dict | None = None):
         max_section_start_current_a=13.065,
         version=3,
     )
-    service.tt_context._tt_assignment_cache[(obj.project_id, variant_id, obj.id)] = (
-        SimpleNamespace(
-            id=uuid4(),
-            max_section_start_current_a=None,
-            electrical_overrides=dict(overrides or {}),
-            version=5,
-        )
+    service.tt_context._tt_assignment_cache[(obj.project_id, variant_id, obj.id)] = SimpleNamespace(
+        id=uuid4(),
+        max_section_start_current_a=None,
+        electrical_overrides=dict(overrides or {}),
+        version=5,
     )
-    service.tt_context._tt_calculation_catalogs_cache = {
-        kind: ElectricalCatalogService._static_calculation_fallback(kind)
-        for kind in ("power", "section", "bom")
-    }
+    service.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
     return service, variant_id
 
 
 def _database_catalogs_with_custom_power(power_w_per_m: float) -> dict[str, dict]:
-    catalogs = {
-        kind: ElectricalCatalogService._static_calculation_fallback(kind)
-        for kind in ("power", "section", "bom")
-    }
+    catalogs = active_electrical_catalogs()
     power = deepcopy(catalogs["power"])
     row = next(item for item in power["payload"]["rows"] if item["model"] == "25ТТН2")
     row["nominal_power"] = power_w_per_m
@@ -137,9 +129,7 @@ async def test_second_calculation_resolves_persisted_assignment_voltage_without_
 async def test_null_project_idop_uses_catalog_limit_without_blocking_calculation() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)
-    service.tt_context._tt_project_settings_cache[
-        obj.project_id
-    ].max_section_start_current_a = None
+    service.tt_context._tt_project_settings_cache[obj.project_id].max_section_start_current_a = None
     request = ElectricalRequest(
         object_id=obj.id,
         electrical_variant_id=variant_id,
@@ -192,7 +182,7 @@ async def test_snapshot_uses_exact_custom_database_row_selected_by_pipeline() ->
     assert snapshot["catalog_identity"]["payload_checksum"] == "sha256:" + "2" * 64
 
 
-async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> None:
+async def test_snapshot_uses_database_catalog_row() -> None:
     obj = _pipe()
     service, variant_id = _service(obj)
     request = ElectricalRequest(
@@ -216,8 +206,8 @@ async def test_snapshot_uses_builtin_row_when_database_catalog_is_absent() -> No
 
     assert snapshot is not None
     assert snapshot["technical"]["nominal_power"] == result["power_per_meter"]
-    assert snapshot["actual_catalog_source"] == "builtin"
-    assert snapshot["catalog_identity"]["authority"] == "static_fallback"
+    assert snapshot["actual_catalog_source"] == "database"
+    assert snapshot["catalog_identity"]["authority"] == "database"
 
 
 async def test_snapshot_status_uses_current_resolved_catalog_identity() -> None:

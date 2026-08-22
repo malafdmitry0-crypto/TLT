@@ -28,15 +28,6 @@ from app.formulas.electrical.outcome_errors import (
     raise_electrical_formula_domain_error,
     raise_electrical_formula_report,
 )
-from app.reference_data.loader import (
-    get_electrical_tt_bom_entry,
-    get_tt_cable_by_model,
-    list_electrical_tt_bom_entries,
-    list_tt_cables,
-    section_catalog_meta,
-    section_catalog_payload_snapshot,
-    tt_cables_source_checksum,
-)
 from app.schemas.electrical_inputs import ResolvedElectricalInputs
 
 ELECTRICAL_POWER_CATALOG_PROVISIONAL = "ELECTRICAL_POWER_CATALOG_PROVISIONAL"
@@ -100,25 +91,12 @@ def _power_catalog_snapshot(
     cable_row: Mapping[str, Any],
     override: Mapping[str, Any] | None,
     *,
-    catalog_rows: list[dict[str, Any]] | None = None,
+    catalog_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    rows = catalog_rows if catalog_rows is not None else list_tt_cables()
-    default: dict[str, Any] = {"kind": "power", "payload_checksum": _stable_hash(rows)}
-    if catalog_rows is None:
-        default.update(
-            {
-                "version": "tt-power-case1-v2-provisional",
-                "schema_version": 2,
-                "status": "provisional",
-                "source": "backend/app/reference_data/cables_tt.json",
-                "source_checksum": tt_cables_source_checksum(),
-                "imported_at": "2026-08-02T00:00:00Z",
-                "activated_at": None,
-                "diagnostics": [
-                    "Passport power and product-temperature limits require approved DB authority"
-                ],
-            }
-        )
+    default: dict[str, Any] = {
+        "kind": "power",
+        "payload_checksum": _stable_hash(catalog_rows),
+    }
     default["row"] = dict(cable_row)
     return _merged_snapshot(default, override)
 
@@ -127,10 +105,7 @@ def _section_catalog_snapshot(
     plan: _SectionPlanSnapshot,
     base_model: str,
     override: Mapping[str, Any] | None,
-    *,
-    use_static_default: bool = True,
 ) -> dict[str, Any]:
-    meta = section_catalog_meta() if use_static_default else {}
     row = {
         "base_model": base_model,
         "cold_start_temperature_c": float(plan.cold_start_temperature),
@@ -139,7 +114,6 @@ def _section_catalog_snapshot(
     }
     default = {
         "kind": "section",
-        **meta,
         "row": row,
         "row_checksum": _stable_hash(row),
     }
@@ -155,11 +129,6 @@ def _bom_catalog_snapshot(
         "row": {key: value for key, value in bom_entry.items() if key != "catalog"},
     }
     return _merged_snapshot(default, override)
-
-
-def _source_snapshot(provenance: Mapping[str, Any], key: str) -> Mapping[str, Any] | None:
-    value = provenance.get(key)
-    return value if isinstance(value, Mapping) else None
 
 
 def _catalog_payload_rows(
@@ -228,12 +197,7 @@ def electrical_tt_catalog_eligibility(
         status = catalog.get("status")
         checksum = catalog.get("source_checksum") or catalog.get("payload_checksum")
         authority = str(catalog.get("authority") or "").strip().lower()
-        approved_static = (
-            authority in {"static", "static_fallback", "builtin"}
-            and status == "active"
-            and catalog.get("production_approved") is True
-        )
-        if (status not in allowed_statuses and not approved_static) or not checksum:
+        if status not in allowed_statuses or authority != "database" or not checksum:
             invalid.append(
                 {
                     "kind": kind,
@@ -276,13 +240,13 @@ def calculate_electrical_tt(
     *,
     layout: PipeElectricalLayout | TankElectricalLayout,
     provenance: Mapping[str, Any] | None = None,
-    calculation_catalogs: Mapping[str, Mapping[str, Any]] | None = None,
+    calculation_catalogs: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Calculate cable, winding, equal sections, BOM identity and provenance.
 
     ``resolved`` is the only engineering input. Optional ``provenance`` supplies
-    immutable object/Heat snapshots. When ``calculation_catalogs`` is provided,
-    its versioned payloads are the sole power/section/BOM calculation authority.
+    immutable object/Heat snapshots. ``calculation_catalogs`` contains the
+    versioned DB payloads that are the sole power/section/BOM authority.
     """
     values = resolved.values
     if isinstance(layout, TankElectricalLayout) and (
@@ -293,25 +257,9 @@ def calculate_electrical_tt(
             "Tank layout does not accept pipe winding inputs",
         )
     source_provenance = dict(provenance or {})
-    if calculation_catalogs is None:
-        static_fallback = True
-        power_rows = list_tt_cables()
-        section_payload = section_catalog_payload_snapshot()
-        raw_section_rows = section_payload.get("rows")
-        section_rows = (
-            [dict(row) for row in raw_section_rows if isinstance(row, Mapping)]
-            if isinstance(raw_section_rows, list)
-            else []
-        )
-        bom_rows = list_electrical_tt_bom_entries()
-        power_metadata = _source_snapshot(source_provenance, "power_catalog")
-        section_metadata = _source_snapshot(source_provenance, "section_catalog")
-        bom_metadata = _source_snapshot(source_provenance, "bom_catalog")
-    else:
-        static_fallback = False
-        power_rows, power_metadata = _catalog_payload_rows(calculation_catalogs, "power")
-        section_rows, section_metadata = _catalog_payload_rows(calculation_catalogs, "section")
-        bom_rows, bom_metadata = _catalog_payload_rows(calculation_catalogs, "bom")
+    power_rows, power_metadata = _catalog_payload_rows(calculation_catalogs, "power")
+    section_rows, section_metadata = _catalog_payload_rows(calculation_catalogs, "section")
+    bom_rows, bom_metadata = _catalog_payload_rows(calculation_catalogs, "bom")
 
     catalog_bundle = prepare_tt_catalog_bundle(
         power_rows=power_rows,
@@ -357,22 +305,14 @@ def calculate_electrical_tt(
         raise AssertionError("successful core outcome must contain a result")
 
     selected_model = formula_result.selected_cable
-    cable_row = (
-        _exact_row(power_rows, key="model", value=selected_model)
-        if not static_fallback
-        else get_tt_cable_by_model(selected_model)
-    )
+    cable_row = _exact_row(power_rows, key="model", value=selected_model)
     if cable_row is None:  # defensive: the formula selected from this exact catalog
         raise ElectricalFormulaError(
             "ELECTRICAL_CABLE_NOT_FOUND", "Выбранная модель отсутствует в power-каталоге"
         )
     power_exact = formula_result.power_per_meter_w
     plan = formula_result.section_plan
-    bom_entry = (
-        _exact_row(bom_rows, key="full_mark", value=formula_result.cable_mark)
-        if not static_fallback
-        else get_electrical_tt_bom_entry(formula_result.cable_mark)
-    )
+    bom_entry = _exact_row(bom_rows, key="full_mark", value=formula_result.cable_mark)
     if bom_entry is None or not str(bom_entry.get("nomenclature_code") or "").strip():
         raise ElectricalFormulaError(
             "SPEC_CABLE_NOMENCLATURE_MISSING",
@@ -383,13 +323,12 @@ def calculate_electrical_tt(
     power_catalog = _power_catalog_snapshot(
         cable_row,
         power_metadata,
-        catalog_rows=None if static_fallback else power_rows,
+        catalog_rows=power_rows,
     )
     section_catalog = _section_catalog_snapshot(
         plan,
         selected_model,
         section_metadata,
-        use_static_default=static_fallback,
     )
     bom_catalog = _bom_catalog_snapshot(bom_entry, bom_metadata)
     catalogs = {

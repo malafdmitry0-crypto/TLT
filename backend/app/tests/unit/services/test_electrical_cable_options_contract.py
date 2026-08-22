@@ -8,8 +8,8 @@ import pytest
 
 from app.services.calculation.container import CalculationContainer
 from app.services.calculation.electrical_options import ElectricalCableOptionsService
-from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_input_resolver import ElectricalInputResolutionError
+from app.tests.electrical_catalog_fixtures import active_electrical_catalogs
 
 
 def _object(*, ambient: float | None = -20) -> SimpleNamespace:
@@ -41,10 +41,7 @@ def _service(obj: SimpleNamespace) -> ElectricalCableOptionsService:
     object_result.scalar_one_or_none.return_value = obj
     db.execute.return_value = object_result
     container = CalculationContainer(db)
-    container.tt_context._tt_calculation_catalogs_cache = {
-        kind: ElectricalCatalogService._static_calculation_fallback(kind)
-        for kind in ("power", "section", "bom")
-    }
+    container.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
     return container.cable_options
 
 
@@ -66,8 +63,8 @@ async def test_voltage_override_in_an_exact_er_does_not_change_candidate_options
     first_variant = uuid4()
     second_variant = uuid4()
     service = _service(obj)
-    service.context._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = (
-        SimpleNamespace(electrical_overrides={"supply_voltage_v": 230})
+    service.context._tt_assignment_cache[(obj.project_id, first_variant, obj.id)] = SimpleNamespace(
+        electrical_overrides={"supply_voltage_v": 230}
     )
     service.context._tt_assignment_cache[(obj.project_id, second_variant, obj.id)] = (
         SimpleNamespace(electrical_overrides={"supply_voltage_v": 380})

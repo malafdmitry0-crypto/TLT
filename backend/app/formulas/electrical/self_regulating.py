@@ -37,11 +37,6 @@ from app.formulas.electrical.outcome_errors import (
     raise_electrical_formula_domain_error,
     raise_electrical_formula_report,
 )
-from app.reference_data.loader import (
-    list_electrical_tt_bom_entries,
-    list_tt_cables,
-    section_catalog_payload_snapshot,
-)
 from app.schemas.calculation import SelfRegulatingTTParams, SelfRegulatingTTResult
 
 MAX_SELF_REG_AUTO_THREADS = 3
@@ -98,32 +93,12 @@ def max_winding_factor(outer_diameter_mm: float) -> Decimal:
     return _core_max_winding_factor(decimal_value(outer_diameter_mm))
 
 
-def _loaded_rows(
-    catalog_rows: Sequence[Mapping[str, Any]] | None,
-    section_catalog_rows: Sequence[Mapping[str, Any]] | None,
-    bom_catalog_rows: Sequence[Mapping[str, Any]] | None,
-) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
-    power_rows = _mapping_rows(catalog_rows) if catalog_rows is not None else list_tt_cables()
-    raw_sections = (
-        _mapping_rows(section_catalog_rows)
-        if section_catalog_rows is not None
-        else section_catalog_payload_snapshot().get("rows")
-    )
-    sections = _mapping_rows(raw_sections) if isinstance(raw_sections, list) else []
-    bom_rows = (
-        _mapping_rows(bom_catalog_rows)
-        if bom_catalog_rows is not None
-        else list_electrical_tt_bom_entries()
-    )
-    return power_rows, sections, bom_rows
-
-
 def calc_self_regulating_tt(
     params: SelfRegulatingTTParams,
     *,
-    catalog_rows: Sequence[Mapping[str, Any]] | None = None,
-    section_catalog_rows: Sequence[Mapping[str, Any]] | None = None,
-    bom_catalog_rows: Sequence[Mapping[str, Any]] | None = None,
+    catalog_rows: Sequence[Mapping[str, Any]],
+    section_catalog_rows: Sequence[Mapping[str, Any]],
+    bom_catalog_rows: Sequence[Mapping[str, Any]],
 ) -> SelfRegulatingTTResult:
     """Project one canonical TT execution into the legacy preview DTO.
 
@@ -131,9 +106,9 @@ def calc_self_regulating_tt(
     preview used ambient temperature, so ambient remains the explicit fallback
     for the core section lookup until that DTO gains a separate field.
     """
-    power_rows, sections, bom_rows = _loaded_rows(
-        catalog_rows, section_catalog_rows, bom_catalog_rows
-    )
+    power_rows = _mapping_rows(catalog_rows)
+    sections = _mapping_rows(section_catalog_rows)
+    bom_rows = _mapping_rows(bom_catalog_rows)
     bundle = _catalog_bundle(power_rows, sections, bom_rows)
     is_tank = params.tank_shape is not None
     if is_tank:
@@ -150,7 +125,9 @@ def calc_self_regulating_tt(
                     if params.tank_diameter is not None
                     else None
                 ),
-                length=(decimal_value(params.tank_length) if params.tank_length is not None else None),
+                length=(
+                    decimal_value(params.tank_length) if params.tank_length is not None else None
+                ),
                 width=(decimal_value(params.tank_width) if params.tank_width is not None else None),
                 heating_height=decimal_value(params.heating_height),
                 laying_step=decimal_value(params.laying_step),

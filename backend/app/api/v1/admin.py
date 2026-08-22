@@ -727,7 +727,13 @@ async def formula_check(
             result = heat_loss_application.preview_validated_heat_formula("tank", params_data)
         elif data.formula_type == "electrical_tt":
             tt_params = SelfRegulatingTTParams(**params_data)
-            result = calc_self_regulating_tt(tt_params).model_dump()
+            catalogs = await ElectricalCatalogService(db).active_calculation_catalogs()
+            result = calc_self_regulating_tt(
+                tt_params,
+                catalog_rows=catalogs["power"]["payload"]["rows"],
+                section_catalog_rows=catalogs["section"]["payload"]["rows"],
+                bom_catalog_rows=catalogs["bom"]["payload"]["entries"],
+            ).model_dump()
         elif data.formula_type == "tank_cable_geometry":
             geometry_params = TankCableGeometryCheckParams(**params_data)
             cable_length = compute_tank_cable_length(
@@ -771,6 +777,8 @@ async def formula_check(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ElectricalFormulaError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.as_detail()) from exc
+    except ElectricalCatalogServiceError as exc:
+        _raise_electrical_catalog_error(exc)
     except HTTPException:
         raise
     except Exception as exc:

@@ -37,12 +37,12 @@ from app.services.calculation.electrical_sources import (
 )
 from app.services.calculation.errors import BatchCancelledError
 from app.services.calculation_errors import CalculationError
-from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.heat_loss_application import (
     apply_climate_policy,
     build_heat_loss_error_payload,
 )
 from app.services.project_object_params import ProjectObjectParamsError
+from app.tests.electrical_catalog_fixtures import active_electrical_catalogs
 
 MINERAL_WOOL = "mineral_wool_boards_120"
 
@@ -188,7 +188,7 @@ def _electrical_upsert_row(project_id: uuid.UUID, object_id: uuid.UUID) -> dict[
         "id": uuid.uuid4(),
         "project_id": project_id,
         "object_id": object_id,
-        "variant_number": 1,
+        "electrical_variant_id": uuid.uuid4(),
         "cable_type": "self_regulating",
         "cable_type_source": "auto",
         "cable_mark": "TLT-30",
@@ -1181,6 +1181,16 @@ class TestBulkElectricalUpsert:
     ):
         monkeypatch.setattr(
             "app.services.calculation.electrical_repository."
+            "ElectricalAssignmentService.validate_calculation_rows",
+            AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "app.services.calculation.electrical_repository."
+            "ElectricalAssignmentService.sync_from_calculation_rows",
+            AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "app.services.calculation.electrical_repository."
             "ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
             2,
         )
@@ -1205,6 +1215,16 @@ class TestBulkElectricalUpsert:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ):
+        monkeypatch.setattr(
+            "app.services.calculation.electrical_repository."
+            "ElectricalAssignmentService.validate_calculation_rows",
+            AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "app.services.calculation.electrical_repository."
+            "ElectricalAssignmentService.sync_from_calculation_rows",
+            AsyncMock(),
+        )
         monkeypatch.setattr(
             "app.services.calculation.electrical_repository."
             "ELECTRICAL_BULK_UPSERT_TARGET_CHUNK_SIZE",
@@ -1302,10 +1322,7 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationContainer(db)
-        service.tt_context._tt_calculation_catalogs_cache = {
-            kind: ElectricalCatalogService._static_calculation_fallback(kind)
-            for kind in ("power", "section", "bom")
-        }
+        service.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
         electrical_variant_id = uuid.uuid4()
@@ -1335,10 +1352,7 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationContainer(db)
-        service.tt_context._tt_calculation_catalogs_cache = {
-            kind: ElectricalCatalogService._static_calculation_fallback(kind)
-            for kind in ("power", "section", "bom")
-        }
+        service.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
         await service.electrical_failures.save(
@@ -1372,10 +1386,7 @@ class TestSaveFailedElectrical:
         db = AsyncMock()
         db.commit = AsyncMock()
         service = CalculationContainer(db)
-        service.tt_context._tt_calculation_catalogs_cache = {
-            kind: ElectricalCatalogService._static_calculation_fallback(kind)
-            for kind in ("power", "section", "bom")
-        }
+        service.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
         service.electrical_failures._bulk_upsert = AsyncMock(return_value=[SimpleNamespace()])
 
         electrical_variant_id = uuid.uuid4()
@@ -1392,7 +1403,6 @@ class TestSaveFailedElectrical:
 class TestGetCableOptions:
     async def test_returns_tt_options_for_object_with_heat(self, monkeypatch):
         from app.services.calculation.container import CalculationContainer
-        from app.services.electrical_catalog_service import ElectricalCatalogService
 
         obj_id = uuid.uuid4()
         obj = SimpleNamespace(
@@ -1419,10 +1429,7 @@ class TestGetCableOptions:
         db.execute = AsyncMock(return_value=result_mock)
 
         service = CalculationContainer(db)
-        service.tt_context._tt_calculation_catalogs_cache = {
-            kind: ElectricalCatalogService._static_calculation_fallback(kind)
-            for kind in ("power", "section", "bom")
-        }
+        service.tt_context._tt_calculation_catalogs_cache = active_electrical_catalogs()
 
         options = await service.cable_options.get(obj_id)
         assert len(options) > 0

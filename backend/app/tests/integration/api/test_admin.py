@@ -8,11 +8,13 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import CurrentPrincipal
 from app.electrical_input_validation import PROCESS_TEMPERATURE_REQUIRED_MESSAGE
 from app.models.background_task import BackgroundTask
 from app.models.coefficient import CorrectionCoefficient
 from app.models.user import User
 from app.services.audit_service import AuditService
+from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.tasks import TASK_ELECTRICAL_BATCH
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -651,7 +653,15 @@ class TestFormulaCheck:
         assert "total_heat_loss_design" in data
         assert data["total_heat_loss_design"] > 0
 
-    async def test_electrical_tt_formula_check_success(self, client: AsyncClient, admin_token: str):
+    async def test_electrical_tt_formula_check_success(
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        db_session: AsyncSession,
+    ):
+        await ElectricalCatalogService(db_session).ensure_bundled_catalogs_active(
+            CurrentPrincipal(role="admin")
+        )
         resp = await client.post(
             "/api/v1/admin/formula-check",
             json={
@@ -672,8 +682,14 @@ class TestFormulaCheck:
         assert data["cable_length"] > 0
 
     async def test_electrical_tt_formula_check_returns_structured_core_error(
-        self, client: AsyncClient, admin_token: str
+        self,
+        client: AsyncClient,
+        admin_token: str,
+        db_session: AsyncSession,
     ):
+        await ElectricalCatalogService(db_session).ensure_bundled_catalogs_active(
+            CurrentPrincipal(role="admin")
+        )
         resp = await client.post(
             "/api/v1/admin/formula-check",
             json={

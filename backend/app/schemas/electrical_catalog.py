@@ -45,13 +45,14 @@ class ElectricalCatalogVersionResponse(BaseModel):
     imported_by: str | None
     activated_at: datetime | None
     activated_by: str | None
-    authority: Literal["database", "static_fallback"] = "database"
+    authority: Literal["database"] = "database"
 
 
 class ElectricalCatalogMetadataResponse(BaseModel):
     catalogs: list[ElectricalCatalogVersionResponse]
     production_ready: bool
     missing_active_kinds: list[ElectricalCatalogKind] = Field(default_factory=list)
+    invalid_active_kinds: list[ElectricalCatalogKind] = Field(default_factory=list)
 
 
 class ElectricalCatalogActivationResponse(BaseModel):

@@ -9,13 +9,12 @@ from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
@@ -67,6 +66,11 @@ _BOM_MARKS = {
 }
 _CATALOG_LOCK_KEYS = {"power": 3401, "section": 3402, "bom": 3403}
 _BUNDLED_CATALOG_ORDER: tuple[ElectricalCatalogKind, ...] = ("power", "section", "bom")
+_SUPPORTED_SCHEMA_VERSIONS: dict[ElectricalCatalogKind, int] = {
+    "power": 2,
+    "section": 1,
+    "bom": 1,
+}
 _BUNDLED_POWER_VERSION = "tt-power-case1-r2-2026-08-05-2de59c70"
 _BUNDLED_SECTION_VERSION = "tt-section-case1-r2-2026-08-05-6d8cbfa9"
 _BUNDLED_BOM_VERSION = "selfreg-spec-2026-05-29-3f1556a4"
@@ -292,24 +296,20 @@ class ElectricalCatalogService:
 
     async def metadata(self) -> ElectricalCatalogMetadataResponse:
         active = await self._active_rows()
-        missing = [kind for kind in ("power", "section", "bom") if kind not in active]
-        if settings.is_production:
-            catalogs = [
-                self._public_metadata(active[kind])
-                for kind in ("power", "section", "bom")
-                if kind in active
-            ]
-        else:
-            catalogs = [
-                self._public_metadata(active[kind])
-                if kind in active
-                else self._static_fallback(kind)
-                for kind in ("power", "section", "bom")
-            ]
+        missing = [kind for kind in _BUNDLED_CATALOG_ORDER if kind not in active]
+        invalid = [
+            kind
+            for kind in _BUNDLED_CATALOG_ORDER
+            if kind in active and active[kind].schema_version != _SUPPORTED_SCHEMA_VERSIONS[kind]
+        ]
+        catalogs = [
+            self._public_metadata(active[kind]) for kind in _BUNDLED_CATALOG_ORDER if kind in active
+        ]
         return ElectricalCatalogMetadataResponse(
             catalogs=catalogs,
-            production_ready=not missing,
+            production_ready=not missing and not invalid,
             missing_active_kinds=missing,
+            invalid_active_kinds=invalid,
         )
 
     @staticmethod
@@ -322,37 +322,58 @@ class ElectricalCatalogService:
         )
 
     async def active_calculation_catalogs(self) -> dict[str, dict[str, Any]]:
-        """Resolve one calculation catalog set, preferring DB over bundled data.
+        """Resolve one complete calculation catalog set from the database.
 
-        Missing active rows use the approved immutable bundled snapshot. Database
-        failures and malformed active payloads are never converted into fallback.
+        Missing active rows fail closed. Bundled data is registered through the
+        explicit seed/import path and is never a runtime calculation authority.
         Shared transaction locks keep the set stable through calculation commit.
         """
-        for kind in ("power", "section", "bom"):
+        for kind in _BUNDLED_CATALOG_ORDER:
             await self.db.execute(
                 select(func.pg_advisory_xact_lock_shared(_CATALOG_LOCK_KEYS[kind]))
             )
         active = await self._active_rows()
+        missing = [kind for kind in _BUNDLED_CATALOG_ORDER if kind not in active]
+        if missing:
+            raise ElectricalCatalogServiceError(
+                "ELECTRICAL_CATALOG_NOT_READY",
+                "Не активирован полный набор электрических каталогов",
+                status_code=503,
+                details={"missing_active_kinds": missing},
+            )
+        invalid = [
+            {
+                "kind": kind,
+                "schema_version": active[kind].schema_version,
+                "supported_schema_version": _SUPPORTED_SCHEMA_VERSIONS[kind],
+            }
+            for kind in _BUNDLED_CATALOG_ORDER
+            if active[kind].schema_version != _SUPPORTED_SCHEMA_VERSIONS[kind]
+        ]
+        if invalid:
+            raise ElectricalCatalogServiceError(
+                "ELECTRICAL_CATALOG_SCHEMA_UNSUPPORTED",
+                "Активный электрический каталог использует неподдерживаемую схему",
+                status_code=503,
+                details={"catalogs": invalid},
+            )
         resolved: dict[str, dict[str, Any]] = {}
-        for kind in ("power", "section", "bom"):
-            row = active.get(kind)
-            if row is not None:
-                resolved[kind] = {
-                    "id": str(row.id),
-                    "kind": row.kind,
-                    "version": row.version,
-                    "status": row.status,
-                    "source": row.source,
-                    "source_checksum": row.source_checksum,
-                    "import_checksum": row.import_checksum,
-                    "payload_checksum": row.payload_checksum,
-                    "schema_version": row.schema_version,
-                    "production_approved": row.production_approved,
-                    "authority": "database",
-                    "payload": row.payload,
-                }
-            else:
-                resolved[kind] = self._static_calculation_fallback(kind)
+        for kind in _BUNDLED_CATALOG_ORDER:
+            row = active[kind]
+            resolved[kind] = {
+                "id": str(row.id),
+                "kind": row.kind,
+                "version": row.version,
+                "status": row.status,
+                "source": row.source,
+                "source_checksum": row.source_checksum,
+                "import_checksum": row.import_checksum,
+                "payload_checksum": row.payload_checksum,
+                "schema_version": row.schema_version,
+                "production_approved": row.production_approved,
+                "authority": "database",
+                "payload": row.payload,
+            }
         return resolved
 
     async def _active_rows(self) -> dict[str, ElectricalCatalogVersion]:
@@ -389,11 +410,17 @@ class ElectricalCatalogService:
                 "import_checksum должен быть SHA-256",
                 status_code=422,
             )
-        if document.schema_version < 1:
+        supported_schema_version = _SUPPORTED_SCHEMA_VERSIONS[kind]
+        if document.schema_version != supported_schema_version:
             raise ElectricalCatalogServiceError(
                 "ELECTRICAL_CATALOG_IMPORT_INVALID",
-                "schema_version должен быть положительным",
+                "Версия схемы электрического каталога не поддерживается",
                 status_code=422,
+                details={
+                    "kind": kind,
+                    "schema_version": document.schema_version,
+                    "supported_schema_version": supported_schema_version,
+                },
             )
         duplicate = await self.db.scalar(
             select(ElectricalCatalogVersion.id).where(
@@ -678,81 +705,3 @@ class ElectricalCatalogService:
             catalogs = provenance.get("catalogs") if isinstance(provenance, Mapping) else None
         value = catalogs.get(kind) if isinstance(catalogs, Mapping) else None
         return value if isinstance(value, Mapping) else {}
-
-    @staticmethod
-    def _static_fallback(kind: str) -> ElectricalCatalogVersionResponse:
-        typed_kind = cast(ElectricalCatalogKind, kind)
-        now = None
-        if kind == "power":
-            rows = list_tt_cables()
-            raw: dict[str, Any] = {
-                "version": "tt-power-case1-v2-provisional",
-                "status": "draft",
-                "source": "backend/app/reference_data/cables_tt.json",
-                "source_checksum": tt_cables_source_checksum(),
-                "schema_version": 2,
-                "production_approved": False,
-                "diagnostics": [{"code": "ELECTRICAL_POWER_CATALOG_PROVISIONAL"}],
-            }
-            payload = {"rows": rows}
-        elif kind == "section":
-            meta = section_catalog_meta()
-            raw = {
-                **meta,
-                "status": "active",
-                "production_approved": True,
-                "diagnostics": [],
-            }
-            payload = section_catalog_payload_snapshot()
-        else:
-            meta = electrical_tt_bom_metadata()
-            raw = {
-                **meta,
-                "status": "active",
-                "production_approved": True,
-                "diagnostics": [],
-            }
-            payload = {"entries": list_electrical_tt_bom_entries()}
-        return ElectricalCatalogVersionResponse(
-            id=None,
-            kind=typed_kind,
-            version=str(raw.get("version") or "unknown"),
-            status=raw["status"],
-            source=str(raw.get("source") or ""),
-            source_checksum=str(raw.get("source_checksum") or ""),
-            import_checksum=None,
-            payload_checksum=_canonical_checksum(payload),
-            schema_version=int(raw.get("schema_version") or 1),
-            valid_row_count={"power": 14, "section": 126, "bom": 18}[typed_kind],
-            rejected_row_count=0,
-            diagnostics=list(raw["diagnostics"]),
-            production_approved=bool(raw["production_approved"]),
-            imported_at=now,
-            imported_by=None,
-            activated_at=now,
-            activated_by=None,
-            authority="static_fallback",
-        )
-
-    @staticmethod
-    def _static_calculation_fallback(kind: str) -> dict[str, Any]:
-        metadata = ElectricalCatalogService._static_fallback(kind).model_dump(mode="json")
-        if kind == "power":
-            payload = {"rows": list_tt_cables()}
-            metadata.update(
-                {
-                    "status": "active",
-                    "production_approved": True,
-                    "diagnostics": [
-                        {
-                            "code": "ELECTRICAL_BUNDLED_CATALOG_APPROVED",
-                            "selection_contract": "case1-r4-passport-power",
-                        }
-                    ],
-                }
-            )
-        elif kind == "section":
-            payload = section_catalog_payload_snapshot()
-        else:
-            payload = {"entries": list_electrical_tt_bom_entries()}
-        return {**metadata, "payload": payload}

@@ -13,7 +13,10 @@ from app.models.electrical_calculation_revision import ElectricalCalculationRevi
 from app.models.electrical_variant import ElectricalVariantObject
 from app.models.specification import Specification
 from app.reference_data.loader import list_electrical_tt_bom_entries, list_tt_cables
-from app.services.electrical_catalog_service import ElectricalCatalogService
+from app.services.electrical_catalog_service import (
+    ElectricalCatalogService,
+    ElectricalCatalogServiceError,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -72,17 +75,17 @@ async def test_catalog_metadata_is_available_to_authenticated_principals(
 
     assert response.status_code == 200, response.text
     catalogs = response.json()["catalogs"]
-    assert {item["kind"] for item in catalogs} == {"power", "section", "bom"}
+    assert catalogs == []
     assert response.json()["production_ready"] is False
     assert set(response.json()["missing_active_kinds"]) == {"power", "section", "bom"}
-    power = next(item for item in catalogs if item["kind"] == "power")
-    assert power["production_approved"] is False
+    assert response.json()["invalid_active_kinds"] == []
 
 
 async def test_calculation_catalog_set_holds_shared_activation_lock(
     db_session: AsyncSession,
 ):
-    await ElectricalCatalogService(db_session).active_calculation_catalogs()
+    with pytest.raises(ElectricalCatalogServiceError, match="полный набор"):
+        await ElectricalCatalogService(db_session).active_calculation_catalogs()
     other_session = async_sessionmaker(db_session.bind, expire_on_commit=False)
 
     async with other_session() as activation_session:
@@ -110,7 +113,7 @@ async def test_catalog_import_is_admin_only_and_provisional_power_cannot_activat
         "version": f"provisional-{uuid4()}",
         "source": "unapproved provisional table",
         "source_checksum": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "schema_version": "1",
+        "schema_version": "2",
         "production_approved": "true",
     }
     files = {"file": ("power.json", json.dumps(payload).encode(), "application/json")}

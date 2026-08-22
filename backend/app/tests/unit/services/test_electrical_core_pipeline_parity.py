@@ -13,19 +13,16 @@ from heatcalc_electrical_core import (
 )
 
 from app.schemas.electrical_inputs import CanonicalElectricalInputs, ResolvedElectricalInputs
-from app.services.electrical_catalog_service import ElectricalCatalogService
 from app.services.electrical_tt_pipeline import (
     PipeElectricalLayout,
     TankElectricalLayout,
     calculate_electrical_tt,
 )
+from app.tests.electrical_catalog_fixtures import active_electrical_catalogs
 
 
 def _catalogs() -> dict[str, dict[str, Any]]:
-    catalogs = {
-        kind: deepcopy(ElectricalCatalogService._static_calculation_fallback(kind))
-        for kind in ("power", "section", "bom")
-    }
+    catalogs = active_electrical_catalogs()
     for kind, catalog in catalogs.items():
         catalog.update(
             {
