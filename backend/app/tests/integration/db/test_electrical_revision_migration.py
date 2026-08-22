@@ -62,6 +62,14 @@ async def test_0035_backfill_capture_chain_immutability_and_downgrade():
                     'revision-test-session'
                 );
 
+                INSERT INTO electrical_variants (
+                    id, project_id, name, name_normalized, sort_order, is_active
+                ) VALUES (
+                    '00000000-0000-0000-0000-000000003505',
+                    '00000000-0000-0000-0000-000000003502',
+                    'Revision ER', 'revision er', 0, true
+                );
+
                 INSERT INTO project_objects (
                     id, project_id, object_type, params, results, is_valid, version
                 ) VALUES (
@@ -71,14 +79,15 @@ async def test_0035_backfill_capture_chain_immutability_and_downgrade():
                 );
 
                 INSERT INTO electrical_calculations (
-                    id, project_id, object_id, variant_number, electrical_variant_id,
+                    id, project_id, object_id, electrical_variant_id,
                     cable_type, cable_type_source, cable_mark, cable_mark_source,
                     cable_snapshot, params, results
                 ) VALUES (
                     '00000000-0000-0000-0000-000000003504',
                     '00000000-0000-0000-0000-000000003502',
                     '00000000-0000-0000-0000-000000003503',
-                    1, NULL, 'self_regulating_tt', 'auto', '30ТТВ2-СР', 'auto',
+                    '00000000-0000-0000-0000-000000003505',
+                    'self_regulating_tt', 'auto', '30ТТВ2-СР', 'auto',
                     '{"model":"30ТТВ2"}'::jsonb,
                     '{}'::jsonb,
                     '{"status":"ready","selected_cable":"30ТТВ2"}'::jsonb

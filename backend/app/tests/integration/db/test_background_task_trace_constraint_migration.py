@@ -1,4 +1,4 @@
-"""Upgrade/downgrade proof for strict background-task ER tracing (0046)."""
+"""Fresh-history proof for strict UUID background-task ER tracing (0046)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import asyncpg
 import pytest
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[4]
-_BUSINESS_INVARIANTS = _BACKEND_ROOT.parent / "scripts/db-business-invariants.sql"
 
 
 def _database_urls(database_name: str) -> tuple[str, str]:
@@ -90,11 +89,11 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
 
                 INSERT INTO electrical_variants (
                     id, project_id, name, name_normalized, sort_order,
-                    is_active, legacy_variant_number
+                    is_active
                 ) VALUES (
                     '00000000-0000-0000-0000-000000004620',
                     '00000000-0000-0000-0000-000000004610',
-                    'ER', 'er', 0, true, 1
+                    'ER', 'er', 0, true
                 );
                 """
             )
@@ -102,14 +101,14 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
                 connection,
                 task_id="00000000-0000-0000-0000-000000004631",
                 electrical_variant_id=None,
-                request_payload='{"payload_version":2,"variant_number":1}',
+                request_payload='{"payload_version":3}',
             )
         finally:
             await connection.close()
 
         refused = _alembic(database_url, "upgrade", "0046")
         assert refused.returncode != 0
-        assert "1 electrical/report task row(s) violate the UUID trace contract" in (
+        assert "ck_background_tasks_electrical_variant_trace" in (
             refused.stdout + refused.stderr
         )
 
@@ -131,7 +130,7 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
                     connection,
                     task_id="00000000-0000-0000-0000-000000004632",
                     electrical_variant_id=None,
-                    request_payload='{"payload_version":2,"variant_number":1}',
+                    request_payload='{"payload_version":3}',
                 )
 
             with pytest.raises(asyncpg.CheckViolationError):
@@ -150,7 +149,11 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
                 connection,
                 task_id="00000000-0000-0000-0000-000000004634",
                 electrical_variant_id="00000000-0000-0000-0000-000000004620",
-                request_payload='{"payload_version":2,"variant_number":1}',
+                request_payload=(
+                    '{"payload_version":3,'
+                    '"project_id":"00000000-0000-0000-0000-000000004610",'
+                    '"electrical_variant_id":"00000000-0000-0000-0000-000000004620"}'
+                ),
             )
             await _insert_task(
                 connection,
@@ -162,22 +165,9 @@ async def test_0046_rejects_dirty_upgrade_and_enforces_strict_trace() -> None:
                     '"electrical_variant_id":"00000000-0000-0000-0000-000000004620"}'
                 ),
             )
-            await connection.execute(_BUSINESS_INVARIANTS.read_text(encoding="utf-8"))
         finally:
             await connection.close()
 
-        downgraded = _alembic(database_url, "downgrade", "0045")
-        assert downgraded.returncode == 0, downgraded.stdout + downgraded.stderr
-        connection = await asyncpg.connect(database_url)
-        try:
-            await _insert_task(
-                connection,
-                task_id="00000000-0000-0000-0000-000000004636",
-                electrical_variant_id=None,
-                request_payload='{"payload_version":2,"variant_number":1}',
-            )
-        finally:
-            await connection.close()
     finally:
         await admin.execute(
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "

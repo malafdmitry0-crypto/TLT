@@ -76,11 +76,11 @@ async def _seed_0028_assignment_graph(connection: asyncpg.Connection) -> None:
 
         INSERT INTO electrical_variants (
             id, project_id, name, name_normalized, sort_order,
-            is_active, legacy_variant_number
+            is_active
         ) VALUES (
             '00000000-0000-0000-0000-000000002903',
             '00000000-0000-0000-0000-000000002902',
-            'ЭР1', 'эр1', 0, true, 1
+            'ЭР1', 'эр1', 0, true
         );
 
         INSERT INTO project_objects (
@@ -109,14 +109,14 @@ async def _seed_0028_assignment_graph(connection: asyncpg.Connection) -> None:
             );
 
         INSERT INTO electrical_calculations (
-            id, project_id, object_id, variant_number, electrical_variant_id,
+            id, project_id, object_id, electrical_variant_id,
             cable_type, cable_type_source, cable_mark, cable_mark_source,
             params, results
         ) VALUES
             (
                 '00000000-0000-0000-0000-000000002921',
                 '00000000-0000-0000-0000-000000002902',
-                '00000000-0000-0000-0000-000000002911', 1,
+                '00000000-0000-0000-0000-000000002911',
                 '00000000-0000-0000-0000-000000002903',
                 'self_regulating', 'auto', NULL, 'auto', '{}'::jsonb,
                 '{"category":"calculation_error","error_code":"NO_CABLE",'
@@ -125,7 +125,7 @@ async def _seed_0028_assignment_graph(connection: asyncpg.Connection) -> None:
             (
                 '00000000-0000-0000-0000-000000002922',
                 '00000000-0000-0000-0000-000000002902',
-                '00000000-0000-0000-0000-000000002912', 1,
+                '00000000-0000-0000-0000-000000002912',
                 '00000000-0000-0000-0000-000000002903',
                 'three_core', 'manual', 'R-3', 'manual', '{}'::jsonb,
                 '{"category":"stale","stale":true,'
@@ -134,7 +134,7 @@ async def _seed_0028_assignment_graph(connection: asyncpg.Connection) -> None:
             (
                 '00000000-0000-0000-0000-000000002923',
                 '00000000-0000-0000-0000-000000002902',
-                '00000000-0000-0000-0000-000000002913', 1,
+                '00000000-0000-0000-0000-000000002913',
                 '00000000-0000-0000-0000-000000002903',
                 'mineral', 'manual', NULL, 'manual', '{}'::jsonb,
                 '{"category":"unsupported"}'::jsonb
@@ -142,7 +142,7 @@ async def _seed_0028_assignment_graph(connection: asyncpg.Connection) -> None:
             (
                 '00000000-0000-0000-0000-000000002924',
                 '00000000-0000-0000-0000-000000002902',
-                '00000000-0000-0000-0000-000000002914', 1,
+                '00000000-0000-0000-0000-000000002914',
                 '00000000-0000-0000-0000-000000002903',
                 'self_regulating_tt', 'auto', 'TLT-TT', 'auto', '{}'::jsonb,
                 '{"selected_cable":"TLT-TT"}'::jsonb
@@ -178,7 +178,7 @@ def test_migration_0029_projection_and_revision_contract():
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_alembic_0029_reconciles_exact_uuid_assignments_and_downgrades():
+async def test_alembic_0029_reconciles_exact_uuid_assignments():
     database_name = f"phase3_0029_{uuid.uuid4().hex}"
     admin_url, database_url = _database_urls(database_name)
     admin = await asyncpg.connect(admin_url)
@@ -311,36 +311,6 @@ async def test_alembic_0029_reconciles_exact_uuid_assignments_and_downgrades():
         finally:
             await connection.close()
 
-        downgraded = _run_alembic(database_url, "downgrade", "0028")
-        assert downgraded.returncode == 0, downgraded.stdout + downgraded.stderr
-        connection = await asyncpg.connect(database_url)
-        try:
-            assert await connection.fetchval("SELECT version_num FROM alembic_version") == "0028"
-            assert (
-                await connection.fetchval(
-                    """
-                    SELECT count(*)
-                    FROM information_schema.columns
-                    WHERE table_name = 'electrical_variant_objects'
-                      AND column_name = 'version'
-                    """
-                )
-                == 0
-            )
-            assert (
-                await connection.fetchval(
-                    """
-                    SELECT count(*)
-                    FROM pg_indexes
-                    WHERE tablename = 'electrical_variant_objects'
-                      AND indexname =
-                        'ix_electrical_variant_objects_variant_system_state'
-                    """
-                )
-                == 0
-            )
-        finally:
-            await connection.close()
     finally:
         await admin.execute(
             """

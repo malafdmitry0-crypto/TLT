@@ -83,11 +83,11 @@ async def test_0045_drops_assignment_idop_without_promoting_data() -> None:
 
                 INSERT INTO electrical_variants (
                     id, project_id, name, name_normalized, sort_order,
-                    is_active, legacy_variant_number
+                    is_active
                 ) VALUES (
                     '00000000-0000-0000-0000-000000004520',
                     '00000000-0000-0000-0000-000000004510',
-                    'ER', 'er', 0, true, 1
+                    'ER', 'er', 0, true
                 );
 
                 INSERT INTO project_objects (

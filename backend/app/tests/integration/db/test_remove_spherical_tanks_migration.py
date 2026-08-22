@@ -66,17 +66,17 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
 
                 INSERT INTO electrical_variants (
                     id, project_id, name, name_normalized, sort_order,
-                    is_active, legacy_variant_number
+                    is_active
                 ) VALUES
                     (
                         '00000000-0000-0000-0000-000000004421',
                         '00000000-0000-0000-0000-000000004410',
-                        'ER cleanup', 'er cleanup', 0, true, 1
+                        'ER cleanup', 'er cleanup', 0, true
                     ),
                     (
                         '00000000-0000-0000-0000-000000004422',
                         '00000000-0000-0000-0000-000000004410',
-                        'ER retained', 'er retained', 1, false, 2
+                        'ER retained', 'er retained', 1, false
                     );
 
                 INSERT INTO project_objects (
@@ -126,7 +126,7 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
                 );
 
                 INSERT INTO electrical_calculations (
-                    id, project_id, object_id, variant_number, electrical_variant_id,
+                    id, project_id, object_id, electrical_variant_id,
                     cable_type, cable_type_source, cable_mark, cable_mark_source,
                     params, results
                 ) VALUES
@@ -134,7 +134,7 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
                         '00000000-0000-0000-0000-000000004441',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004431',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'self_regulating_tt', 'auto', '30TT', 'auto',
                         '{}'::jsonb, '{"status":"ready"}'::jsonb
                     ),
@@ -142,13 +142,13 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
                         '00000000-0000-0000-0000-000000004442',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004432',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'self_regulating_tt', 'auto', '30TT', 'auto',
                         '{}'::jsonb, '{"status":"ready"}'::jsonb
                     );
 
                 INSERT INTO electrical_candidates (
-                    id, project_id, object_id, variant_number, electrical_variant_id,
+                    id, project_id, object_id, electrical_variant_id,
                     cable_type, cable_source, cable_mark, dedupe_key, mode, status,
                     priority, is_recommended, is_pinned, is_applied,
                     params, warnings, risk_flags, candidate_meta
@@ -157,7 +157,7 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
                         '00000000-0000-0000-0000-000000004451',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004431',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'self_regulating_tt', 'builtin', '30TT', 'sphere-candidate',
                         'auto', 'applicable', 1, true, false, true,
                         '{}'::jsonb, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb
@@ -166,28 +166,28 @@ async def test_0044_removes_only_spherical_tanks_and_all_dependent_data() -> Non
                         '00000000-0000-0000-0000-000000004452',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004432',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'self_regulating_tt', 'builtin', '30TT', 'cylinder-candidate',
                         'auto', 'applicable', 1, true, false, true,
                         '{}'::jsonb, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb
                     );
 
                 INSERT INTO electrical_candidate_folders (
-                    id, project_id, object_id, variant_number, electrical_variant_id,
+                    id, project_id, object_id, electrical_variant_id,
                     name, sort_order, created_by_session_id
                 ) VALUES
                     (
                         '00000000-0000-0000-0000-000000004461',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004431',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'Sphere folder', 0, 'tank-cleanup-0044'
                     ),
                     (
                         '00000000-0000-0000-0000-000000004462',
                         '00000000-0000-0000-0000-000000004410',
                         '00000000-0000-0000-0000-000000004432',
-                        1, '00000000-0000-0000-0000-000000004421',
+                        '00000000-0000-0000-0000-000000004421',
                         'Cylinder folder', 0, 'tank-cleanup-0044'
                     );
 
