@@ -24,9 +24,9 @@ from app.services.specification_catalog import (
     is_case1_demo_catalog_version,
     validate_specification_catalog,
 )
-from app.services.specification_catalog.service import (
-    _active_authority_allowed,
-    _catalog_demo_markers_compatible,
+from app.services.specification_catalog.policy import (
+    active_authority_allowed,
+    catalog_demo_markers_compatible,
 )
 
 _EXPECTED_BOX_ROWS = {
@@ -197,9 +197,9 @@ def test_arbitrary_demo_authority_is_not_allowed_in_any_environment(
         payload_checksum=case1_demo_payload_checksum(),
     )
     monkeypatch.setattr(settings, "APP_ENV", "development")
-    assert _active_authority_allowed(arbitrary_demo) is False
+    assert active_authority_allowed(arbitrary_demo) is False
     monkeypatch.setattr(settings, "APP_ENV", "production")
-    assert _active_authority_allowed(arbitrary_demo) is False
+    assert active_authority_allowed(arbitrary_demo) is False
 
 
 def test_case1_demo_markers_cannot_be_reused_by_an_approved_non_demo_catalog():
@@ -213,7 +213,7 @@ def test_case1_demo_markers_cannot_be_reused_by_an_approved_non_demo_catalog():
         payload_checksum=case1_demo_payload_checksum(),
     )
 
-    assert _catalog_demo_markers_compatible(wrong_version, document.items) is False
+    assert catalog_demo_markers_compatible(wrong_version, document.items) is False
 
 
 @pytest.mark.asyncio

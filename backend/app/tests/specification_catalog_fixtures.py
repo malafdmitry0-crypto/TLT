@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 
-from heatcalc_specification_core.catalog_conditions import match_condition, not_applicable
+from heatcalc_specification_core.catalog.conditions import match_condition, not_applicable
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 

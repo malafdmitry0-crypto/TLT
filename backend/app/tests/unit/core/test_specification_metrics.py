@@ -15,6 +15,7 @@ def test_specification_metrics_render_low_cardinality_events() -> None:
     )
     metrics.observe_conflict("preflight_fingerprint_mismatch")
     metrics.observe_rollback(scope="request", reason="unexpected_exception")
+    metrics.observe_catalog_failure(operation="activation", reason="validation_failed")
     metrics.observe_duration(outcome="blocked", seconds=0.125)
 
     rendered = metrics.render()
@@ -23,6 +24,10 @@ def test_specification_metrics_render_low_cardinality_events() -> None:
     assert 'code="SPEC_GENERATION_CONFLICT"' in rendered
     assert 'reason="preflight_fingerprint_mismatch"' in rendered
     assert 'scope="request",reason="unexpected_exception"' in rendered
+    assert (
+        'specification_catalog_failures_total{operation="activation",reason="validation_failed"} 1'
+        in rendered
+    )
     assert (
         'specification_generation_duration_seconds_sum{outcome="blocked"} 0.125000000' in rendered
     )

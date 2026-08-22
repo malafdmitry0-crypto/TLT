@@ -28,6 +28,7 @@ class SpecificationMetrics:
         self._diagnostics: Counter[DiagnosticMetric] = Counter()
         self._conflicts: Counter[str] = Counter()
         self._rollbacks: Counter[tuple[str, str]] = Counter()
+        self._catalog_failures: Counter[tuple[str, str]] = Counter()
         self._duration_count: Counter[str] = Counter()
         self._duration_sum: dict[str, float] = defaultdict(float)
 
@@ -43,6 +44,12 @@ class SpecificationMetrics:
     def observe_rollback(self, *, scope: str, reason: str) -> None:
         with self._lock:
             self._rollbacks[(scope, reason)] += 1
+
+    def observe_catalog_failure(self, *, operation: str, reason: str) -> None:
+        """Record a controlled catalog failure without entity identifiers."""
+
+        with self._lock:
+            self._catalog_failures[(operation, reason)] += 1
 
     def observe_duration(self, *, outcome: str, seconds: float) -> None:
         with self._lock:
@@ -76,6 +83,12 @@ class SpecificationMetrics:
                     "specification_generation_rollbacks_total"
                     f'{{scope="{scope}",reason="{reason}"}} {count}'
                     for (scope, reason), count in sorted(self._rollbacks.items())
+                ),
+                "# TYPE specification_catalog_failures_total counter",
+                *(
+                    "specification_catalog_failures_total"
+                    f'{{operation="{operation}",reason="{reason}"}} {count}'
+                    for (operation, reason), count in sorted(self._catalog_failures.items())
                 ),
                 "# TYPE specification_generation_duration_seconds summary",
                 *(

@@ -7,9 +7,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.core.specification_metrics import specification_metrics
 from app.models.specification import (
     SpecificationCatalogItem,
     SpecificationCatalogVersion,
+)
+from app.reference_data.specification_catalog_case1_demo import (
+    bundled_case1_demo_catalog_document,
 )
 from app.services.specification_catalog import (
     SpecificationCatalogService,
@@ -148,7 +152,7 @@ def test_not_applicable_without_decision_ref_blocks_completeness():
 
 
 def test_all_not_applicable_ex_rgr_without_bool_discrimination_blocked():
-    from heatcalc_specification_core.catalog_conditions import not_applicable
+    from heatcalc_specification_core.catalog.conditions import not_applicable
 
     items = complete_specification_catalog_items()
     for item in items:
@@ -223,6 +227,25 @@ def test_payload_checksum_is_order_insensitive_only_after_explicit_sort():
     changed = [dict(item) for item in canonical]
     changed[0] = {**changed[0], "mark": f"{changed[0]['mark']}-changed"}
     assert canonical_catalog_checksum(canonical) != canonical_catalog_checksum(changed)
+
+
+async def test_import_draft_persists_version_and_all_immutable_rows():
+    document = bundled_case1_demo_catalog_document()
+    db = MagicMock()
+    db.scalar = AsyncMock(return_value=None)
+    db.flush = AsyncMock()
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock()
+
+    version = await SpecificationCatalogService(db).import_draft(document)
+
+    assert version.status == "draft"
+    assert version.catalog_key == document.catalog_key
+    assert version.version == document.version
+    assert version.item_count == len(document.items)
+    assert db.add.call_count == 1 + len(document.items)
+    db.commit.assert_awaited_once()
+    db.refresh.assert_awaited_once_with(version)
 
 
 @pytest.mark.parametrize(
@@ -581,3 +604,28 @@ def test_error_detail_is_stable_and_repeatable():
             "details": {"authority": "synthetic"},
         }
     )
+
+
+async def test_import_failure_records_low_cardinality_reason(monkeypatch):
+    observe = MagicMock()
+    monkeypatch.setattr(specification_metrics, "observe_catalog_failure", observe)
+    document = bundled_case1_demo_catalog_document().model_copy(
+        update={"source_checksum": "invalid"}
+    )
+
+    with pytest.raises(SpecificationCatalogServiceError):
+        await SpecificationCatalogService(AsyncMock()).import_draft(document)
+
+    observe.assert_called_once_with(operation="import", reason="invalid_document")
+
+
+async def test_activation_failure_records_low_cardinality_reason(monkeypatch):
+    observe = MagicMock()
+    monkeypatch.setattr(specification_metrics, "observe_catalog_failure", observe)
+    db = AsyncMock()
+    db.scalar = AsyncMock(return_value=None)
+
+    with pytest.raises(SpecificationCatalogServiceError):
+        await SpecificationCatalogService(db).activate(uuid.uuid4())
+
+    observe.assert_called_once_with(operation="activation", reason="not_found")
