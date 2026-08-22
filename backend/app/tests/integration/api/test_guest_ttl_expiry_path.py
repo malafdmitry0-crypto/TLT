@@ -24,11 +24,11 @@ class TestGuestTtlExpiryPath:
     async def test_expired_session_cleanup_returns_401_on_next_request(
         self, client: AsyncClient, db_session: AsyncSession
     ):
-        """After cleanup with short TTL, old session_id is rejected (expiry UX signal)."""
+        """After cleanup with short TTL, the old guest cookie is rejected."""
         created = (await client.post("/api/v1/auth/guest")).json()
         session_id = created["session_id"]
         # Touch projects to ensure project exists
-        projects = await client.get("/api/v1/projects", headers={"X-Session-Id": session_id})
+        projects = await client.get("/api/v1/projects")
         assert projects.status_code == 200
         assert len(projects.json()) == 1
 
@@ -43,16 +43,13 @@ class TestGuestTtlExpiryPath:
         deleted = await AuthService(db_session).cleanup_expired_guest_sessions(ttl_minutes=20)
         assert deleted >= 1
 
-        rejected = await client.get("/api/v1/projects", headers={"X-Session-Id": session_id})
+        rejected = await client.get("/api/v1/projects")
         assert rejected.status_code == 401
 
         # New guest session can start fresh empty project path
         fresh = (await client.post("/api/v1/auth/guest")).json()
         assert fresh["session_id"] != session_id
-        fresh_projects = await client.get(
-            "/api/v1/projects",
-            headers={"X-Session-Id": fresh["session_id"]},
-        )
+        fresh_projects = await client.get("/api/v1/projects")
         assert fresh_projects.status_code == 200
         assert len(fresh_projects.json()) == 1
 
@@ -72,7 +69,7 @@ class TestGuestTtlExpiryPath:
         await AuthService(db_session).cleanup_expired_guest_sessions(
             ttl_minutes=settings.GUEST_SESSION_TTL_MINUTES
         )
-        ok = await client.get("/api/v1/projects", headers={"X-Session-Id": session_id})
+        ok = await client.get("/api/v1/projects")
         assert ok.status_code == 200
         projects = (
             (await db_session.execute(select(Project).where(Project.session_id == session_id)))

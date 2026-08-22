@@ -88,9 +88,15 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session, test_engine) -> AsyncGenerator[AsyncClient, None]:
+    request_sessions = async_sessionmaker(test_engine, expire_on_commit=False)
+
     async def override_get_db():
-        yield db_session
+        async with request_sessions() as session:
+            try:
+                yield session
+            finally:
+                await session.rollback()
 
     async def override_worker_ready() -> None:
         return None

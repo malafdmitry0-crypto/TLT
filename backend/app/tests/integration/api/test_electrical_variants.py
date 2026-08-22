@@ -65,6 +65,7 @@ async def _seed_calculation_catalogs(
             email=admin_user.email,
         ),
     )
+    await db_session.commit()
 
 
 class _FakeTaskQueue:

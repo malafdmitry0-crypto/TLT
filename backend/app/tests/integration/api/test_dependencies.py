@@ -3,6 +3,8 @@
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import settings
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
@@ -42,10 +44,8 @@ class TestAuthBranches:
         assert resp.status_code == 401
 
     async def test_unknown_session_id_returns_401(self, client: AsyncClient):
-        resp = await client.get(
-            "/api/v1/projects",
-            headers={"X-Session-Id": "totally-unknown-session"},
-        )
+        client.cookies.set(settings.GUEST_COOKIE_NAME, "totally-unknown-session")
+        resp = await client.get("/api/v1/projects")
         assert resp.status_code == 401
 
     async def test_admin_token_can_access_admin_endpoints(

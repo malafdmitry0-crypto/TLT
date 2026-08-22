@@ -21,8 +21,10 @@ from app.models.electrical_variant import ElectricalVariantObject
 from app.models.project import Project
 from app.models.project_object import ProjectObject
 from app.models.specification import Specification
+from app.models.user import User
 from app.schemas.calculation import ElectricalRequest
 from app.schemas.electrical_assignment import ElectricalAssignmentMutationItem
+from app.seeds.catalogs import seed_electrical_catalogs
 from app.services.calculation.container import CalculationContainer
 from app.services.electrical_assignment_service import (
     ElectricalAssignmentService,
@@ -46,6 +48,22 @@ READY_PIPE_PARAMS = {
     "placement": "outdoor",
     "wind_speed": 0.0,
 }
+
+
+@pytest.fixture
+async def active_electrical_catalogs(
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
+    await db_session.commit()
 
 
 async def _guest_project(client: AsyncClient, session_id: str) -> dict:
@@ -1187,6 +1205,7 @@ class TestElectricalAssignmentApi:
         client: AsyncClient,
         guest_session: str,
         test_engine,
+        active_electrical_catalogs: None,
     ):
         project = await _guest_project(client, guest_session)
         headers = {"X-Session-Id": guest_session}

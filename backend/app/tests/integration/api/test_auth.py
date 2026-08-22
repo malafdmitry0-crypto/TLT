@@ -138,19 +138,27 @@ class TestGuestAuth:
         assert after == before
 
     async def test_guest_cannot_create_second_project(self, client: AsyncClient):
-        session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]
+        await client.post("/api/v1/auth/guest")
         resp = await client.post(
             "/api/v1/projects",
             json={"name": "Второй"},
-            headers={"X-Session-Id": session_id},
+            headers={"X-CSRF-Token": client.cookies[settings.CSRF_COOKIE_NAME]},
         )
         # Авто-проект уже создан при логине → второй запрещён
         assert resp.status_code == 429, resp.text
 
+    async def test_guest_cookie_write_requires_matching_csrf_header(self, client: AsyncClient):
+        await client.post("/api/v1/auth/guest")
+
+        resp = await client.post("/api/v1/projects", json={"name": "Второй"})
+
+        assert resp.status_code == 403
+        assert resp.json()["error_code"] == "CSRF_TOKEN_MISMATCH"
+
     async def test_any_request_touches_last_activity(
         self, client: AsyncClient, db_session: AsyncSession
     ):
-        """Любой запрос с X-Session-Id продлевает TTL сессии."""
+        """Любой запрос с guest cookie продлевает TTL сессии."""
         session_id = (await client.post("/api/v1/auth/guest")).json()["session_id"]
         # Искусственно «состариваем» сессию
         session = (
@@ -163,13 +171,14 @@ class TestGuestAuth:
         await db_session.commit()
 
         # Любой запрос обновит last_activity
-        await client.get("/api/v1/projects", headers={"X-Session-Id": session_id})
+        await client.get("/api/v1/projects")
 
         await db_session.refresh(session)
         assert session.last_activity > old + timedelta(minutes=10)
 
     async def test_unknown_session_rejected(self, client: AsyncClient):
-        resp = await client.get("/api/v1/projects", headers={"X-Session-Id": "bogus-session-id"})
+        client.cookies.set(settings.GUEST_COOKIE_NAME, "bogus-session-id")
+        resp = await client.get("/api/v1/projects")
         assert resp.status_code == 401
 
     async def test_cleanup_removes_expired_session_and_cascade(

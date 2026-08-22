@@ -6,10 +6,31 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import CurrentPrincipal
+from app.models.user import User
+from app.seeds.catalogs import seed_electrical_catalogs
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 MINERAL_WOOL = "mineral_wool_boards_120"
+
+
+@pytest.fixture(autouse=True)
+async def _active_electrical_catalogs(
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
+    await db_session.commit()
 
 
 def _headers(session_id: str) -> dict[str, str]:

@@ -7,15 +7,34 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import CurrentPrincipal
 from app.models.electrical_calculation import ElectricalCalculation
 from app.models.electrical_candidate import ElectricalCandidate
 from app.models.electrical_variant import ElectricalVariantObject
+from app.models.user import User
+from app.seeds.catalogs import seed_electrical_catalogs
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 CABLE_LENGTH_FACTOR = 1.1  # BR-CABLE-02
 MINERAL_WOOL = "mineral_wool_boards_120"
 POLYURETHANE = "polyurethane_products_40"
+
+
+@pytest.fixture(autouse=True)
+async def _active_electrical_catalogs(
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    await seed_electrical_catalogs(
+        db_session,
+        CurrentPrincipal(
+            role="admin",
+            user_id=admin_user.id,
+            email=admin_user.email,
+        ),
+    )
+    await db_session.commit()
 
 
 async def _create_project(client: AsyncClient, session_id: str) -> dict:
@@ -419,8 +438,10 @@ class TestHeatLossCalculation:
 
 
 class TestElectricalCalculation:
-    async def test_list_electrical_empty_project(self, client: AsyncClient, guest_session: str):
-        """Пустой UUID-scope возвращает пустую выборку расчётов."""
+    async def test_list_electrical_scope_includes_assigned_uncalculated_object(
+        self, client: AsyncClient, guest_session: str
+    ):
+        """UUID-scope lists assigned objects before their first calculation."""
         project = await _create_project(client, guest_session)
         obj = await _create_pipe_object(client, project["id"], guest_session)
         variant = await _assign_electrical_object(client, project["id"], obj["id"], guest_session)
@@ -433,7 +454,9 @@ class TestElectricalCalculation:
             headers={"X-Session-Id": guest_session},
         )
         assert resp.status_code == 200, resp.text
-        assert resp.json()["items"] == []
+        body = resp.json()
+        assert body["counts"]["filtered"] == 1
+        assert body["items"][0]["id"] == obj["id"]
 
     @pytest.mark.parametrize("retired_type", ["mineral", "skin"])
     async def test_electrical_candidate_retired_type_is_rejected_at_schema(
@@ -826,7 +849,7 @@ class TestElectricalCalculationContinued:
         )
 
         assert resp.status_code == 200, resp.text
-        assert resp.json()["items"] == []
+        assert [item["id"] for item in resp.json()["items"]] == [obj["id"]]
         after_count = (
             await db_session.execute(
                 select(func.count(ElectricalCalculation.id)).where(
@@ -1263,12 +1286,14 @@ class TestElectricalCalculationContinued:
             headers={"X-Session-Id": guest_session},
         )
         assert listing_response.status_code == 200, listing_response.text
-        listing = listing_response.json()["items"]
-        assert len(listing) == 1
-        assert listing[0]["results"]["error_code"]
-        assert listing[0]["results"]["category"] == "validation"
-        assert listing[0]["results"]["message"]
-        assert "error" not in listing[0]["results"]
+        listing = listing_response.json()
+        assert len(listing["items"]) == 1
+        assert len(listing["calculations"]) == 1
+        results = listing["calculations"][0]["results"]
+        assert results["error_code"]
+        assert results["category"] == "validation"
+        assert results["message"]
+        assert "error" not in results
 
 
 class TestNoDoubleSafetyFactor:
@@ -1400,10 +1425,12 @@ class TestVariantIsolation:
                 headers={"X-Session-Id": guest_session},
             )
             assert response.status_code == 200, response.text
-            return response.json()["items"]
+            return response.json()["calculations"]
 
         only_v1 = await query_variant(first_variant["id"])
         only_v2 = await query_variant(second_variant["id"])
         assert len(only_v1) == 1
         assert len(only_v2) == 1
         assert only_v1[0]["id"] != only_v2[0]["id"]
+        assert only_v1[0]["electrical_variant_id"] == first_variant["id"]
+        assert only_v2[0]["electrical_variant_id"] == second_variant["id"]
